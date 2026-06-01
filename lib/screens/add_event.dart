@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/event.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:uuid/uuid.dart';
@@ -1291,9 +1292,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   Widget _buildAddImageThumb(
       Color borderColor, Color accentSoftColor, Color accentDeepColor) {
     return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('添加更多图片')),
-      ),
+      onTap: () => Utils.pickMultipleImages(),
+      
       child: Container(
         width: 64,
         height: 64,

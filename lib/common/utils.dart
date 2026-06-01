@@ -27,7 +27,7 @@ class Utils {
   }
 
  // 选择多张图片的函数
-Future<List<File>?> pickMultipleImages({
+static Future<List<File>?> pickMultipleImages({
   double? maxWidth,
   double? maxHeight,
   int? imageQuality, // 范围 0-100
@@ -55,7 +55,7 @@ Future<List<File>?> pickMultipleImages({
 }
 
   // 方法：调用相机拍摄一张照片
-  Future<String?> _takePhoto() async {
+  static Future<String?> _takePhoto() async {
      _picker ??= ImagePicker();
     try {
       final XFile? pickedFile = await _picker!.pickImage(
