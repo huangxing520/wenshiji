@@ -5,17 +5,17 @@ import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/event.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:uuid/uuid.dart';
+import 'package:wenshiji/widget/card.dart';
 
 enum AddEventMode { birthday, task, holiday }
 
 enum CalendarType { solar, lunar }
 
-typedef CategoryTagType = ({
-  String label,
-  String value,
-});
+typedef CategoryTagType = ({String label, String value});
+
 class AddEventScreen extends ConsumerStatefulWidget {
-  const AddEventScreen({super.key});
+  const AddEventScreen({super.key, this.event});
+  final Event? event;
 
   @override
   ConsumerState<AddEventScreen> createState() => _AddEventScreenState();
@@ -23,17 +23,19 @@ class AddEventScreen extends ConsumerStatefulWidget {
 
 class _AddEventScreenState extends ConsumerState<AddEventScreen>
     with SingleTickerProviderStateMixin {
+  late String _uuid;
   final _nameController = TextEditingController();
   final _birthdayNameController = TextEditingController();
   final _notesController = TextEditingController();
   List<CategoryTagType> tags = [
-      (label: '💝 纪念日', value: '纪念日'),
-      (label: '💼 工作', value: '工作'),
-      (label: '🏠 生活', value: '生活'),
-    ];
+    (label: '💝 纪念日', value: '纪念日'),
+    (label: '💼 工作', value: '工作'),
+    (label: '🏠 生活', value: '生活'),
+  ];
 
   AddEventMode _currentMode = AddEventMode.birthday;
   EventPriority _currentPriority = EventPriority.high;
+
   /// 是否是倒计时模式
   bool _isCountdown = true;
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
@@ -49,6 +51,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   @override
   void initState() {
     super.initState();
+    _uuid = widget.event?.id ?? const Uuid().v4();
     _nameController.addListener(_updateButtonState);
     _birthdayNameController.addListener(_updateButtonState);
   }
@@ -61,13 +64,11 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     super.dispose();
   }
 
-  bool get _isFormValid => switch(_currentMode) {
+  bool get _isFormValid => switch (_currentMode) {
     AddEventMode.birthday => _birthdayNameController.text.trim().isNotEmpty,
     AddEventMode.task => _nameController.text.trim().isNotEmpty,
     AddEventMode.holiday => _nameController.text.trim().isNotEmpty,
   };
-
-
 
   void _updateButtonState() {
     setState(() {});
@@ -99,15 +100,14 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
       if (_selectedReminders.contains(rem)) {
         _selectedReminders.remove(rem);
         if (!_selectedReminders.isNotEmpty) {
-        _selectedReminders.add(EventReminder.none);
-      }
+          _selectedReminders.add(EventReminder.none);
+        }
       } else {
         _selectedReminders.add(rem);
         if (_selectedReminders.contains(EventReminder.none)) {
           _selectedReminders.remove(EventReminder.none);
         }
-      } 
-      
+      }
     });
   }
 
@@ -134,9 +134,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                 _selectedTags.add(value.trim());
               });
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('标签已添加')),
-              );
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('标签已添加')));
             }
           },
         ),
@@ -176,9 +176,15 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     }
   }
 
-  void _saveEvent() {
+  void _saveEvent() async {
     if (!_isFormValid) return;
-
+      List<String> imagePaths;
+     try {
+      imagePaths = await ref.read(savedImagePathsForIdProvider(_uuid).future);
+    } catch (e) {
+      // 读取失败时给一个空列表，或者提示用户
+      imagePaths = [];
+    }
     final event = Event(
       id: const Uuid().v4(),
       name: _currentMode == AddEventMode.birthday
@@ -192,20 +198,29 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
         _selectedTime.minute,
       ),
       type: switch (_currentMode) {
-         AddEventMode.birthday=>
-           EventType.birthday,
-         AddEventMode.task=>
+        AddEventMode.birthday => EventType.birthday,
+        AddEventMode.task =>
           _isCountdown ? EventType.task : EventType.dailySignIn,
-         AddEventMode.holiday=>
-           EventType.holiday,
-        },
-      priority: _currentPriority ,
+        AddEventMode.holiday => EventType.holiday,
+      },
+      priority: _currentPriority,
       tags: _selectedTags.toList(),
       reminder: _selectedReminders.toList(),
       description: _notesController.text.trim(),
-    );
+      picturePaths: imagePaths,
+         );
 
-    ref.read(eventProvider.notifier).addEvent(event);
+    try {
+      await ref.read(eventProvider.notifier).addEvent(event);
+    } catch (e) {
+      // 处理异常，例如显示错误提示
+      print('添加事件失败: $e');
+      // 显示错误提示
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('添加事件失败')),
+      );
+      return;
+    }
 
     setState(() {
       _showSuccess = true;
@@ -219,7 +234,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     _nameController.clear();
     _birthdayNameController.clear();
     _notesController.clear();
-   // context.go('/homepage');
+    // context.go('/homepage');
   }
 
   @override
@@ -242,8 +257,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
             children: [
               _buildStatusBar(bgColor, fgColor),
               _buildTopNav(accentSoftColor, accentDeepColor, fgColor),
-              _buildModeTabs(accentSoftColor, accentColor, accentDeepColor,
-                  fgColor, mutedColor),
+              _buildModeTabs(
+                accentSoftColor,
+                accentColor,
+                accentDeepColor,
+                fgColor,
+                mutedColor,
+              ),
               Expanded(
                 child: _buildFormScroll(
                   surfaceColor,
@@ -256,12 +276,21 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                 ),
               ),
               _buildBottomBar(
-                  accentColor, fgColor, accentSoftColor, mutedColor),
+                accentColor,
+                fgColor,
+                accentSoftColor,
+                mutedColor,
+              ),
             ],
           ),
           if (_showSuccess)
-            _buildSuccessOverlay(surfaceColor, accentSoftColor, accentDeepColor,
-                fgColor, mutedColor),
+            _buildSuccessOverlay(
+              surfaceColor,
+              accentSoftColor,
+              accentDeepColor,
+              fgColor,
+              mutedColor,
+            ),
         ],
       ),
     );
@@ -296,7 +325,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   }
 
   Widget _buildTopNav(
-      Color accentSoftColor, Color accentDeepColor, Color fgColor) {
+    Color accentSoftColor,
+    Color accentDeepColor,
+    Color fgColor,
+  ) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -352,14 +384,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
           AnimatedAlign(
             duration: const Duration(milliseconds: 400),
             curve: Curves.easeOutCubic,
-            alignment: 
-            switch (_currentMode) {
-               AddEventMode.birthday=> Alignment.centerLeft,
-               AddEventMode.task=> Alignment.center,
-               AddEventMode.holiday=> Alignment.centerRight,
+            alignment: switch (_currentMode) {
+              AddEventMode.birthday => Alignment.centerLeft,
+              AddEventMode.task => Alignment.center,
+              AddEventMode.holiday => Alignment.centerRight,
             },
             child: FractionallySizedBox(
-              widthFactor:1.0 / 3,
+              widthFactor: 1.0 / 3,
               child: Container(
                 height: 40,
                 margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -453,7 +484,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                     ),
                   ),
                 ),
-              )
+              ),
             ],
           ),
         ],
@@ -475,11 +506,29 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
       child: Column(
         children: [
           _buildBasicSection(
-              surfaceColor, accentColor, borderColor, fgColor, mutedColor),
-          _buildAdvancedSection(surfaceColor, accentSoftColor, accentDeepColor,
-              accentColor, borderColor, fgColor, mutedColor),
-          _buildNotesSection(surfaceColor, accentSoftColor, accentDeepColor,
-              borderColor, fgColor, mutedColor),
+            surfaceColor,
+            accentColor,
+            borderColor,
+            fgColor,
+            mutedColor,
+          ),
+          _buildAdvancedSection(
+            surfaceColor,
+            accentSoftColor,
+            accentDeepColor,
+            accentColor,
+            borderColor,
+            fgColor,
+            mutedColor,
+          ),
+          _buildNotesSection(
+            surfaceColor,
+            accentSoftColor,
+            accentDeepColor,
+            borderColor,
+            fgColor,
+            mutedColor,
+          ),
           const SizedBox(height: 120),
         ],
       ),
@@ -523,7 +572,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
               fgColor,
               mutedColor,
             ),
-         if (_currentMode == AddEventMode.holiday)
+          if (_currentMode == AddEventMode.holiday)
             _buildTextField(
               '节日名称',
               _nameController,
@@ -546,7 +595,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
               mutedColor,
             ),
           _buildDateField(
-              surfaceColor, accentColor, borderColor, fgColor, mutedColor),
+            surfaceColor,
+            accentColor,
+            borderColor,
+            fgColor,
+            mutedColor,
+          ),
         ],
       ),
     );
@@ -603,8 +657,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                 hintText: placeholder,
                 hintStyle: TextStyle(color: mutedColor),
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
               ),
             ),
           ),
@@ -654,7 +710,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   onTap: _selectDate,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 13),
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: borderColor, width: 1.5),
@@ -673,7 +731,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   onTap: _selectTime,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 13),
+                      horizontal: 16,
+                      vertical: 13,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: borderColor, width: 1.5),
@@ -735,39 +795,69 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   child: AnimatedRotation(
                     duration: const Duration(milliseconds: 300),
                     turns: _isAdvancedExpanded ? 0 : -0.25,
-                    child: Icon(Icons.keyboard_arrow_down,
-                        color: accentDeepColor, size: 16),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      color: accentDeepColor,
+                      size: 16,
+                    ),
                   ),
                 ),
               ),
             ],
           ),
-         
-            _isAdvancedExpanded
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_currentMode == AddEventMode.task)
-                          _buildRepeatField(
-                            surfaceColor, borderColor, fgColor, mutedColor),
-                        _buildPriorityField(surfaceColor, accentColor,
-                            borderColor, fgColor, mutedColor), 
-                            if (_currentMode == AddEventMode.task)
-                            _buildTimerField(surfaceColor, accentSoftColor,
-                            accentColor, borderColor, fgColor, mutedColor),
-                         (!_isCountdown&&_currentMode==AddEventMode.task)?const SizedBox.shrink():
-                        _buildReminderField(surfaceColor, accentSoftColor,
-                            accentDeepColor, borderColor, fgColor, mutedColor),
-                       
-                        _buildTagField(surfaceColor, accentSoftColor,
-                            accentDeepColor, borderColor, fgColor, mutedColor),
-                      ],
-                    ),
-                  )
-                : const SizedBox.shrink(),
-          
+
+          _isAdvancedExpanded
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (_currentMode == AddEventMode.task)
+                        _buildRepeatField(
+                          surfaceColor,
+                          borderColor,
+                          fgColor,
+                          mutedColor,
+                        ),
+                      _buildPriorityField(
+                        surfaceColor,
+                        accentColor,
+                        borderColor,
+                        fgColor,
+                        mutedColor,
+                      ),
+                      if (_currentMode == AddEventMode.task)
+                        _buildTimerField(
+                          surfaceColor,
+                          accentSoftColor,
+                          accentColor,
+                          borderColor,
+                          fgColor,
+                          mutedColor,
+                        ),
+                      (!_isCountdown && _currentMode == AddEventMode.task)
+                          ? const SizedBox.shrink()
+                          : _buildReminderField(
+                              surfaceColor,
+                              accentSoftColor,
+                              accentDeepColor,
+                              borderColor,
+                              fgColor,
+                              mutedColor,
+                            ),
+
+                      _buildTagField(
+                        surfaceColor,
+                        accentSoftColor,
+                        accentDeepColor,
+                        borderColor,
+                        fgColor,
+                        mutedColor,
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(),
         ],
       ),
     );
@@ -796,34 +886,33 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
           LayoutBuilder(
             builder: (context, constraints) {
               return Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: borderColor, width: 1.5),
-                    color: surfaceColor,
-                  ),
-                  child: DropdownMenu<String>(
-                    expandedInsets: EdgeInsets.zero, // 👈 让宽度完全贴合父组件
-                  
-                    dropdownMenuEntries: const [
-                      DropdownMenuEntry(value: 'none', label: '不重复'),
-                      DropdownMenuEntry(value: 'daily', label: '每日'),
-                      DropdownMenuEntry(value: 'weekly', label: '每周'),
-                      DropdownMenuEntry(value: 'monthly', label: '每月'),
-                      DropdownMenuEntry(value: 'yearly', label: '每年'),
-                    ],
-       
-                    initialSelection: _repeatRule,
-                    inputDecorationTheme: InputDecorationTheme(
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                    ),
-                    textStyle: TextStyle(fontSize: 15, color: fgColor),
-                    onSelected: (String? value) {
-                      _repeatRule = value!;
-                    },
-                  )
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: borderColor, width: 1.5),
+                  color: surfaceColor,
+                ),
+                child: DropdownMenu<String>(
+                  expandedInsets: EdgeInsets.zero, // 👈 让宽度完全贴合父组件
 
-                  );
+                  dropdownMenuEntries: const [
+                    DropdownMenuEntry(value: 'none', label: '不重复'),
+                    DropdownMenuEntry(value: 'daily', label: '每日'),
+                    DropdownMenuEntry(value: 'weekly', label: '每周'),
+                    DropdownMenuEntry(value: 'monthly', label: '每月'),
+                    DropdownMenuEntry(value: 'yearly', label: '每年'),
+                  ],
+
+                  initialSelection: _repeatRule,
+                  inputDecorationTheme: InputDecorationTheme(
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  textStyle: TextStyle(fontSize: 15, color: fgColor),
+                  onSelected: (String? value) {
+                    _repeatRule = value!;
+                  },
+                ),
+              );
             },
           ),
         ],
@@ -872,8 +961,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   transform: isSelected
                       ? Matrix4.identity().scaledByDouble(1.04, 1.04, 1.0, 1.0)
                       : Matrix4.identity(),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
@@ -959,8 +1050,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   transform: isSelected
                       ? Matrix4.identity().scaledByDouble(1.04, 1.04, 1.0, 1.0)
                       : Matrix4.identity(),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 9,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
@@ -1017,8 +1110,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     transform: _isCountdown
-                        ? Matrix4.identity()
-                            .scaledByDouble(1.03, 1.03, 1.0, 1.0)
+                        ? Matrix4.identity().scaledByDouble(
+                            1.03,
+                            1.03,
+                            1.0,
+                            1.0,
+                          )
                         : Matrix4.identity(),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     decoration: BoxDecoration(
@@ -1065,8 +1162,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeOutCubic,
                     transform: !_isCountdown
-                        ? Matrix4.identity()
-                            .scaledByDouble(1.03, 1.03, 1.0, 1.0)
+                        ? Matrix4.identity().scaledByDouble(
+                            1.03,
+                            1.03,
+                            1.0,
+                            1.0,
+                          )
                         : Matrix4.identity(),
                     padding: const EdgeInsets.symmetric(vertical: 13),
                     decoration: BoxDecoration(
@@ -1120,8 +1221,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-   
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -1148,13 +1247,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   onTap: () => _toggleTag(tag.value),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color:
-                            isSelected ? const Color(0xFFD4A853) : borderColor,
+                        color: isSelected
+                            ? const Color(0xFFD4A853)
+                            : borderColor,
                         width: 1.5,
                       ),
                       color: isSelected ? accentSoftColor : surfaceColor,
@@ -1177,18 +1279,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   height: 36,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: borderColor,
-                      width: 2,
-                    ),
+                    border: Border.all(color: borderColor, width: 2),
                   ),
                   child: Center(
                     child: Text(
                       '+',
                       style: TextStyle(
-                          fontSize: 18,
-                          color: mutedColor,
-                          fontWeight: FontWeight.w400),
+                        fontSize: 18,
+                        color: mutedColor,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
                   ),
                 ),
@@ -1208,9 +1308,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeOutCubic,
+    final cardItemsAsync = ref.watch(getCardItemsProvider(_uuid));
+    print('ssssssss');
+    return Container(
       margin: const EdgeInsets.only(top: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1242,46 +1342,74 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                 hintText: '记录一些想说的话…',
                 hintStyle: TextStyle(color: mutedColor),
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              _buildImageThumb(accentSoftColor, accentDeepColor),
-              const SizedBox(width: 8),
-              _buildImageThumb(accentSoftColor, accentDeepColor),
-              const SizedBox(width: 8),
-              _buildAddImageThumb(
-                  borderColor, accentSoftColor, accentDeepColor),
-              const SizedBox(width: 8),
-              Text(
-                '2/9',
-                style: TextStyle(fontSize: 11, color: mutedColor),
-              ),
-            ],
+
+          cardItemsAsync.when(
+            loading: () => CircularProgressIndicator(),
+            error: (err, stack) => Text('Error: $err'),
+            data: (imagePaths) => Wrap(
+              runSpacing: 12, // 行与行之间的垂直间距
+              spacing: 12, // 图片之间的水平间距（代替手动SizedBox）
+              crossAxisAlignment: WrapCrossAlignment.end,
+              runAlignment: WrapAlignment.end,
+              children: [
+                ...imagePaths.expand((e) {
+                  return [
+                    ImageCardWidget(
+                      key: Key(e.imagePath),
+                      card: e,
+                      onDelete: () async {
+                        await ref
+                            .read(imageServiceProvider)
+                            .deleteImageAtIndexForId(
+                              _uuid,
+                              imagePaths.indexOf(e),
+                            );
+                        ref.invalidate(savedImagePathsForIdProvider(_uuid));
+                      },
+                    ),
+                  ];
+                }).toList(),
+                _buildAddImageThumb(
+                  borderColor,
+                  accentSoftColor,
+                  accentDeepColor,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildImageThumb(Color accentSoftColor, Color accentDeepColor) {
+  Widget _buildImageThumb(
+    Color accentSoftColor,
+    Color accentDeepColor,
+    String imagePath,
+  ) {
+    print(imagePath);
     return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('图片选择开发中')),
-      ),
+      onTap: () => ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('图片选择开发中'))),
       child: Container(
         width: 64,
         height: 64,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-              color: const Color(0xFFE5E0D2),
-              width: 1.5,
-              style: BorderStyle.solid),
+            color: const Color(0xFFE5E0D2),
+            width: 1.5,
+            style: BorderStyle.solid,
+          ),
           color: accentSoftColor,
         ),
         child: Icon(Icons.image_outlined, color: accentDeepColor, size: 24),
@@ -1290,25 +1418,43 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   }
 
   Widget _buildAddImageThumb(
-      Color borderColor, Color accentSoftColor, Color accentDeepColor) {
+    Color borderColor,
+    Color accentSoftColor,
+    Color accentDeepColor,
+  ) {
     return GestureDetector(
-      onTap: () => Utils.pickMultipleImages(),
-      
+      onTap: () async {
+        final paths = await ref
+            .read(imageServiceProvider)
+            .pickAndSaveMultipleImagesForId(_uuid);
+        if (paths.isNotEmpty) {
+          ref.invalidate(savedImagePathsForIdProvider(_uuid));
+          ref.invalidate(savedImageFilesForIdProvider(_uuid));
+        }
+      },
+
       child: Container(
         width: 64,
         height: 64,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-              color: borderColor, width: 1.5, style: BorderStyle.solid),
+            color: borderColor,
+            width: 1.5,
+            style: BorderStyle.solid,
+          ),
         ),
         child: Icon(Icons.add, color: accentDeepColor, size: 24),
       ),
     );
   }
 
-  Widget _buildBottomBar(Color accentColor, Color fgColor,
-      Color accentSoftColor, Color mutedColor) {
+  Widget _buildBottomBar(
+    Color accentColor,
+    Color fgColor,
+    Color accentSoftColor,
+    Color mutedColor,
+  ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
       decoration: BoxDecoration(
@@ -1403,19 +1549,17 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
               const SizedBox(height: 6),
               Text(
                 '事件已添加到你的提醒列表',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: mutedColor,
-                  height: 1.5,
-                ),
+                style: TextStyle(fontSize: 14, color: mutedColor, height: 1.5),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
               GestureDetector(
                 onTap: _closeSuccess,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(20),
                     color: const Color(0xFFD4A853),

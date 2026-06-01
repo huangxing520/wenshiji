@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:intl/intl.dart';
 import 'package:location/location.dart';
 import 'package:uuid/uuid.dart';
@@ -31,7 +32,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     preferences.saveInitState(true);
-    _loadWeatherData();
+    //_loadWeatherData();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
       if (mounted) {
         setState(() {});
@@ -81,9 +82,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: Color(0xFFD4A853),
                       ),
                     ),
-                    error: (error, stackTrace) => Center(
-                      child: Text('加载失败: $error'),
-                    ),
+                    error: (error, stackTrace) =>
+                        Center(child: Text('加载失败: $error')),
                     data: (_) => _buildContent(filteredEvents, stats),
                   ),
                 ),
@@ -121,11 +121,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 children: [
                   IconButton(
                     icon: Icon(Icons.search, color: Color(0xFF8B7648)),
-                    onPressed: () => _showToast('搜索功能开发中'),
+                    onPressed: () => Utils().showErrorToast( '搜索功能开发中',null),
                   ),
                   IconButton(
                     icon: Icon(Icons.settings, color: Color(0xFF8B7648)),
-                    onPressed: () => _showToast('设置页面开发中'),
+                    onPressed: () => context.push('/profile'),
                   ),
                 ],
               ),
@@ -192,17 +192,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         Row(
           children: [
             Expanded(
-              child: _StatPill(
-                number: stats['today'] ?? 0,
-                label: '今日待提醒',
-              ),
+              child: _StatPill(number: stats['today'] ?? 0, label: '今日待提醒'),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _StatPill(
-                number: stats['upcoming'] ?? 0,
-                label: '近3天重点',
-              ),
+              child: _StatPill(number: stats['upcoming'] ?? 0, label: '近3天重点'),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -231,25 +225,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _ => ConfigConstant.defaultColor,
     };
     return CardSpring(
-        trigger: currentCategory,
-        child: Column(
-          children: events.map((event) {
-            if (event.isPinned) {
-              return _PinnedCard(
-                event: event,
-                onLongPress: () => _showContextMenuFor(event.id),
-                seasonColors: seasonColors,
-              );
-            } else {
-              return _EventCard(
-                event: event,
-                today: today,
-                onLongPress: () => _showContextMenuFor(event.id),
-                onQuickCheckin: () => _quickCheckin(event.id),
-              );
-            }
-          }).toList(),
-        ));
+      trigger: currentCategory,
+      child: Column(
+        children: events.map((event) {
+          if (event.isPinned) {
+            return _PinnedCard(
+              event: event,
+              onLongPress: () => _showContextMenuFor(event.id),
+              seasonColors: seasonColors,
+            );
+          } else {
+            return _EventCard(
+              event: event,
+              today: today,
+              onLongPress: () => _showContextMenuFor(event.id),
+              onQuickCheckin: () => _quickCheckin(event.id),
+            );
+          }
+        }).toList(),
+      ),
+    );
   }
 
   Widget _buildEmptyState() {
@@ -283,10 +278,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: 6),
           Text(
             '点击下方按钮，添加你的第一个重要时刻',
-            style: TextStyle(
-              fontSize: 14,
-              color: const Color(0xFF8B8066),
-            ),
+            style: TextStyle(fontSize: 14, color: const Color(0xFF8B8066)),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -301,10 +293,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
             child: Text(
               '快速添加事件',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -332,11 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          child: Icon(
-            Icons.add,
-            size: 28,
-            color: const Color(0xFF383428),
-          ),
+          child: Icon(Icons.add, size: 28, color: const Color(0xFF383428)),
         ),
       ),
     );
@@ -505,17 +490,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // }
 
   void _showToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: const Color(0xFF383428).withValues(alpha: 0.92),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
+    Utils().showToast(message, null);
   }
 }
 
@@ -523,10 +498,7 @@ class _StatPill extends StatelessWidget {
   final int number;
   final String label;
 
-  const _StatPill({
-    required this.number,
-    required this.label,
-  });
+  const _StatPill({required this.number, required this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -620,10 +592,7 @@ class _PinnedCardState extends State<_PinnedCard>
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 30 * (1 - value)),
-          child: Opacity(
-            opacity: value.clamp(0.0, 1.0),
-            child: child,
-          ),
+          child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
         );
       },
       child: GestureDetector(
@@ -682,7 +651,9 @@ class _PinnedCardState extends State<_PinnedCard>
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 3),
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(10),
@@ -690,9 +661,11 @@ class _PinnedCardState extends State<_PinnedCard>
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.star,
-                                size: 12,
-                                color: Colors.black.withValues(alpha: 0.7)),
+                            Icon(
+                              Icons.star,
+                              size: 12,
+                              color: Colors.black.withValues(alpha: 0.7),
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               '置顶',
@@ -724,51 +697,55 @@ class _PinnedCardState extends State<_PinnedCard>
                       ),
                       const SizedBox(height: 10),
                       TweenAnimationBuilder<int>(
-                          tween: IntTween(begin: 0, end: days),
-                          duration: const Duration(milliseconds: 800),
-                          curve: Curves.easeOutBack,
-                          builder: (context, value, child) {
-                            return TweenAnimationBuilder<double>(
-                                tween: Tween(begin: 0.1, end: 1.0),
-                                duration: const Duration(milliseconds: 600),
-                                curve: Curves.easeOutBack,
-                                builder: (context, animValue, child) {
-                                  return Transform.translate(
-                                    offset: Offset(0, 10 * (1 - animValue)),
-                                    child: Transform.scale(
-                                      scale: 0.5 + (0.5 * animValue),
-                                      child: Opacity(
-                                        opacity: animValue.clamp(0.0, 1.0),
-                                        child: child,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        value.toString(),
-                                        style: const TextStyle(
-                                          fontSize: 52,
-                                          fontWeight: FontWeight.w900,
-                                          color: Color(0xFF302D26),
-                                          fontFamily: 'KaiTi',
-                                          height: 1,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        '天',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF302D26)
-                                              .withValues(alpha: 0.7),
-                                        ),
-                                      ),
-                                    ]));
-                          }),
+                        tween: IntTween(begin: 0, end: days),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOutBack,
+                        builder: (context, value, child) {
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.1, end: 1.0),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutBack,
+                            builder: (context, animValue, child) {
+                              return Transform.translate(
+                                offset: Offset(0, 10 * (1 - animValue)),
+                                child: Transform.scale(
+                                  scale: 0.5 + (0.5 * animValue),
+                                  child: Opacity(
+                                    opacity: animValue.clamp(0.0, 1.0),
+                                    child: child,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  value.toString(),
+                                  style: const TextStyle(
+                                    fontSize: 52,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF302D26),
+                                    fontFamily: 'KaiTi',
+                                    height: 1,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '天',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(
+                                      0xFF302D26,
+                                    ).withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ),
@@ -776,8 +753,10 @@ class _PinnedCardState extends State<_PinnedCard>
                   top: 16,
                   right: 16,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
@@ -834,11 +813,13 @@ class _PinnedParticlesState extends State<_PinnedParticles> {
 
   void _generateParticles() {
     for (int i = 0; i < 8; i++) {
-      _particles.add(_ParticleData(
-        left: 10 + (i * 10.0) + (i % 2 == 0 ? 5 : 0),
-        size: 4 + (i % 3) * 2.0,
-        delay: i * 0.3,
-      ));
+      _particles.add(
+        _ParticleData(
+          left: 10 + (i * 10.0) + (i % 2 == 0 ? 5 : 0),
+          size: 4 + (i % 3) * 2.0,
+          delay: i * 0.3,
+        ),
+      );
     }
   }
 
@@ -868,21 +849,14 @@ class _ParticleData {
   final double size;
   final double delay;
 
-  _ParticleData({
-    required this.left,
-    required this.size,
-    required this.delay,
-  });
+  _ParticleData({required this.left, required this.size, required this.delay});
 }
 
 class _ParticlePainter extends CustomPainter {
   final List<_ParticleData> particles;
   final double progress;
 
-  _ParticlePainter({
-    required this.particles,
-    required this.progress,
-  });
+  _ParticlePainter({required this.particles, required this.progress});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -892,8 +866,8 @@ class _ParticlePainter extends CustomPainter {
       final opacity = adjustedProgress < 0.1
           ? adjustedProgress * 10
           : adjustedProgress > 0.9
-              ? (1 - adjustedProgress) * 10
-              : 1.0;
+          ? (1 - adjustedProgress) * 10
+          : 1.0;
       final scale = 1.0 - (adjustedProgress * 0.8);
 
       final paint = Paint()
@@ -966,8 +940,9 @@ class _EventCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: _getPriorityColor(event.priority)
-                          .withValues(alpha: 0.35),
+                      color: _getPriorityColor(
+                        event.priority,
+                      ).withValues(alpha: 0.35),
                       blurRadius: 6,
                     ),
                   ],
@@ -1005,7 +980,9 @@ class _EventCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE8D4A0),
                           borderRadius: BorderRadius.circular(6),
@@ -1024,7 +1001,9 @@ class _EventCard extends StatelessWidget {
                           onTap: event.checkedToday ? null : onQuickCheckin,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 3),
+                              horizontal: 10,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: event.checkedToday
                                   ? const Color(0xFFE8F5E8)
@@ -1048,8 +1027,8 @@ class _EventCard extends StatelessWidget {
                                 Text(
                                   event.checkedToday
                                       ? (event.streak > 0
-                                          ? '连续打卡${event.streak}天'
-                                          : '今日已打卡')
+                                            ? '连续打卡${event.streak}天'
+                                            : '今日已打卡')
                                       : '今日未打卡',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -1163,8 +1142,9 @@ class _BottomNavItem extends StatelessWidget {
             Icon(
               icon,
               size: 22,
-              color:
-                  isActive ? const Color(0xFF8B6F3A) : const Color(0xFF8B8066),
+              color: isActive
+                  ? const Color(0xFF8B6F3A)
+                  : const Color(0xFF8B8066),
             ),
             const SizedBox(height: 3),
             Text(
@@ -1208,8 +1188,9 @@ class _ContextMenuItem extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color:
-                  isDanger ? const Color(0xFFFF6B6B) : const Color(0xFF8B8066),
+              color: isDanger
+                  ? const Color(0xFFFF6B6B)
+                  : const Color(0xFF8B8066),
             ),
             const SizedBox(width: 12),
             Text(
@@ -1289,8 +1270,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide:
-                        const BorderSide(color: Color(0xFFD4A853), width: 1.5),
+                    borderSide: const BorderSide(
+                      color: Color(0xFFD4A853),
+                      width: 1.5,
+                    ),
                   ),
                 ),
               ),
@@ -1329,8 +1312,11 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.calendar_today,
-                          color: Color(0xFFD4A853), size: 20),
+                      const Icon(
+                        Icons.calendar_today,
+                        color: Color(0xFFD4A853),
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Text(
                         DateFormat('yyyy-MM-dd').format(_selectedDate),
@@ -1363,10 +1349,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color:
-                            isSelected ? const Color(0xFFE8D4A0) : Colors.white,
+                        color: isSelected
+                            ? const Color(0xFFE8D4A0)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
@@ -1399,10 +1388,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                   children: [
                     const Text(
                       '启用后可每日打卡记录',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Color(0xFF8B8066),
-                      ),
+                      style: TextStyle(fontSize: 14, color: Color(0xFF8B8066)),
                     ),
                     GestureDetector(
                       onTap: () {
@@ -1461,10 +1447,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 ),
                 child: const Text(
                   '确认添加',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ),
             ),
@@ -1647,49 +1630,50 @@ class CategoryTabItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-        onTap: onTap,
-        // AnimatedContainer 自动实现状态切换的平滑动画
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200), // 切换动画时长
-          curve: Curves.easeOut,
-          padding: padding,
-          margin: const EdgeInsets.only(right: 14, top: 4),
-          decoration: BoxDecoration(
-            // 背景色：选中时白色，未选中时透明（和整体背景融合）
-            color: Colors.white,
-            // 胶囊圆角（根据内边距调整，实现椭圆效果）
-            borderRadius: BorderRadius.circular(32),
-            // 选中时的柔和外发光（匹配你截图里的暖黄高亮）
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFFFFE8B2).withOpacity(0.6), // 暖黄色发光
-                      blurRadius: 16, // 模糊半径，控制发光柔和度
-                      spreadRadius: 2, // 扩散半径，控制发光范围
-                      offset: const Offset(0, 2), // 轻微向下偏移，更自然
-                    ),
-                  ]
-                : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min, // 自适应宽度，不占多余空间
-            children: [
-              // 图标
-              Icon(icon, color: isSelected ? selectedColor : unselectedColor),
-              const SizedBox(width: 8), // 图标和文字的间距
-              // 标签文字
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  // 选中时加粗
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  // 颜色：选中时橙色，未选中时深棕色
-                  color: isSelected ? selectedColor : unselectedColor,
-                ),
+      onTap: onTap,
+      // AnimatedContainer 自动实现状态切换的平滑动画
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200), // 切换动画时长
+        curve: Curves.easeOut,
+        padding: padding,
+        margin: const EdgeInsets.only(right: 14, top: 4),
+        decoration: BoxDecoration(
+          // 背景色：选中时白色，未选中时透明（和整体背景融合）
+          color: Colors.white,
+          // 胶囊圆角（根据内边距调整，实现椭圆效果）
+          borderRadius: BorderRadius.circular(32),
+          // 选中时的柔和外发光（匹配你截图里的暖黄高亮）
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFE8B2).withOpacity(0.6), // 暖黄色发光
+                    blurRadius: 16, // 模糊半径，控制发光柔和度
+                    spreadRadius: 2, // 扩散半径，控制发光范围
+                    offset: const Offset(0, 2), // 轻微向下偏移，更自然
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min, // 自适应宽度，不占多余空间
+          children: [
+            // 图标
+            Icon(icon, color: isSelected ? selectedColor : unselectedColor),
+            const SizedBox(width: 8), // 图标和文字的间距
+            // 标签文字
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: fontSize,
+                // 选中时加粗
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                // 颜色：选中时橙色，未选中时深棕色
+                color: isSelected ? selectedColor : unselectedColor,
               ),
-            ],
-          ),
-        ));
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

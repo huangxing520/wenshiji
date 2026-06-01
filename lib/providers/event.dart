@@ -1,7 +1,11 @@
 // event_provider.dart
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wenshiji/common/picture_service.dart';
+import 'package:wenshiji/widget/card.dart';
 import 'dart:convert';
 import '../common/preferences.dart';
 import '../models/event.dart';
@@ -221,4 +225,49 @@ Map<String, int> stats(Ref ref) {
     'upcoming': upcomingCount,
     'dailySignIn': dailySignInCount,
   };
+}
+// @riverpod
+// final imageServiceProvider = Provider<ImageService>((ref) {
+//   return ImageService();
+// });
+
+// // 保存的图片路径列表（异步）
+// final savedImagePathsProvider = FutureProvider<List<String>>((ref) async {
+//   final service = ref.watch(imageServiceProvider);
+//   return await service.getSavedImagePaths();
+// });
+
+// // 保存的图片文件列表（异步）
+// final savedImageFilesProvider = FutureProvider<List<File>>((ref) async {
+//   final service = ref.watch(imageServiceProvider);
+//   return await service.loadImageFiles();
+// });
+// 普通的单例 Provider
+@riverpod
+ImageService imageService(Ref ref) {
+  return ImageService();
+}
+
+// 按 id 获取图片路径列表 → 会自动生成 .family 版本
+@riverpod
+Future<List<String>> savedImagePathsForId(Ref ref, String id) async {
+  final service = ref.watch(imageServiceProvider);
+  return await service.getSavedImagePathsForId(id);
+}
+
+// 按 id 获取图片文件列表 → 自动 .family
+@riverpod
+Future<List<File>> savedImageFilesForId(Ref ref, String id) async {
+  final service = ref.watch(imageServiceProvider);
+  return await service.loadImageFilesForId(id);
+}
+@riverpod
+Future<List<CardItem>> getCardItems(Ref ref, String id) async {
+  final paths = await ref.watch(savedImagePathsForIdProvider(id).future);
+  return  paths.map((e) => CardItem(
+        id: e.hashCode,
+        name: e,
+        imagePath: e,
+        isUploading:false,
+      )).toList();
 }

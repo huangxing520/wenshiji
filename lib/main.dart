@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:wenshiji/common/preferences.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart' hide AddEventScreen;
 import 'screens/add_event.dart';
+import 'screens/profile.dart';
+import 'screens/event_detail.dart';
 
 Future<void> main() async {
   try {
@@ -51,6 +54,7 @@ class Application extends StatelessWidget {
 
   Application({super.key, required this.isInit}) {
     _router = GoRouter(
+      navigatorKey: HyperSnackbar.navigatorKey, 
       initialLocation:
           isInit ? '/homepage' : '/splash', // Start at the home page
       routes: [
@@ -65,6 +69,14 @@ class Application extends StatelessWidget {
         GoRoute(
           path: '/add-event',
           builder: (context, state) => const AddEventScreen(),
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => const ProfileScreen(),
+        ),
+        GoRoute(
+          path: '/event-detail',
+          builder: (context, state) => const EventDetailScreen(),
         ),
       ],
       // Optional: Handle 404-like errors

@@ -408,6 +408,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "4.1.2"
+  hyper_snackbar:
+    dependency: "direct main"
+    description:
+      name: hyper_snackbar
+      sha256: "0964e3532a40ec3dc64ad559785fd3233f66811aa609d63853c59b5b12bba7d1"
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.11.3"
   image_picker:
     dependency: "direct main"
     description:
@@ -649,7 +657,7 @@ packages:
     source: hosted
     version: "2.2.0"
   path:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path
       sha256: "75cca69d1490965be98c73ceaea117e8a04dd21217b37b292c9ddbec0d955bc5"
@@ -657,7 +665,7 @@ packages:
     source: hosted
     version: "1.9.1"
   path_provider:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: path_provider
       sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"

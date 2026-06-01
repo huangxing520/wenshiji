@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 
@@ -26,50 +28,60 @@ class Utils {
     }
   }
 
- // 选择多张图片的函数
-static Future<List<File>?> pickMultipleImages({
-  double? maxWidth,
-  double? maxHeight,
-  int? imageQuality, // 范围 0-100
-}) async {
-  try {
-    final ImagePicker picker = ImagePicker();
-    
-    // 调用多图选择方法
-    final List<XFile>? pickedFiles = await picker.pickMultiImage(
-      maxWidth: maxWidth,      // 可选：限制最大宽度
-      maxHeight: maxHeight,    // 可选：限制最大高度
-      imageQuality: imageQuality, // 可选：压缩质量
-    );
-    
-    if (pickedFiles != null && pickedFiles.isNotEmpty) {
-      // 将 XFile 列表转换为 File 列表
-      return pickedFiles.map((xfile) => File(xfile.path)).toList();
-    }
-    
-    return null; // 用户取消选择
-  } catch (e) {
-    print('选择图片失败: $e');
-    return null;
-  }
-}
-
-  // 方法：调用相机拍摄一张照片
-  static Future<String?> _takePhoto() async {
-     _picker ??= ImagePicker();
+  // 选择多张图片的函数
+  static Future<List<File>?> pickMultipleImages({
+    double? maxWidth,
+    double? maxHeight,
+    int? imageQuality, // 范围 0-100
+  }) async {
     try {
-      final XFile? pickedFile = await _picker!.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
+      final ImagePicker picker = ImagePicker();
+
+      // 调用多图选择方法
+      final List<XFile>? pickedFiles = await picker.pickMultiImage(
+        maxWidth: maxWidth, // 可选：限制最大宽度
+        maxHeight: maxHeight, // 可选：限制最大高度
+        imageQuality: imageQuality, // 可选：压缩质量
       );
 
-      if (pickedFile != null) {
-       return pickedFile.path;
-      } else {
-        print('用户取消了拍照');
+      if (pickedFiles != null && pickedFiles.isNotEmpty) {
+        // 将 XFile 列表转换为 File 列表
+        return pickedFiles.map((xfile) => File(xfile.path)).toList();
       }
+
+      return null; // 用户取消选择
     } catch (e) {
-      print('拍照时出错: $e');
+      print('选择图片失败: $e');
+      return null;
     }
+  }
+
+  void showToast(String? label, String? message) {
+    HyperSnackbar.show(
+      title: label,
+      message: message,
+      icon: Icon(Icons.notification_important, color: Colors.white),
+      backgroundColor: const Color.fromARGB(255, 132, 129, 129),
+      enterAnimationType: HyperSnackAnimationType.scale,
+      enterCurve: Curves.elasticOut,
+      enterAnimationDuration: const Duration(milliseconds: 800),
+      displayDuration: Duration(milliseconds: 1621),
+
+    maxWidth: 300,
+    );
+  }
+  void showErrorToast(String? label, String? message) {
+     HyperSnackbar.show(
+      title: label,
+      message: message,
+      backgroundColor: const Color.fromARGB(255, 224, 7, 7),
+      icon: Icon(Icons.error, color: Colors.white),
+      enterAnimationType: HyperSnackAnimationType.scale,
+      enterCurve: Curves.elasticOut,
+      enterAnimationDuration: const Duration(milliseconds: 800),
+      displayDuration: Duration(milliseconds: 1621),
+
+    maxWidth: 300,
+    );
   }
 }
