@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:location/location.dart';
 import 'package:uuid/uuid.dart';
@@ -9,9 +10,9 @@ import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/permission.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/constants/config_constant.dart';
+import 'package:wenshiji/providers/event.dart';
 import '../common/preferences.dart';
 import '../models/event.dart';
-import '../providers/countdown_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -59,7 +60,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final eventsAsync = ref.watch(eventNotifierProvider);
+    final eventsAsync = ref.watch(eventProvider);
     final filteredEvents = ref.watch(filteredEventsProvider);
     final stats = ref.watch(statsProvider);
     final currentCategory = ref.watch(selectedCategoryProvider);
@@ -140,7 +141,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       (EventCategory.all, '全部', (Icons.view_list_rounded)),
       (EventCategory.birthday, '生日', (Icons.cake_rounded)),
       (EventCategory.task, '事项', (Icons.push_pin_rounded)),
-      (EventCategory.countup, '正计时', Icons.trending_up_rounded),
+      (EventCategory.dailySignIn, '正计时', Icons.trending_up_rounded),
       (EventCategory.star, '星标', Icons.star_rounded),
       (EventCategory.holiday, '节日', Icons.celebration_rounded),
     ];
@@ -206,7 +207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: _StatPill(
-                number: stats['countup'] ?? 0,
+                number: stats['dailySignIn'] ?? 0,
                 label: '进行中正计时',
               ),
             ),
@@ -223,9 +224,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final currentCategory = ref.watch(selectedCategoryProvider);
     final season = Utils.getSeason(today);
     final seasonColors = switch (season) {
-       Season.spring=> ConfigConstant.springColor,
+      Season.spring => ConfigConstant.springColor,
       Season.summer => ConfigConstant.summerColor,
-       Season.autumn => ConfigConstant.autumnColor,
+      Season.autumn => ConfigConstant.autumnColor,
       Season.winter => ConfigConstant.winterColor,
       _ => ConfigConstant.defaultColor,
     };
@@ -289,7 +290,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           const SizedBox(height: 24),
           ElevatedButton(
-            onPressed: () => _openAddModal(),
+            onPressed: () => context.push('/add-event'),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD4A853),
               foregroundColor: const Color(0xFF383428),
@@ -316,7 +317,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       right: 20,
       bottom: 100,
       child: GestureDetector(
-        onTap: () => _openAddModal(),
+        onTap: () => context.push('/add-event'),
         child: Container(
           width: 56,
           height: 56,
@@ -417,7 +418,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: () {
                     if (_selectedEventId != null) {
                       ref
-                          .read(eventNotifierProvider.notifier)
+                          .read(eventProvider.notifier)
                           .togglePin(_selectedEventId!);
                       _showToast('操作成功');
                     }
@@ -430,7 +431,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: () {
                     if (_selectedEventId != null) {
                       ref
-                          .read(eventNotifierProvider.notifier)
+                          .read(eventProvider.notifier)
                           .toggleStar(_selectedEventId!);
                       _showToast('操作成功');
                     }
@@ -451,7 +452,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: () {
                     if (_selectedEventId != null) {
                       ref
-                          .read(eventNotifierProvider.notifier)
+                          .read(eventProvider.notifier)
                           .deleteEvent(_selectedEventId!);
                       _showToast('已归档');
                     }
@@ -470,7 +471,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   onTap: () {
                     if (_selectedEventId != null) {
                       ref
-                          .read(eventNotifierProvider.notifier)
+                          .read(eventProvider.notifier)
                           .deleteEvent(_selectedEventId!);
                       _showToast('已删除');
                     }
@@ -493,15 +494,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _quickCheckin(String eventId) {
-    ref.read(eventNotifierProvider.notifier).quickCheckin(eventId);
+    ref.read(eventProvider.notifier).quickCheckin(eventId);
     _showToast('✓ 打卡成功！');
   }
 
-  void _openAddModal() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (context) => const AddEventScreen()),
-    );
-  }
+  // void _openAddModal() {
+  //   Navigator.of(context).push(
+  //     MaterialPageRoute(builder: (context) => const AddEventScreen()),
+  //   );
+  // }
 
   void _showToast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -607,7 +608,8 @@ class _PinnedCardState extends State<_PinnedCard>
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final days = widget.event.type == EventType.countup
+    //todo
+    final days = widget.event.type == EventType.task
         ? today.difference(widget.event.date).inDays
         : widget.event.date.difference(today).inDays;
 
@@ -804,8 +806,8 @@ class _PinnedCardState extends State<_PinnedCard>
         return '🎂 生日';
       case EventType.task:
         return '📌 事项';
-      case EventType.countup:
-        return '📈 正计时';
+      case EventType.dailySignIn:
+        return '📈 连签计时';
       case EventType.holiday:
         return '🎉 节日';
     }
@@ -927,10 +929,10 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = event.type == EventType.countup
+    final days = event.type == EventType.task
         ? today.difference(event.date).inDays
         : event.date.difference(today).inDays;
-    final isToday = event.type != EventType.countup && days == 0;
+    final isToday = event.type != EventType.task && days == 0;
     final daysText = isToday ? '今天' : days.toString();
     final daysLabel = isToday ? '' : '天';
 
@@ -955,7 +957,7 @@ class _EventCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            if (event.type != EventType.countup)
+            if (event.type != EventType.dailySignIn)
               Container(
                 width: 8,
                 height: 8,
@@ -988,7 +990,7 @@ class _EventCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    event.type == EventType.countup
+                    event.type == EventType.dailySignIn
                         ? '开始于 ${event.date.month}月${event.date.day}日'
                         : '${event.date.month}月${event.date.day}日',
                     style: const TextStyle(
@@ -1074,7 +1076,7 @@ class _EventCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w800,
-                    color: event.type == EventType.countup
+                    color: event.type == EventType.dailySignIn
                         ? const Color(0xFF5A8A4A)
                         : const Color(0xFF8B6F3A),
                     fontFamily: 'KaiTi',
@@ -1102,7 +1104,7 @@ class _EventCard extends StatelessWidget {
         return const Color(0xFFFF6B6B);
       case EventType.task:
         return const Color(0xFF8B6F3A);
-      case EventType.countup:
+      case EventType.dailySignIn:
         return const Color(0xFF4CAF50);
       case EventType.holiday:
         return const Color(0xFF9C27B0);
@@ -1117,6 +1119,8 @@ class _EventCard extends StatelessWidget {
         return const Color(0xFFD4A853);
       case EventPriority.low:
         return const Color(0xFF4CAF50);
+      case EventPriority.special:
+        return const Color(0xFF9C27B0);
     }
   }
 
@@ -1126,8 +1130,8 @@ class _EventCard extends StatelessWidget {
         return '🎂 生日';
       case EventType.task:
         return '📌 事项';
-      case EventType.countup:
-        return '📈 正计时';
+      case EventType.dailySignIn:
+        return '📈 连签计时';
       case EventType.holiday:
         return '🎉 节日';
     }
@@ -1352,7 +1356,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                     onTap: () {
                       setState(() {
                         _selectedType = type;
-                        if (type != EventType.countup) {
+                        if (type != EventType.dailySignIn) {
                           _enableCheckin = false;
                         }
                       });
@@ -1386,7 +1390,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
                 }).toList(),
               ),
             ),
-            if (_selectedType == EventType.countup) ...[
+            if (_selectedType == EventType.dailySignIn) ...[
               const SizedBox(height: 14),
               _buildField(
                 label: '开启每日打卡',
@@ -1446,7 +1450,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _addEvent,
+                onPressed: () => (),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD4A853),
                   foregroundColor: const Color(0xFF383428),
@@ -1494,43 +1498,43 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen> {
         return '🎂 生日';
       case EventType.task:
         return '📌 事项';
-      case EventType.countup:
-        return '📈 正计时';
+      case EventType.dailySignIn:
+        return '📈 连签计时';
       case EventType.holiday:
         return '🎉 节日';
     }
   }
 
-  void _addEvent() {
-    if (_nameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('请输入事件名称'),
-          backgroundColor: const Color(0xFFFF6B6B),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
+  // void _addEvent() {
+  //   if (_nameController.text.trim().isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: const Text('请输入事件名称'),
+  //         backgroundColor: const Color(0xFFFF6B6B),
+  //         behavior: SnackBarBehavior.floating,
+  //       ),
+  //     );
+  //     return;
+  //   }
 
-    final event = Event(
-      id: const Uuid().v4(),
-      name: _nameController.text.trim(),
-      date: _selectedDate,
-      type: _selectedType,
-      hasCheckin: _selectedType == EventType.countup ? _enableCheckin : false,
-    );
+  //   final event = Event(
+  //     id: const Uuid().v4(),
+  //     name: _nameController.text.trim(),
+  //     date: _selectedDate,
+  //     type: _selectedType,
+  //     hasCheckin: _selectedType == EventType.dailySignIn ? _enableCheckin : false,
+  //   );
 
-    ref.read(eventNotifierProvider.notifier).addEvent(event);
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('添加成功'),
-        backgroundColor: const Color(0xFF4CAF50),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
+  //   ref.read(eventNotifierProvider.notifier).addEvent(event);
+  //   Navigator.of(context).pop();
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     SnackBar(
+  //       content: const Text('添加成功'),
+  //       backgroundColor: const Color(0xFF4CAF50),
+  //       behavior: SnackBarBehavior.floating,
+  //     ),
+  //   );
+  // }
 }
 
 // 整体卡片入场动画（整个组件一次动画，无逐个）

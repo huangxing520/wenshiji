@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.8.0 <4.0.0'
 
 dependencies:
   flutter:
@@ -20,8 +20,10 @@ dependencies:
   permission_handler: ^12.0.2
   location: ^8.0.1
   freezed_annotation: ^3.1.0
-  json_annotation: ^4.12.0
+  json_annotation: ^4.11.0
   google_fonts: ^8.1.0
+  image_picker: ^1.2.2
+  riverpod_annotation: ^4.0.2
 
 
 dev_dependencies:
@@ -30,7 +32,8 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   build_runner: ^2.15.0
   freezed: ^3.2.5
-  json_serializable: ^6.14.0
+  json_serializable: ^6.12.0  
+  riverpod_generator: ^4.0.3
 
 flutter:
   uses-material-design: true

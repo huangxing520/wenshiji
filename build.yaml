@@ -5,8 +5,14 @@ targets:
       source_gen|combining_builder:
         options:
           build_extensions:
-            '^lib/models/{{}}.dart': 'lib/models/generated/{{}}.g.dart'
+            '^lib/models/{{}}.dart': ['lib/models/generated/{{}}.g.dart']
+            '^lib/providers/{{}}.dart': ['lib/providers/generated/{{}}.g.dart']
+            '^lib/database/{{}}.dart': ['lib/database/generated/{{}}.g.dart']
       freezed:
         options:
           build_extensions:
-            '^lib/models/{{}}.dart': 'lib/models/generated/{{}}.freezed.dart'
+            '^lib/models/{{}}.dart': ['lib/models/generated/{{}}.freezed.dart']
+      riverpod_generator:
+        options:
+          build_extensions:
+            '^lib/providers/{{}}.dart': ['lib/providers/generated/{{}}.g.dart']

@@ -52,4 +52,10 @@
 
 <!-- 可选：如果你的 App 需要在后台持续获取位置 -->
 <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+<!-- 必要：对于Android 12及以下系统，用以读取存储卡中的照片等 -->
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+<!-- 必要：对于Android 13及以上系统，用以读取图片等 -->
+<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+<!-- 如果需要使用相机拍照，则还需添加相机权限 -->
+<uses-permission android:name="android.permission.CAMERA" />
 </manifest>

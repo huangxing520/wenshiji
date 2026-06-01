@@ -3,18 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wenshiji/common/preferences.dart';
 import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/home_screen.dart' hide AddEventScreen;
+import 'screens/add_event.dart';
 
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     final isInitBool = await preferences.getInitState();
-  
-    runApp(
-      ProviderScope(
-        child: Application(isInit: isInitBool),
-      ),
-    );
+
+    runApp(ProviderScope(
+      child: Application(isInit: isInitBool),
+    ));
   } catch (e, s) {
     return runApp(
       MaterialApp(
@@ -52,7 +51,8 @@ class Application extends StatelessWidget {
 
   Application({super.key, required this.isInit}) {
     _router = GoRouter(
-      initialLocation: isInit ? '/homepage' : '/splash', // Start at the home page
+      initialLocation:
+          isInit ? '/homepage' : '/splash', // Start at the home page
       routes: [
         GoRoute(
           path: '/homepage',
@@ -61,6 +61,10 @@ class Application extends StatelessWidget {
         GoRoute(
           path: '/splash',
           builder: (context, state) => const SplashScreen(),
+        ),
+        GoRoute(
+          path: '/add-event',
+          builder: (context, state) => const AddEventScreen(),
         ),
       ],
       // Optional: Handle 404-like errors

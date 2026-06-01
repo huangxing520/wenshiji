@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wenshiji/models/event.dart';
 
 import '../constants/config_constant.dart';
 
@@ -53,8 +54,25 @@ class Preferences {
       return null;
     }
   }
-
+  Future<List<Event>> getEvents() async {
+    try {
+      final preferences = await sharedPreferencesCompleter.future;
+      final eventsString = preferences?.getString('events');
+      if (eventsString == null) return [];
+      
+        final List<dynamic> jsonList = json.decode(eventsString);
+        return jsonList.map((json) => Event.fromJson(json as Map<String, dynamic>))
+            .toList();
+      
+    } catch (_) {
+      return [];
+    }
+  }
   
+  Future<void> setEvents(String eventsString) async {
+    final preferences = await sharedPreferencesCompleter.future;
+    await preferences?.setString('events', eventsString);
+  }
 
 
 

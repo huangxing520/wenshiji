@@ -6,9 +6,11 @@ enum EventType {
   @JsonValue(0)
   birthday,
   @JsonValue(1)
+  // 倒计时任务
   task,
   @JsonValue(2)
-  countup,
+  // 每日签到
+  dailySignIn,
   @JsonValue(3)
   holiday
 }
@@ -18,9 +20,38 @@ enum EventPriority {
   @JsonValue(1)
   mid,
   @JsonValue(2)
-  low
+  low,
+  @JsonValue(3)
+  special
 }
-
+enum EventReminder {
+  @JsonValue(0)
+  none,
+  @JsonValue(1)
+  daily,
+  @JsonValue(2)
+  weekly,
+  @JsonValue(3)
+  threeDays,
+  @JsonValue(4)
+  sevenDays,
+  @JsonValue(5)
+  fifteenDays,
+  @JsonValue(6)
+  thirtyDays,
+  @JsonValue(7)
+  oneHour,
+}
+enum TaskType {
+  @JsonValue(0)
+  countdown,
+  @JsonValue(1)
+  task,
+  @JsonValue(2)
+  dailySignIn,
+  @JsonValue(3)
+  holiday
+}
 @freezed
 abstract class Event with _$Event {
   factory Event(
@@ -33,6 +64,11 @@ abstract class Event with _$Event {
       @Default(false) bool isStarred,
       @Default(false) bool hasCheckin,
       @Default(0) int streak,
-      @Default(false) bool checkedToday}) = _Event;
+      @Default(false) bool checkedToday,
+      @Default([EventReminder.none]) List<EventReminder> reminder,
+      @Default('') String description,
+      @Default([]) List<String> picturePaths,
+      @Default([]) List<String> tags,
+     }) = _Event;
   factory Event.fromJson(Map<String, Object?> json) => _$EventFromJson(json);
 }

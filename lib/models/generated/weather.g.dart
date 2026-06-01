@@ -16,11 +16,14 @@ _WeatherResponse _$WeatherResponseFromJson(Map<String, dynamic> json) =>
       timezoneAbbreviation: json['timezone_abbreviation'] as String,
       elevation: (json['elevation'] as num).toDouble(),
       currentWeatherUnits: CurrentWeatherUnits.fromJson(
-          json['current_weather_units'] as Map<String, dynamic>),
+        json['current_weather_units'] as Map<String, dynamic>,
+      ),
       currentWeather: CurrentWeather.fromJson(
-          json['current_weather'] as Map<String, dynamic>),
-      hourlyUnits:
-          HourlyUnits.fromJson(json['hourly_units'] as Map<String, dynamic>),
+        json['current_weather'] as Map<String, dynamic>,
+      ),
+      hourlyUnits: HourlyUnits.fromJson(
+        json['hourly_units'] as Map<String, dynamic>,
+      ),
       hourly: Hourly.fromJson(json['hourly'] as Map<String, dynamic>),
     );
 
@@ -51,16 +54,16 @@ _CurrentWeatherUnits _$CurrentWeatherUnitsFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$CurrentWeatherUnitsToJson(
-        _CurrentWeatherUnits instance) =>
-    <String, dynamic>{
-      'time': instance.time,
-      'interval': instance.interval,
-      'temperature': instance.temperature,
-      'windspeed': instance.windspeed,
-      'winddirection': instance.winddirection,
-      'is_day': instance.isDay,
-      'weathercode': instance.weathercode,
-    };
+  _CurrentWeatherUnits instance,
+) => <String, dynamic>{
+  'time': instance.time,
+  'interval': instance.interval,
+  'temperature': instance.temperature,
+  'windspeed': instance.windspeed,
+  'winddirection': instance.winddirection,
+  'is_day': instance.isDay,
+  'weathercode': instance.weathercode,
+};
 
 _CurrentWeather _$CurrentWeatherFromJson(Map<String, dynamic> json) =>
     _CurrentWeather(
@@ -85,9 +88,9 @@ Map<String, dynamic> _$CurrentWeatherToJson(_CurrentWeather instance) =>
     };
 
 _HourlyUnits _$HourlyUnitsFromJson(Map<String, dynamic> json) => _HourlyUnits(
-      time: json['time'] as String,
-      temperature2m: json['temperature_2m'] as String,
-    );
+  time: json['time'] as String,
+  temperature2m: json['temperature_2m'] as String,
+);
 
 Map<String, dynamic> _$HourlyUnitsToJson(_HourlyUnits instance) =>
     <String, dynamic>{
@@ -96,13 +99,13 @@ Map<String, dynamic> _$HourlyUnitsToJson(_HourlyUnits instance) =>
     };
 
 _Hourly _$HourlyFromJson(Map<String, dynamic> json) => _Hourly(
-      time: (json['time'] as List<dynamic>).map((e) => e as String).toList(),
-      temperature2m: (json['temperature_2m'] as List<dynamic>)
-          .map((e) => (e as num).toDouble())
-          .toList(),
-    );
+  time: (json['time'] as List<dynamic>).map((e) => e as String).toList(),
+  temperature2m: (json['temperature_2m'] as List<dynamic>)
+      .map((e) => (e as num).toDouble())
+      .toList(),
+);
 
 Map<String, dynamic> _$HourlyToJson(_Hourly instance) => <String, dynamic>{
-      'time': instance.time,
-      'temperature_2m': instance.temperature2m,
-    };
+  'time': instance.time,
+  'temperature_2m': instance.temperature2m,
+};
