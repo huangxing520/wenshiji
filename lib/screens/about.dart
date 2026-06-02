@@ -1,6 +1,7 @@
 
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:wenshiji/common/utils.dart';
 
 const _kPrimaryDark = Color(0xFF5D4037);
 const _kPrimary = Color(0xFF795548);
@@ -23,7 +24,9 @@ const _kSplashBgBottom = Color(0xFFFFE0B2);
 const _kDividerColor = Color(0x1FFFA000);
 
 class AboutScreen extends StatefulWidget {
-  const AboutScreen({super.key});
+  const AboutScreen({super.key, required this.version});
+
+  final String version;
 
   @override
   State<AboutScreen> createState() => _AboutScreenState();
@@ -286,13 +289,7 @@ class _AboutScreenState extends State<AboutScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Column(
         children: [
-          _buildMenuItem(
-            icon: '🔄',
-            iconBg: _kAmber.withValues(alpha: 0.12),
-            title: '版本检测更新',
-            desc: '查看更新日志与新功能介绍',
-            onTap: _checkUpdate,
-          ),
+        
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '✨',
@@ -414,7 +411,7 @@ class _AboutScreenState extends State<AboutScreen> {
     return Container(
       height: 1,
       margin: const EdgeInsets.symmetric(horizontal: 54),
-      color: _kAmber.withValues(alpha: 0.06),
+      color: Color.fromARGB(255, 74, 71, 69).withValues(alpha: 0.06),
     );
   }
 
@@ -462,7 +459,7 @@ class _AboutScreenState extends State<AboutScreen> {
             return Transform.translate(
               offset: Offset(0, -20 + value * 20),
               child: Opacity(
-                opacity: value,
+                opacity: value.clamp(0, 1),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                   decoration: BoxDecoration(
@@ -618,7 +615,7 @@ github.com/lxgw/LxgwWenKai
                 scale: 0.85 + value * 0.15,
                 child: Transform.translate(
                   offset: Offset(0, 10 - value * 10),
-                  child: Opacity(opacity: value, child: child),
+                  child: Opacity(opacity: value.clamp(0, 1), child: child),
                 ),
               );
             },
@@ -970,9 +967,12 @@ github.com/lxgw/LxgwWenKai
     Future.delayed(const Duration(milliseconds: 2200), () {
       if (mounted) setState(() => _toastVisible = false);
     });
+    Utils().showToast(message,null);
   }
 
-  void _checkUpdate() {
+  void _checkUpdate() async {
+    
+    print(widget.version);
     setState(() {
       _isLatestVersion = (DateTime.now().millisecond % 10) > 2;
       _showUpdateModal = true;

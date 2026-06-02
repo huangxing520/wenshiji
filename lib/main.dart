@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:wenshiji/common/preferences.dart';
+import 'package:wenshiji/common/utils.dart';
+import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/screens/about.dart';
 import 'package:wenshiji/screens/stats.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart' hide AddEventScreen;
@@ -16,9 +19,14 @@ Future<void> main() async {
     WidgetsFlutterBinding.ensureInitialized();
     final isInitBool = await preferences.getInitState();
     final deviceId = await preferences.getDeviceId();
+    final version = await Utils().getVersion();
     runApp(
       ProviderScope(
-        child: Application(isInit: isInitBool, deviceId: deviceId),
+        child: Application(
+          isInit: isInitBool,
+          deviceId: deviceId,
+          version: version ?? '',
+        ),
       ),
     );
   } catch (e, s) {
@@ -50,8 +58,14 @@ class Application extends StatelessWidget {
   late final GoRouter _router;
   final bool isInit;
   final String deviceId;
+  final String version;
 
-  Application({super.key, required this.isInit, required this.deviceId}) {
+  Application({
+    super.key,
+    required this.isInit,
+    required this.deviceId,
+    required this.version,
+  }) {
     _router = GoRouter(
       navigatorKey: HyperSnackbar.navigatorKey,
       initialLocation: isInit
@@ -64,36 +78,49 @@ class Application extends StatelessWidget {
         ),
         GoRoute(
           path: '/add-event',
-          builder: (context, state) => const AddEventScreen(),
+          builder: (context, state) {
+            final Event? event = state.extra as Event?;
+            return AddEventScreen(event: event);
+          },
         ),
         GoRoute(
           path: '/event-detail',
           builder: (context, state) => const EventDetailScreen(),
+        ),
+        GoRoute(
+          path: '/about',
+          builder: (context, state) => AboutScreen(version: version),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
             return MainShell(navigationShell: navigationShell);
           },
           branches: [
-            StatefulShellBranch(routes: [
-              GoRoute(
-                path: '/homepage',
-                builder: (context, state) => const HomeScreen(),
-              ),
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(
-                path: '/stats',
-                builder: (context, state) => const StatsScreen(),
-              ),
-            ]),
-        
-            StatefulShellBranch(routes: [
-              GoRoute(
-                path: '/profile',
-                builder: (context, state) => const ProfileScreen(),
-              ),
-            ]),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/homepage',
+                  builder: (context, state) => const HomeScreen(),
+                ),
+              ],
+            ),
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/stats',
+                  builder: (context, state) => const StatsScreen(),
+                ),
+              ],
+            ),
+
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/profile',
+                  builder: (context, state) => const ProfileScreen(),
+                ),
+              ],
+            ),
           ],
         ),
       ],

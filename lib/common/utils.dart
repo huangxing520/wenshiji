@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 
 class Utils {
@@ -28,33 +29,7 @@ class Utils {
     }
   }
 
-  // 选择多张图片的函数
-  static Future<List<File>?> pickMultipleImages({
-    double? maxWidth,
-    double? maxHeight,
-    int? imageQuality, // 范围 0-100
-  }) async {
-    try {
-      final ImagePicker picker = ImagePicker();
 
-      // 调用多图选择方法
-      final List<XFile>? pickedFiles = await picker.pickMultiImage(
-        maxWidth: maxWidth, // 可选：限制最大宽度
-        maxHeight: maxHeight, // 可选：限制最大高度
-        imageQuality: imageQuality, // 可选：压缩质量
-      );
-
-      if (pickedFiles != null && pickedFiles.isNotEmpty) {
-        // 将 XFile 列表转换为 File 列表
-        return pickedFiles.map((xfile) => File(xfile.path)).toList();
-      }
-
-      return null; // 用户取消选择
-    } catch (e) {
-      print('选择图片失败: $e');
-      return null;
-    }
-  }
 
   void showToast(String? label, String? message) {
     HyperSnackbar.show(
@@ -64,8 +39,8 @@ class Utils {
       backgroundColor: const Color.fromARGB(255, 132, 129, 129),
       enterAnimationType: HyperSnackAnimationType.scale,
       enterCurve: Curves.elasticOut,
-      enterAnimationDuration: const Duration(milliseconds: 800),
-      displayDuration: Duration(milliseconds: 1621),
+      enterAnimationDuration: const Duration(milliseconds: 500),
+      displayDuration: Duration(milliseconds: 500),
 
     maxWidth: 300,
     );
@@ -77,11 +52,17 @@ class Utils {
       backgroundColor: const Color.fromARGB(255, 224, 7, 7),
       icon: Icon(Icons.error, color: Colors.white),
       enterAnimationType: HyperSnackAnimationType.scale,
-      enterCurve: Curves.elasticOut,
-      enterAnimationDuration: const Duration(milliseconds: 800),
-      displayDuration: Duration(milliseconds: 1621),
+      enterCurve: Curves.easeOut,
+      enterAnimationDuration: const Duration(milliseconds: 500),
+      displayDuration: Duration(milliseconds: 500),
 
     maxWidth: 300,
     );
+  }
+   Future<String?> getVersion() async {
+    final PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    final String version = packageInfo.version;
+    final String buildNumber = packageInfo.buildNumber;
+    return version;
   }
 }

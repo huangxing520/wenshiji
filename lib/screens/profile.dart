@@ -591,18 +591,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       ),
       child: Column(
         children: [
-          _buildMenuItem(
-            Icons.help_outline,
-            '帮助中心',
-            '使用指南与常见问题',
-            'ic-help',
-            surfaceColor,
-            accentSoftColor,
-            accentDeepColor,
-            borderColor,
-            fgColor,
-            mutedColor,
-          ),
+    
           _buildMenuItem(
             Icons.info_outline,
             '关于我们',
@@ -653,10 +642,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         iconBgColor = const Color(0xFFF9E6E6);
         iconColor = const Color(0xFFD9534F);
         break;
-      case 'ic-help':
-        iconBgColor = const Color(0xFFE6E6F7);
-        iconColor = const Color(0xFF5A5AB8);
-        break;
+  
       case 'ic-about':
         iconBgColor = const Color(0xFFF0F0E8);
         iconColor = const Color(0xFF66665A);
@@ -669,7 +655,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => _showToast(title),
+        onTap: () => context.push('/about'),
         onHighlightChanged: (_) {},
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
