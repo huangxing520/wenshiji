@@ -153,6 +153,14 @@ packages:
       url: "https://pub.flutter-io.cn"
     source: hosted
     version: "1.19.1"
+  contribution_heatmap:
+    dependency: "direct main"
+    description:
+      name: contribution_heatmap
+      sha256: cedfb14f058f17baf793f929fb6ed512cf0f36d316f2dbaf0754ef3c98cc1d4e
+      url: "https://pub.flutter-io.cn"
+    source: hosted
+    version: "0.5.3"
   convert:
     dependency: transitive
     description:

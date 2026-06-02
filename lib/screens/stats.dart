@@ -1,6 +1,15 @@
 import 'dart:math';
+import 'package:contribution_heatmap/contribution_heatmap.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:wenshiji/common/utils.dart';
+import 'package:wenshiji/models/event.dart';
+
+const _accentDeep = Color(0xFFD4A853);
+
+enum StatsTimeType { all, month, year, quarter }
 
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
@@ -9,7 +18,8 @@ class StatsScreen extends StatefulWidget {
   State<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin {
+class _StatsScreenState extends State<StatsScreen>
+    with TickerProviderStateMixin {
   static const Color bg = Color(0xFFF8F7F2);
   static const Color surface = Color(0xFFFFFEFA);
   static const Color fg = Color(0xFF3C3428);
@@ -17,7 +27,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   static const Color border = Color(0xFFE8E4DC);
   static const Color accent = Color(0xFFF2C94C);
   static const Color accentSoft = Color(0xFFF9F0D7);
-  static const Color accentDeep = Color(0xFFD4A853);
+  static const Color accentDeep = _accentDeep;
   static const Color danger = Color(0xFFFF6B6B);
   static const Color success = Color(0xFF4CAF50);
   static const Color card = Color(0xFFFFFEFA);
@@ -28,29 +38,155 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   static const Color heat3 = Color(0xFF808080);
   static const Color heat4 = Color(0xFF404040);
 
-  final List<Map<String, dynamic>> allEvents = [
-    {'id': 1, 'name': '妈妈生日', 'date': '2025-07-18', 'cat': 'birthday', 'priority': 'high', 'reminders': 2},
-    {'id': 2, 'name': '项目一期交付', 'date': '2025-07-15', 'cat': 'task', 'priority': 'high', 'reminders': 3},
-    {'id': 3, 'name': '中秋节', 'date': '2025-09-06', 'cat': 'holiday', 'priority': 'mid', 'reminders': 1},
-    {'id': 4, 'name': '小李生日', 'date': '2025-07-22', 'cat': 'birthday', 'priority': 'mid', 'reminders': 2},
-    {'id': 5, 'name': '健身卡续费', 'date': '2025-07-20', 'cat': 'task', 'priority': 'low', 'reminders': 1},
-    {'id': 6, 'name': '国庆节', 'date': '2025-10-01', 'cat': 'holiday', 'priority': 'mid', 'reminders': 1},
-    {'id': 7, 'name': '老王生日', 'date': '2025-07-15', 'cat': 'birthday', 'priority': 'mid', 'reminders': 2},
-    {'id': 8, 'name': '结婚纪念日', 'date': '2025-08-12', 'cat': 'task', 'priority': 'high', 'reminders': 3},
-    {'id': 9, 'name': '小美生日', 'date': '2025-03-22', 'cat': 'birthday', 'priority': 'mid', 'reminders': 1},
-    {'id': 10, 'name': '季度汇报', 'date': '2025-06-30', 'cat': 'task', 'priority': 'high', 'reminders': 2},
-    {'id': 11, 'name': '端午节', 'date': '2025-05-31', 'cat': 'holiday', 'priority': 'low', 'reminders': 1},
-    {'id': 12, 'name': '老爸生日', 'date': '2025-11-05', 'cat': 'birthday', 'priority': 'high', 'reminders': 2},
-    {'id': 13, 'name': '驾照到期', 'date': '2025-04-10', 'cat': 'task', 'priority': 'mid', 'reminders': 3},
-    {'id': 14, 'name': '儿童节', 'date': '2025-06-01', 'cat': 'holiday', 'priority': 'low', 'reminders': 0},
-    {'id': 15, 'name': '小红生日', 'date': '2025-12-20', 'cat': 'birthday', 'priority': 'mid', 'reminders': 1},
-    {'id': 16, 'name': '年会', 'date': '2025-01-18', 'cat': 'task', 'priority': 'high', 'reminders': 2},
-    {'id': 17, 'name': '春节', 'date': '2025-01-29', 'cat': 'holiday', 'priority': 'mid', 'reminders': 1},
-    {'id': 18, 'name': '小张生日', 'date': '2025-09-14', 'cat': 'birthday', 'priority': 'low', 'reminders': 1},
+  final List<Event> allEvents = [
+    Event(
+      id: '1',
+      name: '妈妈生日',
+      date: DateTime.parse('2025-07-18'),
+      type: EventType.birthday,
+      priority: EventPriority.high,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '2',
+      name: '项目一期交付',
+      date: DateTime.parse('2025-07-15'),
+      type: EventType.task,
+      priority: EventPriority.high,
+      reminder: [EventReminder.none],
+    ),
+    Event(
+      id: '3',
+      name: '中秋节',
+      date: DateTime.parse('2025-09-06'),
+      type: EventType.holiday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '4',
+      name: '小李生日',
+      date: DateTime.parse('2025-07-22'),
+      type: EventType.birthday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '5',
+      name: '健身卡续费',
+      date: DateTime.parse('2025-07-20'),
+      type: EventType.task,
+      priority: EventPriority.low,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '6',
+      name: '国庆节',
+      date: DateTime.parse('2025-10-01'),
+      type: EventType.holiday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '7',
+      name: '老王生日',
+      date: DateTime.parse('2025-07-15'),
+      type: EventType.birthday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '8',
+      name: '结婚纪念日',
+      date: DateTime.parse('2025-08-12'),
+      type: EventType.task,
+      priority: EventPriority.high,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '9',
+      name: '小美生日',
+      date: DateTime.parse('2025-03-22'),
+      type: EventType.birthday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '10',
+      name: '季度汇报',
+      date: DateTime.parse('2025-06-30'),
+      type: EventType.task,
+      priority: EventPriority.high,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '11',
+      name: '端午节',
+      date: DateTime.parse('2025-05-31'),
+      type: EventType.holiday,
+      priority: EventPriority.low,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '12',
+      name: '老爸生日',
+      date: DateTime.parse('2025-11-05'),
+      type: EventType.birthday,
+      priority: EventPriority.high,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '13',
+      name: '驾照到期',
+      date: DateTime.parse('2025-04-10'),
+      type: EventType.task,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '14',
+      name: '儿童节',
+      date: DateTime.parse('2025-06-01'),
+      type: EventType.holiday,
+      priority: EventPriority.low,
+      reminder: [],
+    ),
+    Event(
+      id: '15',
+      name: '小红生日',
+      date: DateTime.parse('2025-12-20'),
+      type: EventType.birthday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '16',
+      name: '年会',
+      date: DateTime.parse('2025-01-18'),
+      type: EventType.task,
+      priority: EventPriority.high,
+      reminder: [],
+    ),
+    Event(
+      id: '17',
+      name: '春节',
+      date: DateTime.parse('2025-01-29'),
+      type: EventType.holiday,
+      priority: EventPriority.mid,
+      reminder: [EventReminder.daily],
+    ),
+    Event(
+      id: '18',
+      name: '小张生日',
+      date: DateTime.parse('2025-09-14'),
+      type: EventType.birthday,
+      priority: EventPriority.low,
+      reminder: [EventReminder.daily],
+    ),
   ];
 
-  String currentRange = 'all';
-  String currentView = 'month';
+  StatsTimeType currentRange = StatsTimeType.all;
+  StatsTimeType currentHeatmapRange = StatsTimeType.year;
   int viewMonth = DateTime.now().month - 1;
   int viewYear = DateTime.now().year;
   bool lifeVisible = true;
@@ -64,10 +200,12 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   bool _showToastFlag = false;
 
   Map<String, dynamic>? _selectedDateEvents;
+  late TextEditingController _lifeExpectController;
 
   @override
   void initState() {
     super.initState();
+    _lifeExpectController = TextEditingController(text: lifeExpect.toString());
     _toastController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
@@ -82,6 +220,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
 
   @override
   void dispose() {
+    _lifeExpectController.dispose();
     _toastController.dispose();
     super.dispose();
   }
@@ -104,31 +243,35 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     });
   }
 
-  List<Map<String, dynamic>> getFilteredEvents() {
+  List<Event> getFilteredEvents() {
     final now = DateTime.now();
     final y = now.year;
-    final m = now.month - 1;
-    final d = now.day;
+    final m = now.month - 1; // 保留：专门给月份筛选用
 
     switch (currentRange) {
-      case 'year':
-        return allEvents.where((e) => DateTime.parse(e['date']).year == y).toList();
-      case 'quarter':
-        final qStart = DateTime(y, (m ~/ 3) * 3, 1);
-        final qEnd = DateTime(y, (m ~/ 3) * 3 + 3, 0);
+      case StatsTimeType.year:
+        return allEvents.where((e) => e.date.year == y).toList();
+      case StatsTimeType.quarter:
+        // 🔥 修复点1：季度计算用【原始月份】，不要用减1后的m！
+        final currentMonth = now.month;
+        // 计算季度索引 (0-3)
+        final quarterIndex = currentMonth ~/ 3;
+        // 🔥 修复点2：正确计算季度起止日期
+        final qStart = DateTime(y, quarterIndex * 3 + 1, 1);
+        final qEnd = DateTime(y, quarterIndex * 3 + 4, 0);
+
+        // 筛选逻辑（本身是正确的，保留）
         return allEvents.where((e) {
-          final dt = DateTime.parse(e['date']);
+          final dt = e.date;
           return dt.isAfter(qStart.subtract(const Duration(days: 1))) &&
               dt.isBefore(qEnd.add(const Duration(days: 1)));
         }).toList();
-      case 'month':
+      case StatsTimeType.month:
+        // 原有逻辑正确，保留
         return allEvents.where((e) {
-          final dt = DateTime.parse(e['date']);
+          final dt = e.date;
           return dt.year == y && dt.month == m + 1;
         }).toList();
-      case '30d':
-        final start = DateTime(y, m + 1, d - 30);
-        return allEvents.where((e) => DateTime.parse(e['date']).isAfter(start.subtract(const Duration(days: 1)))).toList();
       default:
         return allEvents;
     }
@@ -136,10 +279,10 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
 
   Map<String, int> buildDayMap() {
     final map = <String, int>{};
-    getFilteredEvents().forEach((e) {
-      final key = e['date'];
+    for (final e in getFilteredEvents()) {
+      final key = DateFormat('yyyy-MM-dd').format(e.date);
       map[key] = (map[key] ?? 0) + 1;
-    });
+    }
     return map;
   }
 
@@ -150,20 +293,29 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     final in7 = today.add(const Duration(days: 7));
 
     final total = filtered.length;
-    final pending = filtered.where((e) => DateTime.parse(e['date']).isAfter(today.subtract(const Duration(days: 1)))).length;
+    final pending = filtered
+        .where((e) => e.date.isAfter(today.subtract(const Duration(days: 1))))
+        .length;
     final soon = filtered.where((e) {
-      final dt = DateTime.parse(e['date']);
+      final dt = e.date;
       return dt.isAfter(today.subtract(const Duration(days: 1))) &&
           dt.isBefore(in7.add(const Duration(days: 1)));
     }).length;
     final done = total - pending;
     final monthDone = filtered.where((e) {
-      final dt = DateTime.parse(e['date']);
+      final dt = e.date;
       return dt.isBefore(today) && dt.month == now.month;
     }).length;
-    final birthdays = filtered.where((e) => e['cat'] == 'birthday').length;
-    final bdayLeft = filtered.where((e) => e['cat'] == 'birthday' &&
-        DateTime.parse(e['date']).isAfter(today.subtract(const Duration(days: 1)))).length;
+    final birthdays = filtered
+        .where((e) => e.type == EventType.birthday)
+        .length;
+    final bdayLeft = filtered
+        .where(
+          (e) =>
+              e.type == EventType.birthday &&
+              e.date.isAfter(today.subtract(const Duration(days: 1))),
+        )
+        .length;
 
     return {
       'total': total,
@@ -178,23 +330,58 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   }
 
   Map<String, dynamic> calculateLifeStats() {
-    final birth = DateTime.parse(birthDate);
+    final birth = DateTime.tryParse(birthDate);
+    if (birth == null) {
+      return {
+        'pct': 0.0,
+        'livedDays': 0,
+        'remainDays': 0,
+        'yearLeft': 0,
+        'age': 0,
+      };
+    }
+
     final now = DateTime.now();
+
+    // 3. ✅ 修复：精准计算死亡日期（用年份相加，替代错误的天数计算）
     final death = DateTime(birth.year + lifeExpect, birth.month, birth.day);
 
-    final livedMs = now.difference(birth).inMilliseconds;
-    final totalMs = death.difference(birth).inMilliseconds;
-    final remainMs = totalMs - livedMs;
-    final livedDays = livedMs ~/ (1000 * 60 * 60 * 24);
-    final remainDays = max(0, remainMs ~/ (1000 * 60 * 60 * 24));
-    final pct = min(100.0, max(0.0, (livedMs / totalMs) * 100));
+    // 4. ✅ 修复：处理【未来生日】【已过死亡时间】边界
+    final isFutureBirth = now.isBefore(birth);
+    final isDead = now.isAfter(death);
 
+    // 已活时间/总时间
+    final totalMs = death.difference(birth).inMilliseconds;
+    final livedMs = isFutureBirth
+        ? 0
+        : (isDead ? totalMs : now.difference(birth).inMilliseconds);
+
+    // 计算天数
+    final livedDays = livedMs ~/ Duration.millisecondsPerDay;
+    final remainMs = max(0, totalMs - livedMs);
+    final remainDays = remainMs ~/ Duration.millisecondsPerDay;
+
+    // 生命进度百分比（0~100）
+    final pct = totalMs > 0
+        ? (livedMs / totalMs * 100).clamp(0.0, 100.0)
+        : 100.0;
+
+    // 5. ✅ 修复：移除多余的 .ceil()，inDays 本身就是int
     final yearEnd = DateTime(now.year, 12, 31);
-    final yearLeft = max(0, (yearEnd.difference(now).inDays).ceil());
-    final age = now.year - birth.year;
+    final yearLeft = max(0, yearEnd.difference(now).inDays);
+
+    // 6. ✅ 修复：精准年龄 + 边界处理（未来生日年龄=0）
+    int age = 0;
+    if (!isFutureBirth) {
+      age = now.year - birth.year;
+      if (now.month < birth.month ||
+          (now.month == birth.month && now.day < birth.day)) {
+        age--;
+      }
+    }
 
     return {
-      'pct': pct,
+      'pct': double.parse(pct.toStringAsFixed(2)), // 保留2位小数
       'livedDays': livedDays,
       'remainDays': remainDays,
       'yearLeft': yearLeft,
@@ -222,50 +409,14 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           SafeArea(
             child: Column(
               children: [
-                //_buildStatusBar(),
                 _buildTopNav(),
                 _buildTimeFilter(),
-                Expanded(
-                  child: _buildContent(isEmpty, stats),
-                ),
+                Expanded(child: _buildContent(isEmpty, stats)),
               ],
             ),
           ),
           if (_showToastFlag) _buildToast(),
           if (_selectedDateEvents != null) _buildDateModal(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBar() {
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      color: surface,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          StreamBuilder(
-            stream: Stream.periodic(const Duration(seconds: 30)),
-            builder: (context, snapshot) {
-              return Text(
-                DateFormat('HH:mm').format(DateTime.now()),
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: fg,
-                ),
-              );
-            },
-          ),
-          const Row(
-            children: [
-              Icon(Icons.signal_cellular_alt, size: 16, color: fg),
-              SizedBox(width: 4),
-              Icon(Icons.battery_full, size: 16, color: fg),
-            ],
-          ),
         ],
       ),
     );
@@ -281,7 +432,6 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
       ),
       child: Row(
         children: [
-        
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
@@ -294,24 +444,25 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
               ),
             ),
           ),
-          GestureDetector(
-            onTap: () => _showToastMessage('数据导出中…'),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: accent, width: 1.5),
-              ),
-              child: const Text(
-                '导出数据',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: accentDeep,
-                ),
-              ),
-            ),
-          ),
+          // todo: 导出数据按钮
+          // GestureDetector(
+          //   onTap: () => _showToastMessage('数据导出中…'),
+          //   child: Container(
+          //     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          //     decoration: BoxDecoration(
+          //       borderRadius: BorderRadius.circular(16),
+          //       border: Border.all(color: accent, width: 1.5),
+          //     ),
+          //     child: const Text(
+          //       '导出数据',
+          //       style: TextStyle(
+          //         fontSize: 12,
+          //         fontWeight: FontWeight.w700,
+          //         color: accentDeep,
+          //       ),
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -319,16 +470,16 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
 
   Widget _buildTimeFilter() {
     final ranges = [
-      ('all', '全部时间'),
-      ('year', '本年度'),
-      ('quarter', '本季度'),
-      ('month', '本月'),
-      ('30d', '近30天'),
+      (StatsTimeType.all, '全部时间'),
+      (StatsTimeType.year, '本年度'),
+      (StatsTimeType.quarter, '本季度'),
+      (StatsTimeType.month, '本月'),
     ];
 
     return Container(
       color: surface,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -342,7 +493,10 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
               },
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: isActive ? accent : Colors.transparent,
                   borderRadius: BorderRadius.circular(18),
@@ -352,7 +506,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
-                    color: isActive ? const Color(0xFF3C3428) : muted,
+                    color: isActive ? fg : muted,
                   ),
                 ),
               ),
@@ -380,7 +534,11 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
               color: accentSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.notifications_none, size: 48, color: accent),
+            child: const Icon(
+              Icons.notifications_none,
+              size: 48,
+              color: accent,
+            ),
           ),
           const SizedBox(height: 20),
           const Text(
@@ -394,15 +552,12 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           const SizedBox(height: 8),
           const Text(
             '快去记录你的重要时刻吧',
-            style: TextStyle(
-              fontSize: 14,
-              color: muted,
-            ),
+            style: TextStyle(fontSize: 14, color: muted),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
           GestureDetector(
-            onTap: () => _showToastMessage('跳转新增事件'),
+            onTap: () => context.push('/add-event'),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
               decoration: BoxDecoration(
@@ -414,7 +569,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF3C3428),
+                  color: fg,
                 ),
               ),
             ),
@@ -440,6 +595,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     );
   }
 
+  // 统计卡片
   Widget _buildStatsGrid(Map<String, dynamic> stats) {
     return GridView.count(
       shrinkWrap: true,
@@ -447,12 +603,13 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
+      childAspectRatio: 1.0 / 0.8,
       children: [
         _buildStatCard(
           icon: '📊',
           number: stats['total'],
           label: '全部事件',
-          subLabel: '含私密事件 ${stats['isPrivate']} 项',
+          subLabel: '含标星事件 ${stats['isPrivate']} 项',
           bgColor: accentSoft,
         ),
         _buildStatCard(
@@ -472,14 +629,15 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
         _buildStatCard(
           icon: '🎂',
           number: stats['birthdays'],
-          label: '高频生日数',
-          subLabel: '本年度待过 ${stats['bdayLeft']} 人',
+          label: '生日数',
+          subLabel: '本年度已有 ${stats['bdayLeft']} 人过生日',
           bgColor: const Color(0xFFFFEBEE),
         ),
       ],
     );
   }
 
+  // 统计卡片
   Widget _buildStatCard({
     required String icon,
     required int number,
@@ -494,68 +652,82 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
       builder: (context, value, child) {
         return Transform.translate(
           offset: Offset(0, 18 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: child,
-          ),
+          child: Opacity(opacity: value.clamp(0, 1), child: child),
         );
       },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(10),
+                color: card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: border),
               ),
-              child: Center(
-                child: Text(
-                  icon,
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: number),
-              duration: const Duration(milliseconds: 600),
-              curve: const Cubic(0.34, 1.56, 0.64, 1.0),
-              builder: (context, value, child) {
-                return Text(
-                  value.toString(),
-                  style: const TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    color: fg,
-                    height: 1,
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // ← 新增这一行
+
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Center(
+                      child: Text(icon, style: const TextStyle(fontSize: 16)),
+                    ),
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: fg,
+                  const SizedBox(height: 8),
+                  TweenAnimationBuilder<int>(
+                    tween: IntTween(begin: 0, end: number),
+                    duration: const Duration(milliseconds: 600),
+                    curve: const Cubic(0.34, 1.56, 0.64, 1.0),
+                    builder: (context, value, child) {
+                      return Text(
+                        value.toString(),
+                        style: const TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w900,
+                          color: fg,
+                          height: 1,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: fg,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subLabel,
+                    style: const TextStyle(fontSize: 11, color: muted),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 3),
-            Text(
-              subLabel,
-              style: const TextStyle(
-                fontSize: 11,
-                color: muted,
+            Positioned(
+              right: -40,
+              top: -40,
+
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ],
@@ -564,6 +736,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     );
   }
 
+  // 日历热力图
   Widget _buildHeatmapSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -575,6 +748,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     );
   }
 
+  // 日历热力图标题
   Widget _buildSectionHeader() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -584,9 +758,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
             SizedBox(
               width: 18,
               height: 18,
-              child: CustomPaint(
-                painter: _GridIconPainter(),
-              ),
+              child: CustomPaint(painter: _GridIconPainter()),
             ),
             SizedBox(width: 6),
             Text(
@@ -606,8 +778,8 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           ),
           child: Row(
             children: [
-              _buildViewToggleBtn('年度', 'year'),
-              _buildViewToggleBtn('月度', 'month'),
+              _buildViewToggleBtn('年度', StatsTimeType.year),
+              _buildViewToggleBtn('月度', StatsTimeType.month),
             ],
           ),
         ),
@@ -615,19 +787,19 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildViewToggleBtn(String text, String view) {
-    final isActive = currentView == view;
+  Widget _buildViewToggleBtn(String text, StatsTimeType view) {
+    final isActive = currentHeatmapRange == view;
     return GestureDetector(
       onTap: () {
         setState(() {
-          currentView = view;
+          currentHeatmapRange = view;
         });
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
         decoration: BoxDecoration(
           color: isActive ? accent : card,
-          borderRadius: view == 'year'
+          borderRadius: view == StatsTimeType.year
               ? const BorderRadius.horizontal(left: Radius.circular(8))
               : const BorderRadius.horizontal(right: Radius.circular(8)),
         ),
@@ -636,7 +808,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isActive ? const Color(0xFF3C3428) : muted,
+            color: isActive ? fg : muted,
           ),
         ),
       ),
@@ -650,141 +822,39 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: border),
       ),
-      padding: const EdgeInsets.all(16),
-      child: currentView == 'year' ? _buildYearView() : _buildMonthView(),
+      child: currentHeatmapRange == StatsTimeType.year
+          ? _buildYearView()
+          : _buildMonthView(),
     );
   }
 
   Widget _buildYearView() {
-    final dayMap = buildDayMap();
-    final y = DateTime.now().year;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildMonthLabels(),
-        const SizedBox(height: 6),
-        _buildYearHeatmapBody(y, dayMap),
-        const SizedBox(height: 12),
-        _buildHeatmapLegend(),
-      ],
-    );
-  }
-
-  Widget _buildMonthLabels() {
-    final months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-    return Row(
-      children: months.map((m) {
-        return Expanded(
-          child: Text(
-            m,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 10,
-              color: muted,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildYearHeatmapBody(int year, Map<String, int> dayMap) {
-    final jan1 = DateTime(year, 1, 1);
-    var startOffset = jan1.weekday;
-    if (startOffset == 7) startOffset = 0;
-
-    final dec31 = DateTime(year, 12, 31);
-    var current = DateTime(year, 1, 1);
-    current = current.subtract(Duration(days: (startOffset + 6) % 7));
-
-    final weeks = <Widget>[];
-
-    while (current.isBefore(dec31.add(const Duration(days: 1))) || current.weekday != 1) {
-      final week = <Widget>[];
-      for (int i = 0; i < 7; i++) {
-        final isCurrentYear = current.year == year;
-        final key = DateFormat('yyyy-MM-dd').format(current);
-        final count = dayMap[key] ?? 0;
-        final color = getHeatColor(count);
-
-        week.add(
-          GestureDetector(
-            onTap: isCurrentYear ? () => _openDateModal(key) : null,
-            child: Container(
-              width: 14,
-              height: 14,
-              margin: const EdgeInsets.symmetric(vertical: 1.5),
-              decoration: BoxDecoration(
-                color: isCurrentYear ? color : Colors.transparent,
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-          ),
-        );
-        current = current.add(const Duration(days: 1));
-      }
-      weeks.add(
-        Column(children: week),
-      );
-      if (current.isAfter(dec31) && current.weekday == 1) break;
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildDayLabels(),
-        const SizedBox(width: 4),
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: weeks.map((w) => Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: w,
-              )).toList(),
-            ),
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(right: 18),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ContributionHeatmap(
+          heatmapColor: HeatmapColor.orange,
+          showMonthLabels: true,
+          weekdayLabel: WeekdayLabel.githubLike,
+          splittedMonthView: true,
+          showCellDate: true,
+          startWeekday: DateTime.monday,
+          cellRadius: 14.0,
+          cellSize: 18.0,
+          minDate: DateTime(DateTime.now().year, 1, 1),
+          maxDate: DateTime.now(),
+          entries: [
+            ContributionEntry(DateTime(2026, 1, 15), 5),
+            ContributionEntry(DateTime(2026, 3, 16), 3),
+            ContributionEntry(DateTime(2026, 2, 1), 8),
+            // Add more entries...
+          ], // Only required parameter, other are optional
+          onCellTap: (date, value) {
+            _openDateModal(date.toIso8601String());
+          },
         ),
-      ],
-    );
-  }
-
-  Widget _buildDayLabels() {
-    const labels = ['', '一', '', '三', '', '五', ''];
-    return Column(
-      children: labels.map((l) => Container(
-        width: 20,
-        height: 17,
-        alignment: Alignment.centerRight,
-        child: Text(
-          l,
-          style: const TextStyle(
-            fontSize: 9,
-            color: muted,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      )).toList(),
-    );
-  }
-
-  Widget _buildHeatmapLegend() {
-    return const Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text('少', style: TextStyle(fontSize: 11, color: muted)),
-        SizedBox(width: 6),
-        _LegendBlock(color: heat0),
-        _LegendBlock(color: heat1),
-        _LegendBlock(color: heat2),
-        _LegendBlock(color: heat3),
-        _LegendBlock(color: heat4),
-        SizedBox(width: 6),
-        Text('多', style: TextStyle(fontSize: 11, color: muted)),
-      ],
+      ),
     );
   }
 
@@ -792,12 +862,15 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     final dayMap = buildDayMap();
     final today = DateTime.now();
 
-    return Column(
-      children: [
-        _buildMonthNav(),
-        const SizedBox(height: 12),
-        _buildMonthGrid(dayMap, today),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          _buildMonthNav(),
+          const SizedBox(height: 12),
+          _buildMonthGrid(dayMap, today),
+        ],
+      ),
     );
   }
 
@@ -889,10 +962,13 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     }
 
     for (int d = 1; d <= daysInMonth; d++) {
-      final key = DateFormat('yyyy-MM-dd').format(DateTime(viewYear, viewMonth + 1, d));
+      final key = DateFormat(
+        'yyyy-MM-dd',
+      ).format(DateTime(viewYear, viewMonth + 1, d));
       final count = dayMap[key] ?? 0;
       final color = getHeatColor(count);
-      final isToday = today.year == viewYear &&
+      final isToday =
+          today.year == viewYear &&
           today.month == viewMonth + 1 &&
           today.day == d;
 
@@ -1031,6 +1107,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   Widget _buildLifeBar(double pct) {
     return Container(
       height: 14,
+      width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFFE8E4DC),
         borderRadius: BorderRadius.circular(7),
@@ -1066,6 +1143,8 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
+      childAspectRatio: 1.0 / 0.5,
+
       children: [
         _buildLifeStat(lifeStats['livedDays'], '已度过天数'),
         _buildLifeStat(lifeStats['remainDays'], '剩余天数'),
@@ -1093,13 +1172,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: muted,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11, color: muted)),
         ],
       ),
     );
@@ -1146,7 +1219,10 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                   }
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: bg,
                     borderRadius: BorderRadius.circular(8),
@@ -1154,10 +1230,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                   ),
                   child: Text(
                     birthDate,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: fg,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: fg),
                   ),
                 ),
               ),
@@ -1179,7 +1252,10 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
               ),
               const SizedBox(height: 4),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: bg,
                   borderRadius: BorderRadius.circular(8),
@@ -1187,22 +1263,22 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                 ),
                 child: TextField(
                   keyboardType: TextInputType.number,
-                  controller: TextEditingController(text: lifeExpect.toString()),
+                  controller: _lifeExpectController,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     isCollapsed: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: fg,
-                  ),
+                  style: const TextStyle(fontSize: 13, color: fg),
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (value) {
                     final parsed = int.tryParse(value);
                     if (parsed != null && parsed >= 1 && parsed <= 150) {
                       setState(() {
                         lifeExpect = parsed;
                       });
+                    } else {
+                      Utils().showErrorToast('请输入1-150之间的整数', null);
                     }
                   },
                 ),
@@ -1222,7 +1298,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           return Transform.scale(
             scale: _toastScaleAnimation.value,
             child: Opacity(
-              opacity: _toastOpacityAnimation.value,
+              opacity: _toastOpacityAnimation.value.clamp(0, 1),
               child: child,
             ),
           );
@@ -1230,7 +1306,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF3C3428).withValues(alpha: 0.92),
+            color: fg.withValues(alpha: 0.92),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -1247,12 +1323,15 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
   }
 
   void _openDateModal(String dateStr) {
-    final dayEvents = allEvents.where((e) => e['date'] == dateStr).toList();
+    final targetDate = DateFormat('yyyy-MM-dd').parse(dateStr);
+    final dayEvents = allEvents.where((e) {
+      final d = e.date;
+      return d.year == targetDate.year &&
+          d.month == targetDate.month &&
+          d.day == targetDate.day;
+    }).toList();
     setState(() {
-      _selectedDateEvents = {
-        'date': dateStr,
-        'events': dayEvents,
-      };
+      _selectedDateEvents = {'date': dateStr, 'events': dayEvents};
     });
   }
 
@@ -1266,26 +1345,26 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
     if (_selectedDateEvents == null) return const SizedBox.shrink();
 
     final dateStr = _selectedDateEvents!['date'] as String;
-    final events = _selectedDateEvents!['events'] as List;
+    final events = _selectedDateEvents!['events'] as List<Event>;
     final dt = DateTime.parse(dateStr);
     const weekdays = ['星期一', '星期二', '星期三', '星期四', '星期五', '星期六', '星期日'];
     final weekday = weekdays[dt.weekday - 1];
 
-    final catColors = <String, Color>{
-      'birthday': danger,
-      'task': accentDeep,
-      'holiday': success,
+    final catColors = <EventType, Color>{
+      EventType.birthday: danger,
+      EventType.task: accentDeep,
+      EventType.holiday: success,
     };
-    final catLabels = <String, String>{
-      'birthday': '🎂 生日',
-      'task': '📌 事项',
-      'holiday': '🎉 节日',
+    final catLabels = <EventType, String>{
+      EventType.birthday: '🎂 生日',
+      EventType.task: '📌 事项',
+      EventType.holiday: '🎉 节日',
     };
 
     return GestureDetector(
       onTap: _closeDateModal,
       child: Container(
-        color: const Color(0xFF3C3428).withValues(alpha: 0.45),
+        color: fg.withValues(alpha: 0.45),
         child: Center(
           child: GestureDetector(
             onTap: () {},
@@ -1312,7 +1391,11 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                           color: accentSoft,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.close, color: accentDeep, size: 16),
+                        child: const Icon(
+                          Icons.close,
+                          color: accentDeep,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),
@@ -1327,10 +1410,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                   const SizedBox(height: 4),
                   Text(
                     weekday,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: muted,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: muted),
                   ),
                   const SizedBox(height: 14),
                   if (events.isEmpty)
@@ -1339,10 +1419,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                         padding: EdgeInsets.symmetric(vertical: 20),
                         child: Text(
                           '当日暂无事件记录',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: muted,
-                          ),
+                          style: TextStyle(fontSize: 14, color: muted),
                         ),
                       ),
                     )
@@ -1351,9 +1428,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                       return Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: const BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: border),
-                          ),
+                          border: Border(bottom: BorderSide(color: border)),
                         ),
                         child: Row(
                           children: [
@@ -1361,14 +1436,14 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
-                                color: catColors[e['cat']] ?? muted,
+                                color: catColors[e.type] ?? muted,
                                 shape: BoxShape.circle,
                               ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                e['name'],
+                                e.name,
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -1378,13 +1453,16 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
                             ),
                             const SizedBox(width: 10),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: accentSoft,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                catLabels[e['cat']] ?? e['cat'],
+                                catLabels[e.type] ?? e.type.name,
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -1430,7 +1508,7 @@ class _GridIconPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = _StatsScreenState.accentDeep
+      ..color = _accentDeep
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
@@ -1438,9 +1516,18 @@ class _GridIconPainter extends CustomPainter {
     final gap = size.width * 0.1;
 
     canvas.drawRect(Rect.fromLTWH(0, 0, rectSize, rectSize), paint);
-    canvas.drawRect(Rect.fromLTWH(rectSize + gap, 0, rectSize, rectSize), paint);
-    canvas.drawRect(Rect.fromLTWH(0, rectSize + gap, rectSize, rectSize), paint);
-    canvas.drawRect(Rect.fromLTWH(rectSize + gap, rectSize + gap, rectSize, rectSize), paint);
+    canvas.drawRect(
+      Rect.fromLTWH(rectSize + gap, 0, rectSize, rectSize),
+      paint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, rectSize + gap, rectSize, rectSize),
+      paint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(rectSize + gap, rectSize + gap, rectSize, rectSize),
+      paint,
+    );
   }
 
   @override

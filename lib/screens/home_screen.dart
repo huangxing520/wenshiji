@@ -122,13 +122,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     icon: Icon(Icons.search, size: 28, color: Color(0xFF8B7648)),
                     onPressed: () => Utils().showErrorToast('搜索功能开发中', null),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.person, size: 28, color: Color(0xFF8B7648)),
-                    onPressed: () async {
-                      final deviceId = await preferences.getDeviceId();
-                      context.push('/profile?deviceId=${deviceId}');
-                    },
-                  ),
+                  // IconButton(
+                  //   icon: Icon(Icons.person, size: 28, color: Color(0xFF8B7648)),
+                  //   onPressed: () async {
+                  //     final deviceId = await preferences.getDeviceId();
+                  //     context.push('/profile?deviceId=${deviceId}');
+                  //   },
+                  // ),
                 ],
               ),
             ],
@@ -1123,315 +1123,286 @@ class _ContextMenuItem extends StatelessWidget {
   }
 }
 
-class AddEventScreen extends ConsumerStatefulWidget {
-  const AddEventScreen({super.key});
+// class AddEventScreen extends ConsumerStatefulWidget {
+//   const AddEventScreen({super.key});
 
-  @override
-  ConsumerState<AddEventScreen> createState() => _AddEventScreenState();
-}
+//   @override
+//   ConsumerState<AddEventScreen> createState() => _AddEventScreenState();
+// }
 
-class _AddEventScreenState extends ConsumerState<AddEventScreen> {
-  final _nameController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
-  EventType _selectedType = EventType.birthday;
-  bool _enableCheckin = false;
+// class _AddEventScreenState extends ConsumerState<AddEventScreen> {
+//   final _nameController = TextEditingController();
+//   DateTime _selectedDate = DateTime.now();
+//   EventType _selectedType = EventType.birthday;
+//   bool _enableCheckin = false;
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
+//   @override
+//   void dispose() {
+//     _nameController.dispose();
+//     super.dispose();
+//   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F0),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Color(0xFF383428)),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          '新增事件',
-          style: TextStyle(
-            fontFamily: 'KaiTi',
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF383428),
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildField(
-              label: '事件名称',
-              child: TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  hintText: '例如：妈妈生日',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: Color(0xFFD4A853),
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildField(
-              label: '日期',
-              child: GestureDetector(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _selectedDate,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2100),
-                    builder: (context, child) {
-                      return Theme(
-                        data: Theme.of(context).copyWith(
-                          colorScheme: const ColorScheme.light(
-                            primary: Color(0xFFD4A853),
-                          ),
-                        ),
-                        child: child!,
-                      );
-                    },
-                  );
-                  if (date != null) {
-                    setState(() => _selectedDate = date);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE8E4DC)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.calendar_today,
-                        color: Color(0xFFD4A853),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        DateFormat('yyyy-MM-dd').format(_selectedDate),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF383428),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            _buildField(
-              label: '类型',
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: EventType.values.map((type) {
-                  final isSelected = _selectedType == type;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedType = type;
-                        if (type != EventType.dailySignIn) {
-                          _enableCheckin = false;
-                        }
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFE8D4A0)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: isSelected
-                              ? const Color(0xFFD4A853)
-                              : const Color(0xFFE8E4DC),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: Text(
-                        _getTypeLabel(type),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? const Color(0xFF8B6F3A)
-                              : const Color(0xFF8B8066),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-            if (_selectedType == EventType.dailySignIn) ...[
-              const SizedBox(height: 14),
-              _buildField(
-                label: '开启每日打卡',
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      '启用后可每日打卡记录',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF8B8066)),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() => _enableCheckin = !_enableCheckin);
-                      },
-                      child: Container(
-                        width: 44,
-                        height: 26,
-                        decoration: BoxDecoration(
-                          color: _enableCheckin
-                              ? const Color(0xFFD4A853)
-                              : const Color(0xFFE0DDD5),
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: AnimatedAlign(
-                          duration: const Duration(milliseconds: 300),
-                          curve: Curves.easeOutBack,
-                          alignment: _enableCheckin
-                              ? Alignment.centerRight
-                              : Alignment.centerLeft,
-                          child: Container(
-                            width: 20,
-                            height: 20,
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.12),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => (),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD4A853),
-                  foregroundColor: const Color(0xFF383428),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: const Text(
-                  '确认添加',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       backgroundColor: const Color(0xFFFAF7F0),
+//       appBar: AppBar(
+//         backgroundColor: Colors.transparent,
+//         elevation: 0,
+//         leading: IconButton(
+//           icon: const Icon(Icons.close, color: Color(0xFF383428)),
+//           onPressed: () => Navigator.of(context).pop(),
+//         ),
+//         title: Text(
+//           '新增事件',
+//           style: TextStyle(
+//             fontFamily: 'KaiTi',
+//             fontSize: 20,
+//             fontWeight: FontWeight.w700,
+//             color: const Color(0xFF383428),
+//           ),
+//         ),
+//         centerTitle: true,
+//       ),
+//       body: SingleChildScrollView(
+//         padding: const EdgeInsets.all(20),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             _buildField(
+//               label: '事件名称',
+//               child: TextField(
+//                 controller: _nameController,
+//                 decoration: InputDecoration(
+//                   hintText: '例如：妈妈生日',
+//                   filled: true,
+//                   fillColor: Colors.white,
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(10),
+//                     borderSide: BorderSide.none,
+//                   ),
+//                   focusedBorder: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(10),
+//                     borderSide: const BorderSide(
+//                       color: Color(0xFFD4A853),
+//                       width: 1.5,
+//                     ),
+//                   ),
+//                 ),
+//               ),
+//             ),
+//             const SizedBox(height: 14),
+//             _buildField(
+//               label: '日期',
+//               child: GestureDetector(
+//                 onTap: () async {
+//                   final date = await showDatePicker(
+//                     context: context,
+//                     initialDate: _selectedDate,
+//                     firstDate: DateTime(2020),
+//                     lastDate: DateTime(2100),
+//                     builder: (context, child) {
+//                       return Theme(
+//                         data: Theme.of(context).copyWith(
+//                           colorScheme: const ColorScheme.light(
+//                             primary: Color(0xFFD4A853),
+//                           ),
+//                         ),
+//                         child: child!,
+//                       );
+//                     },
+//                   );
+//                   if (date != null) {
+//                     setState(() => _selectedDate = date);
+//                   }
+//                 },
+//                 child: Container(
+//                   padding: const EdgeInsets.all(12),
+//                   decoration: BoxDecoration(
+//                     color: Colors.white,
+//                     borderRadius: BorderRadius.circular(10),
+//                     border: Border.all(color: const Color(0xFFE8E4DC)),
+//                   ),
+//                   child: Row(
+//                     children: [
+//                       const Icon(
+//                         Icons.calendar_today,
+//                         color: Color(0xFFD4A853),
+//                         size: 20,
+//                       ),
+//                       const SizedBox(width: 12),
+//                       Text(
+//                         DateFormat('yyyy-MM-dd').format(_selectedDate),
+//                         style: const TextStyle(
+//                           fontSize: 15,
+//                           color: Color(0xFF383428),
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//             ),
+//             const SizedBox(height: 14),
+//             _buildField(
+//               label: '类型',
+//               child: Wrap(
+//                 spacing: 8,
+//                 runSpacing: 8,
+//                 children: EventType.values.map((type) {
+//                   final isSelected = _selectedType == type;
+//                   return GestureDetector(
+//                     onTap: () {
+//                       setState(() {
+//                         _selectedType = type;
+//                         if (type != EventType.dailySignIn) {
+//                           _enableCheckin = false;
+//                         }
+//                       });
+//                     },
+//                     child: Container(
+//                       padding: const EdgeInsets.symmetric(
+//                         horizontal: 16,
+//                         vertical: 10,
+//                       ),
+//                       decoration: BoxDecoration(
+//                         color: isSelected
+//                             ? const Color(0xFFE8D4A0)
+//                             : Colors.white,
+//                         borderRadius: BorderRadius.circular(20),
+//                         border: Border.all(
+//                           color: isSelected
+//                               ? const Color(0xFFD4A853)
+//                               : const Color(0xFFE8E4DC),
+//                           width: 1.5,
+//                         ),
+//                       ),
+//                       child: Text(
+//                         _getTypeLabel(type),
+//                         style: TextStyle(
+//                           fontSize: 13,
+//                           fontWeight: FontWeight.w600,
+//                           color: isSelected
+//                               ? const Color(0xFF8B6F3A)
+//                               : const Color(0xFF8B8066),
+//                         ),
+//                       ),
+//                     ),
+//                   );
+//                 }).toList(),
+//               ),
+//             ),
+//             if (_selectedType == EventType.dailySignIn) ...[
+//               const SizedBox(height: 14),
+//               _buildField(
+//                 label: '开启每日打卡',
+//                 child: Row(
+//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                   children: [
+//                     const Text(
+//                       '启用后可每日打卡记录',
+//                       style: TextStyle(fontSize: 14, color: Color(0xFF8B8066)),
+//                     ),
+//                     GestureDetector(
+//                       onTap: () {
+//                         setState(() => _enableCheckin = !_enableCheckin);
+//                       },
+//                       child: Container(
+//                         width: 44,
+//                         height: 26,
+//                         decoration: BoxDecoration(
+//                           color: _enableCheckin
+//                               ? const Color(0xFFD4A853)
+//                               : const Color(0xFFE0DDD5),
+//                           borderRadius: BorderRadius.circular(13),
+//                         ),
+//                         child: AnimatedAlign(
+//                           duration: const Duration(milliseconds: 300),
+//                           curve: Curves.easeOutBack,
+//                           alignment: _enableCheckin
+//                               ? Alignment.centerRight
+//                               : Alignment.centerLeft,
+//                           child: Container(
+//                             width: 20,
+//                             height: 20,
+//                             margin: const EdgeInsets.symmetric(horizontal: 3),
+//                             decoration: BoxDecoration(
+//                               color: Colors.white,
+//                               borderRadius: BorderRadius.circular(10),
+//                               boxShadow: [
+//                                 BoxShadow(
+//                                   color: Colors.black.withValues(alpha: 0.12),
+//                                   blurRadius: 4,
+//                                   offset: const Offset(0, 1),
+//                                 ),
+//                               ],
+//                             ),
+//                           ),
+//                         ),
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             ],
+//             const SizedBox(height: 24),
+//             SizedBox(
+//               width: double.infinity,
+//               child: ElevatedButton(
+//                 onPressed: () => (),
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: const Color(0xFFD4A853),
+//                   foregroundColor: const Color(0xFF383428),
+//                   padding: const EdgeInsets.symmetric(vertical: 14),
+//                   shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(16),
+//                   ),
+//                 ),
+//                 child: const Text(
+//                   '确认添加',
+//                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+//                 ),
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
 
-  Widget _buildField({required String label, required Widget child}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF383428),
-          ),
-        ),
-        const SizedBox(height: 6),
-        child,
-      ],
-    );
-  }
+//   Widget _buildField({required String label, required Widget child}) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Text(
+//           label,
+//           style: const TextStyle(
+//             fontSize: 13,
+//             fontWeight: FontWeight.w600,
+//             color: Color(0xFF383428),
+//           ),
+//         ),
+//         const SizedBox(height: 6),
+//         child,
+//       ],
+//     );
+//   }
 
-  String _getTypeLabel(EventType type) {
-    switch (type) {
-      case EventType.birthday:
-        return '🎂 生日';
-      case EventType.task:
-        return '📌 事项';
-      case EventType.dailySignIn:
-        return '📈 连签计时';
-      case EventType.holiday:
-        return '🎉 节日';
-    }
-  }
+//   String _getTypeLabel(EventType type) {
+//     switch (type) {
+//       case EventType.birthday:
+//         return '🎂 生日';
+//       case EventType.task:
+//         return '📌 事项';
+//       case EventType.dailySignIn:
+//         return '📈 连签计时';
+//       case EventType.holiday:
+//         return '🎉 节日';
+//     }
+//   }
 
-  // void _addEvent() {
-  //   if (_nameController.text.trim().isEmpty) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(
-  //         content: const Text('请输入事件名称'),
-  //         backgroundColor: const Color(0xFFFF6B6B),
-  //         behavior: SnackBarBehavior.floating,
-  //       ),
-  //     );
-  //     return;
-  //   }
-
-  //   final event = Event(
-  //     id: const Uuid().v4(),
-  //     name: _nameController.text.trim(),
-  //     date: _selectedDate,
-  //     type: _selectedType,
-  //     hasCheckin: _selectedType == EventType.dailySignIn ? _enableCheckin : false,
-  //   );
-
-  //   ref.read(eventNotifierProvider.notifier).addEvent(event);
-  //   Navigator.of(context).pop();
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     SnackBar(
-  //       content: const Text('添加成功'),
-  //       backgroundColor: const Color(0xFF4CAF50),
-  //       behavior: SnackBarBehavior.floating,
-  //     ),
-  //   );
-  // }
-}
+  
+// }
 
 // 整体卡片入场动画（整个组件一次动画，无逐个）
 class CardSpring extends StatefulWidget {
