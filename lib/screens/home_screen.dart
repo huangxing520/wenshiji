@@ -87,7 +87,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     data: (_) => _buildContent(filteredEvents, stats),
                   ),
                 ),
-                _buildBottomNav(),
               ],
             ),
           ),
@@ -307,7 +306,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildFAB() {
     return Positioned(
       right: 20,
-      bottom: 100,
+      bottom: 10,
       child: GestureDetector(
         onTap: () => context.push('/add-event'),
         child: Container(
@@ -326,48 +325,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
           child: Icon(Icons.add, size: 28, color: const Color(0xFF383428)),
         ),
-      ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return Container(
-      height: 64,
-      padding: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAF7F0),
-        border: Border(
-          top: BorderSide(color: const Color(0xFFE8E4DC), width: 1),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _BottomNavItem(
-            icon: Icons.home,
-            label: '首页',
-            isActive: true,
-            onTap: () {},
-          ),
-          _BottomNavItem(
-            icon: Icons.calendar_today,
-            label: '日历',
-            isActive: false,
-            onTap: () => _showToast('日历页面开发中'),
-          ),
-          _BottomNavItem(
-            icon: Icons.explore,
-            label: '发现',
-            isActive: false,
-            onTap: () => _showToast('发现页面开发中'),
-          ),
-          _BottomNavItem(
-            icon: Icons.person,
-            label: '我的',
-            isActive: false,
-            onTap: () => _showToast('我的页面开发中'),
-          ),
-        ],
       ),
     );
   }
@@ -1117,53 +1074,6 @@ class _EventCard extends StatelessWidget {
       case EventType.holiday:
         return '🎉 节日';
     }
-  }
-}
-
-class _BottomNavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _BottomNavItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: isActive
-                  ? const Color(0xFF8B6F3A)
-                  : const Color(0xFF8B8066),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: isActive
-                    ? const Color(0xFF8B6F3A)
-                    : const Color(0xFF8B8066),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

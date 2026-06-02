@@ -6,8 +6,7 @@ import 'dart:math' as math;
 import 'package:wenshiji/common/preferences.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key, required this.deviceId});
-  final String deviceId;
+  const ProfileScreen({super.key});
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -17,16 +16,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   late AnimationController _particleController;
   final List<_ParticleData> _particles = [];
   final math.Random _random = math.Random();
+  String _deviceId = '';
+
   @override
   void initState() {
-    print('deviceId: ${widget.deviceId}');
     super.initState();
+    _loadDeviceId();
     _particleController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
     );
     _particleController.repeat();
     _spawnParticles();
+  }
+
+  Future<void> _loadDeviceId() async {
+    final id = await preferences.getDeviceId();
+    if (mounted) {
+      setState(() {
+        _deviceId = id;
+      });
+    }
   }
 
   void _spawnParticles() {
@@ -70,25 +80,31 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
     return Scaffold(
       backgroundColor: bgColor,
-      body: Column(
+      body: Stack(
         children: [
-          _buildStatusBar(bgColor, fgColor, surfaceColor),
-          _buildTopNav(
-            accentSoftColor,
-            accentDeepColor,
-            fgColor,
-            surfaceColor,
-            borderColor,
-          ),
-          Expanded(
-            child: _buildContentScroll(
-              surfaceColor,
-              accentSoftColor,
-              accentDeepColor,
-              accentColor,
-              borderColor,
-              fgColor,
-              mutedColor,
+          SafeArea(
+            child: Column(
+              children: [
+                //_buildStatusBar(bgColor, fgColor, surfaceColor),
+                _buildTopNav(
+                  accentSoftColor,
+                  accentDeepColor,
+                  fgColor,
+                  surfaceColor,
+                  borderColor,
+                ),
+                Expanded(
+                  child: _buildContentScroll(
+                    surfaceColor,
+                    accentSoftColor,
+                    accentDeepColor,
+                    accentColor,
+                    borderColor,
+                    fgColor,
+                    mutedColor,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -140,18 +156,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => context.pop(),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accentSoftColor,
-              ),
-              child: Icon(Icons.arrow_back, color: accentDeepColor, size: 22),
-            ),
-          ),
           const SizedBox(width: 10),
           Text(
             '个人中心',
@@ -355,9 +359,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   width: 3,
                 ),
               ),
-            
+
               child: Image.network(
-                'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=${widget.deviceId}',
+                'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$_deviceId',
                 errorBuilder: (context, error, stackTrace) {
                   return Icon(
                     Icons.person_outline,

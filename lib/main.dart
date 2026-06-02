@@ -3,11 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:wenshiji/common/preferences.dart';
+import 'package:wenshiji/screens/stats.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart' hide AddEventScreen;
 import 'screens/add_event.dart';
 import 'screens/profile.dart';
 import 'screens/event_detail.dart';
+import 'screens/main_shell.dart';
 
 Future<void> main() async {
   try {
@@ -57,10 +59,6 @@ class Application extends StatelessWidget {
           : '/splash', // Start at the home page
       routes: [
         GoRoute(
-          path: '/homepage',
-          builder: (context, state) => const HomeScreen(),
-        ),
-        GoRoute(
           path: '/splash',
           builder: (context, state) => const SplashScreen(),
         ),
@@ -69,15 +67,34 @@ class Application extends StatelessWidget {
           builder: (context, state) => const AddEventScreen(),
         ),
         GoRoute(
-          path: '/profile',
-          builder: (context, state) {
-            final deviceId = state.uri.queryParameters['deviceId'] ?? '';
-             return ProfileScreen(deviceId: deviceId);
-          },
-        ),
-        GoRoute(
           path: '/event-detail',
           builder: (context, state) => const EventDetailScreen(),
+        ),
+        StatefulShellRoute.indexedStack(
+          builder: (context, state, navigationShell) {
+            return MainShell(navigationShell: navigationShell);
+          },
+          branches: [
+            StatefulShellBranch(routes: [
+              GoRoute(
+                path: '/homepage',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ]),
+            StatefulShellBranch(routes: [
+              GoRoute(
+                path: '/stats',
+                builder: (context, state) => const StatsScreen(),
+              ),
+            ]),
+        
+            StatefulShellBranch(routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ]),
+          ],
         ),
       ],
       // Optional: Handle 404-like errors

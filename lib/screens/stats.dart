@@ -222,7 +222,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
           SafeArea(
             child: Column(
               children: [
-                _buildStatusBar(),
+                //_buildStatusBar(),
                 _buildTopNav(),
                 _buildTimeFilter(),
                 Expanded(
@@ -281,18 +281,7 @@ class _StatsScreenState extends State<StatsScreen> with TickerProviderStateMixin
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => _showToastMessage('返回首页'),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: accentSoft,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.arrow_back, color: accentDeep),
-            ),
-          ),
+        
           const SizedBox(width: 8),
           const Expanded(
             child: Text(
