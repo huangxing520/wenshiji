@@ -120,12 +120,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.search, color: Color(0xFF8B7648)),
-                    onPressed: () => Utils().showErrorToast( '搜索功能开发中',null),
+                    icon: Icon(Icons.search, size: 28, color: Color(0xFF8B7648)),
+                    onPressed: () => Utils().showErrorToast('搜索功能开发中', null),
                   ),
                   IconButton(
-                    icon: Icon(Icons.settings, color: Color(0xFF8B7648)),
-                    onPressed: () => context.push('/profile'),
+                    icon: Icon(Icons.person, size: 28, color: Color(0xFF8B7648)),
+                    onPressed: () async {
+                      final deviceId = await preferences.getDeviceId();
+                      context.push('/profile?deviceId=${deviceId}');
+                    },
                   ),
                 ],
               ),

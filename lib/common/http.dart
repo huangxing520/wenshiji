@@ -97,6 +97,7 @@ class HttpUtil {
       );
     }
   }
+  
 } 
 
 final httpUtil = HttpUtil();

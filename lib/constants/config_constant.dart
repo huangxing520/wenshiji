@@ -13,6 +13,7 @@ class ConfigConstant {
   static const List<Color> autumnColor = [Color(0xFFFF8C42), Color(0xFFD43F1A)];
   static const List<Color> winterColor = [Color(0xFFE0F2FE), Color(0xFFB1D4E0)];
   static const List<Color> defaultColor = [ Color(0xFFF7A800),  Color(0xFFF59E0B)];
+  static const deviceIdKey = 'unique_device_id';
 }
 enum Season {
   @JsonValue(0)

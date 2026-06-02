@@ -13,16 +13,14 @@ Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
     final isInitBool = await preferences.getInitState();
-
-    runApp(ProviderScope(
-      child: Application(isInit: isInitBool),
-    ));
-  } catch (e, s) {
-    return runApp(
-      MaterialApp(
-        home: InitErrorScreen(error: e),
+    final deviceId = await preferences.getDeviceId();
+    runApp(
+      ProviderScope(
+        child: Application(isInit: isInitBool, deviceId: deviceId),
       ),
     );
+  } catch (e, s) {
+    return runApp(MaterialApp(home: InitErrorScreen(error: e)));
   }
 }
 
@@ -38,9 +36,7 @@ class InitErrorScreen extends StatelessWidget {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Error: $error'),
-          ],
+          children: [Text('Error: $error')],
         ),
       ),
     );
@@ -51,12 +47,14 @@ class Application extends StatelessWidget {
   // 之后 ✅ — 构造函数体中 this 已可用
   late final GoRouter _router;
   final bool isInit;
+  final String deviceId;
 
-  Application({super.key, required this.isInit}) {
+  Application({super.key, required this.isInit, required this.deviceId}) {
     _router = GoRouter(
-      navigatorKey: HyperSnackbar.navigatorKey, 
-      initialLocation:
-          isInit ? '/homepage' : '/splash', // Start at the home page
+      navigatorKey: HyperSnackbar.navigatorKey,
+      initialLocation: isInit
+          ? '/homepage'
+          : '/splash', // Start at the home page
       routes: [
         GoRoute(
           path: '/homepage',
@@ -72,7 +70,10 @@ class Application extends StatelessWidget {
         ),
         GoRoute(
           path: '/profile',
-          builder: (context, state) => const ProfileScreen(),
+          builder: (context, state) {
+            final deviceId = state.uri.queryParameters['deviceId'] ?? '';
+             return ProfileScreen(deviceId: deviceId);
+          },
         ),
         GoRoute(
           path: '/event-detail',

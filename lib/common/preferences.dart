@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import 'package:wenshiji/models/event.dart';
 
 import '../constants/config_constant.dart';
@@ -92,6 +93,22 @@ class Preferences {
   Future<void> clearPreferences() async {
     final sharedPreferencesIns = await sharedPreferencesCompleter.future;
     await sharedPreferencesIns?.clear();
+  }
+
+  // 获取设备唯一ID（首次生成，之后复用）
+  Future<String> getDeviceId() async {
+   final sharedPreferencesIns  = await sharedPreferencesCompleter.future;
+     final storedId = sharedPreferencesIns?.getString(ConfigConstant.deviceIdKey);
+    
+    if (storedId == null || storedId.isEmpty) {
+      final uuid = Uuid();
+      // 生成新UUID并存储
+      String newId = uuid.v4();
+      await sharedPreferencesIns?.setString(ConfigConstant.deviceIdKey, newId);
+      return newId;
+    }
+    
+    return storedId;
   }
 }
 

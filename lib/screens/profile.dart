@@ -3,20 +3,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:math' as math;
 
-class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+import 'package:wenshiji/common/preferences.dart';
 
+class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key, required this.deviceId});
+  final String deviceId;
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTickerProviderStateMixin {
+class _ProfileScreenState extends ConsumerState<ProfileScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _particleController;
   final List<_ParticleData> _particles = [];
   final math.Random _random = math.Random();
-
   @override
   void initState() {
+    print('deviceId: ${widget.deviceId}');
     super.initState();
     _particleController = AnimationController(
       duration: const Duration(seconds: 3),
@@ -28,11 +31,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
 
   void _spawnParticles() {
     for (int i = 0; i < 10; i++) {
-      _particles.add(_ParticleData(
-        left: 8 + _random.nextDouble() * 84,
-        size: 3 + _random.nextDouble() * 6,
-        delay: _random.nextDouble() * 3,
-      ));
+      _particles.add(
+        _ParticleData(
+          left: 8 + _random.nextDouble() * 84,
+          size: 3 + _random.nextDouble() * 6,
+          delay: _random.nextDouble() * 3,
+        ),
+      );
     }
   }
 
@@ -68,7 +73,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       body: Column(
         children: [
           _buildStatusBar(bgColor, fgColor, surfaceColor),
-          _buildTopNav(accentSoftColor, accentDeepColor, fgColor, surfaceColor, borderColor),
+          _buildTopNav(
+            accentSoftColor,
+            accentDeepColor,
+            fgColor,
+            surfaceColor,
+            borderColor,
+          ),
           Expanded(
             child: _buildContentScroll(
               surfaceColor,
@@ -113,7 +124,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     );
   }
 
-  Widget _buildTopNav(Color accentSoftColor, Color accentDeepColor, Color fgColor, Color surfaceColor, Color borderColor) {
+  Widget _buildTopNav(
+    Color accentSoftColor,
+    Color accentDeepColor,
+    Color fgColor,
+    Color surfaceColor,
+    Color borderColor,
+  ) {
     return Container(
       height: 56,
       decoration: BoxDecoration(
@@ -124,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       child: Row(
         children: [
           GestureDetector(
-            onTap: () => context.go('/homepage'),
+            onTap: () => context.pop(),
             child: Container(
               width: 42,
               height: 42,
@@ -171,12 +188,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             fgColor,
             mutedColor,
           ),
-          _buildSectionLabel(
-            Icons.settings,
-            '设置与管理',
-            accentDeepColor,
-            fgColor,
-          ),
+          _buildSectionLabel(Icons.settings, '设置与管理', accentDeepColor, fgColor),
           _buildSettingsMenu(
             surfaceColor,
             accentSoftColor,
@@ -216,7 +228,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       duration: const Duration(milliseconds: 600),
       curve: Curves.easeOutBack,
       margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      //padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
@@ -238,9 +250,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
         ],
       ),
       child: Stack(
-        clipBehavior: Clip.none,
+        // clipBehavior: Clip.none,
         children: [
-          _buildParticles(),
+          Positioned.fill(child: _buildParticles()),
           Positioned(
             top: -50,
             right: -30,
@@ -265,19 +277,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               ),
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildProfileTop(accentSoftColor, accentDeepColor),
-              const SizedBox(height: 16),
-              _buildProfileStats(accentColor),
-            ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProfileTop(accentSoftColor, accentDeepColor),
+                const SizedBox(height: 16),
+                _buildProfileStats(accentColor),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
+  // 构建粒子效果
   Widget _buildParticles() {
     return AnimatedBuilder(
       animation: _particleController,
@@ -290,8 +306,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             final opacity = adjustedProgress < 0.1
                 ? adjustedProgress * 10
                 : adjustedProgress > 0.9
-                    ? (1 - adjustedProgress) * 10
-                    : 1.0;
+                ? (1 - adjustedProgress) * 10
+                : 1.0;
             final scale = 1.0 - (adjustedProgress * 0.8);
 
             return Positioned(
@@ -321,6 +337,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
     );
   }
 
+  // 构建用户信息
   Widget _buildProfileTop(Color accentSoftColor, Color accentDeepColor) {
     return Row(
       children: [
@@ -338,17 +355,27 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   width: 3,
                 ),
               ),
-              child: Icon(
-                Icons.person_outline,
-                size: 36,
-                color: const Color(0xFF383428).withValues(alpha: 0.35),
+            
+              child: Image.network(
+                'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=${widget.deviceId}',
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.person_outline,
+                    size: 36,
+                    color: const Color(0xFF383428).withValues(alpha: 0.35),
+                  );
+                },
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (frame != null || wasSynchronouslyLoaded) {
+                    return child;
+                  }
+                  return const Center(child: CircularProgressIndicator());
+                },
+                width: 36,
+                height: 36,
               ),
             ),
-            Positioned.fill(
-              child: CustomPaint(
-                painter: _DashedRingPainter(),
-              ),
-            ),
+            Positioned.fill(child: CustomPaint(painter: _DashedRingPainter())),
           ],
         ),
         const SizedBox(width: 16),
@@ -357,7 +384,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '我的倒计时',
+                '时光罐',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -452,11 +479,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
       padding: const EdgeInsets.only(top: 22, left: 20, right: 20, bottom: 10),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: accentDeepColor,
-          ),
+          Icon(icon, size: 16, color: accentDeepColor),
           const SizedBox(width: 6),
           Text(
             label,
@@ -655,11 +678,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                   borderRadius: BorderRadius.circular(12),
                   color: iconBgColor,
                 ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: iconColor,
-                ),
+                child: Icon(icon, size: 20, color: iconColor),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -677,10 +696,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: mutedColor,
-                      ),
+                      style: TextStyle(fontSize: 12, color: mutedColor),
                     ),
                   ],
                 ),
@@ -688,7 +704,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
               if (badge != null)
                 Container(
                   margin: const EdgeInsets.only(right: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFD9534F),
                     borderRadius: BorderRadius.circular(10),
@@ -702,11 +721,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> with SingleTicker
                     ),
                   ),
                 ),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: borderColor,
-              ),
+              Icon(Icons.chevron_right, size: 20, color: borderColor),
             ],
           ),
         ),
@@ -767,9 +782,5 @@ class _ParticleData {
   final double size;
   final double delay;
 
-  _ParticleData({
-    required this.left,
-    required this.size,
-    required this.delay,
-  });
+  _ParticleData({required this.left, required this.size, required this.delay});
 }
