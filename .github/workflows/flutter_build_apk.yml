@@ -38,8 +38,8 @@ jobs:
       - name: 生成签名文件
         run: |
           cd android/app
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
-          echo "storeFile=keystore.jks" > keystore.properties
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > wenshuji-release-key.jks
+          echo "storeFile=wenshuji-release-key.jks" > keystore.properties
           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
           echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
