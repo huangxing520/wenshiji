@@ -39,10 +39,10 @@ jobs:
         run: |
           cd android
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/wenshuji-release-key.jks
-          echo "storeFile=app/wenshuji-release-key.jks" > keystore.properties
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+          echo "storeFile=wenshuji-release-key.jks" > key.properties
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> key.properties
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> key.properties
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> key.properties
 
       # 6. 构建 Release 版 APK
       - name: 编译生成 APK
