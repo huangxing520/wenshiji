@@ -37,8 +37,8 @@ jobs:
       # 5. 配置签名文件（自动从 GitHub 密钥读取，无需手动上传）
       - name: 生成签名文件
         run: |
-          cd android/app
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > wenshuji-release-key.jks
+          cd android
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > app/wenshuji-release-key.jks
           echo "storeFile=wenshuji-release-key.jks" > keystore.properties
           echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
           echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
