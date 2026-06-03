@@ -1,4 +1,3 @@
-
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:wenshiji/common/utils.dart';
@@ -32,7 +31,8 @@ class AboutScreen extends StatefulWidget {
   State<AboutScreen> createState() => _AboutScreenState();
 }
 
-class _AboutScreenState extends State<AboutScreen> {
+class _AboutScreenState extends State<AboutScreen>
+    with SingleTickerProviderStateMixin {
   bool _toastVisible = false;
   String _toastMessage = '';
 
@@ -46,6 +46,25 @@ class _AboutScreenState extends State<AboutScreen> {
   String _agreementPageBody = '';
 
   bool _isLatestVersion = true;
+  late AnimationController _scrollAnimationController;
+
+  // 3. 开始无限旋转
+  @override
+  void initState() {
+    super.initState();
+    _scrollAnimationController = AnimationController(
+      vsync: this, 
+      duration: const Duration(seconds: 1),
+    );
+   
+  }
+
+  @override
+  void dispose() {
+    // 4. 页面销毁时，释放控制器（防止内存泄漏）
+    _scrollAnimationController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +136,7 @@ class _AboutScreenState extends State<AboutScreen> {
           color: _kAmber.withValues(alpha: 0.06),
           shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.arrow_back_ios,
-          color: _kPrimaryDark,
-          size: 20,
-        ),
+        child: const Icon(Icons.arrow_back_ios, color: _kPrimaryDark, size: 20),
       ),
     );
   }
@@ -208,50 +223,35 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Widget _buildVersionCheckButton() {
-    return InkWell(
-      onTap: _checkUpdate,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: _kAmber.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              '当前版本 V1.2.0',
-              style: TextStyle(
-                fontSize: 12,
-                color: _kSecondary,
-                fontWeight: FontWeight.w500,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kAmber.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            '当前版本 V1.2.0',
+            style: TextStyle(
+              fontSize: 12,
+              color: _kSecondary,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(width: 6),
-            Row(
+          ),
+          const SizedBox(width: 6),
+          InkWell(
+            onTap: _checkUpdate,
+            child: Row(
               children: [
-                TweenAnimationBuilder<double>(
-                  duration: const Duration(seconds: 3),
-                  tween: Tween(begin: 0, end: 1),
-                  curve: Curves.easeInOut,
-                  builder: (context, value, child) {
-                    double angle = 0;
-                    if (value >= 0.8 && value <= 0.9) {
-                      angle = ((value - 0.8) / 0.1 * 30 * pi / 180);
-                      if (angle > 30 * pi / 180) {
-                        angle = (0.9 - value) / 0.1 * 30 * pi / 180;
-                      }
-                    }
-                    return Transform.rotate(
-                      angle: angle,
-                      child: const Icon(
-                        Icons.refresh,
-                        size: 12,
-                        color: _kAmberDark,
-                      ),
-                    );
-                  },
+                RotationTransition(
+                  turns: _scrollAnimationController,
+                  child: const Icon(
+                    Icons.refresh,
+                    size: 12,
+                    color: _kAmberDark,
+                  ),
                 ),
                 const SizedBox(width: 3),
                 const Text(
@@ -264,8 +264,8 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -289,8 +289,6 @@ class _AboutScreenState extends State<AboutScreen> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Column(
         children: [
-        
-          _buildMenuSeparator(),
           _buildMenuItem(
             icon: '✨',
             iconBg: _kAmberOrange.withValues(alpha: 0.1),
@@ -395,11 +393,7 @@ class _AboutScreenState extends State<AboutScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: _kQuaternary,
-                size: 16,
-              ),
+              const Icon(Icons.chevron_right, color: _kQuaternary, size: 16),
             ],
           ),
         ),
@@ -461,7 +455,10 @@ class _AboutScreenState extends State<AboutScreen> {
               child: Opacity(
                 opacity: value.clamp(0, 1),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 22,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: _kPrimaryDark.withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(22),
@@ -655,8 +652,9 @@ github.com/lxgw/LxgwWenKai
         padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              isRichBody ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          crossAxisAlignment: isRichBody
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
           children: [
             Center(
               child: Container(
@@ -726,12 +724,14 @@ github.com/lxgw/LxgwWenKai
 
     for (var i = 0; i < lines.length; i++) {
       final line = lines[i];
-      final isEmojiStart = line.startsWith('⏳') ||
+      final isEmojiStart =
+          line.startsWith('⏳') ||
           line.startsWith('🎂') ||
           line.startsWith('📝') ||
           line.startsWith('🔥') ||
           line.startsWith('☁️');
-      final isTitleStart = line.startsWith('备份方式') ||
+      final isTitleStart =
+          line.startsWith('备份方式') ||
           line.startsWith('数据完全私有') ||
           line.startsWith('隐私完全可控') ||
           line.startsWith('支持的 WebDAV 服务') ||
@@ -744,35 +744,43 @@ github.com/lxgw/LxgwWenKai
       if (isEmojiStart || isTitleStart) {
         if (isEmojiStart) {
           final parts = line.split('　');
-          spans.add(TextSpan(
-            text: '${parts[0]}　',
-            style: const TextStyle(
-              fontSize: 13,
-              color: _kPrimaryDark,
-              fontWeight: FontWeight.w700,
+          spans.add(
+            TextSpan(
+              text: '${parts[0]}　',
+              style: const TextStyle(
+                fontSize: 13,
+                color: _kPrimaryDark,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ));
+          );
           if (parts.length > 1) {
-            spans.add(TextSpan(
-              text: parts.sublist(1).join('　'),
-              style: const TextStyle(fontSize: 13, color: _kSecondary),
-            ));
+            spans.add(
+              TextSpan(
+                text: parts.sublist(1).join('　'),
+                style: const TextStyle(fontSize: 13, color: _kSecondary),
+              ),
+            );
           }
         } else {
-          spans.add(TextSpan(
-            text: line,
-            style: const TextStyle(
-              fontSize: 13,
-              color: _kPrimaryDark,
-              fontWeight: FontWeight.w700,
+          spans.add(
+            TextSpan(
+              text: line,
+              style: const TextStyle(
+                fontSize: 13,
+                color: _kPrimaryDark,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ));
+          );
         }
       } else {
-        spans.add(TextSpan(
-          text: line,
-          style: const TextStyle(fontSize: 13, color: _kSecondary),
-        ));
+        spans.add(
+          TextSpan(
+            text: line,
+            style: const TextStyle(fontSize: 13, color: _kSecondary),
+          ),
+        );
       }
       if (i < lines.length - 1) {
         spans.add(const TextSpan(text: '\n'));
@@ -886,11 +894,7 @@ github.com/lxgw/LxgwWenKai
           color: _kAmber.withValues(alpha: 0.06),
           shape: BoxShape.circle,
         ),
-        child: const Icon(
-          Icons.arrow_back_ios,
-          color: _kPrimaryDark,
-          size: 20,
-        ),
+        child: const Icon(Icons.arrow_back_ios, color: _kPrimaryDark, size: 20),
       ),
     );
   }
@@ -967,11 +971,14 @@ github.com/lxgw/LxgwWenKai
     Future.delayed(const Duration(milliseconds: 2200), () {
       if (mounted) setState(() => _toastVisible = false);
     });
-    Utils().showToast(message,null);
+    Utils().showToast(message, null);
   }
 
   void _checkUpdate() async {
-    
+    _scrollAnimationController.repeat();
+    await Future.delayed(const Duration(seconds: 2));
+    _scrollAnimationController.stop();
+
     print(widget.version);
     setState(() {
       _isLatestVersion = (DateTime.now().millisecond % 10) > 2;
@@ -1044,4 +1051,3 @@ github.com/lxgw/LxgwWenKai
     setState(() => _showAgreementPage = true);
   }
 }
-

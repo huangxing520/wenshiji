@@ -44,3 +44,43 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 pubspec.lock
+# 签名密钥库文件（不管在项目哪个位置）
+*.jks
+*.keystore
+
+# 存放明文密码的配置文件
+android/key.properties
+
+# 任何包含密码或密钥的本地配置文件
+**/key.properties
+**/*.jks
+
+
+# Flutter 官方 .gitignore 精简版（已包含关键敏感项）
+.metadata
+.dart_tool/
+.pub-cache/
+.pub/
+/build/
+
+# Android
+*.iml
+*.jks
+*.keystore
+android/local.properties
+android/app/build/
+android/key.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.lock
+*.log
+.DS_Store
