@@ -6,7 +6,8 @@ import 'dart:math' as math;
 import 'package:wenshiji/common/preferences.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, required this.version});
+  final String version;
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -595,7 +596,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           _buildMenuItem(
             Icons.info_outline,
             '关于我们',
-            '版本 1.0.0 · 温时记团队',
+            '版本 ${widget.version} · 温时记团队',
             'ic-about',
             surfaceColor,
             accentSoftColor,
@@ -724,7 +725,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       padding: const EdgeInsets.only(top: 28, left: 20, right: 20, bottom: 12),
       child: Center(
         child: Text(
-          '温时记 v1.0.0',
+          '温时记 V${widget.version}',
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,

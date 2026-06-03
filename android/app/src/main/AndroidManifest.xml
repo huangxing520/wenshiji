@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<!-- 通知权限（Android 13+ 必需） -->
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<!-- 允许后台唤醒（精准定时必需） -->
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />  <!-- 开机自启 -->
+<!-- 精准闹钟权限（定时通知用） -->
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
     <application
         android:label="温时记"
         android:name="${applicationName}"
@@ -30,18 +37,25 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-    </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <queries>
+             <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+    <intent-filter>
+      <action android:name="android.intent.action.BOOT_COMPLETED"/>
+      <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+        <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+      <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+    </intent-filter>
+  </receiver>
+   <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+  <service android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationService"/>
+    </application>
+    
+    <!-- <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-    </queries>
+    </queries> -->
     <!-- 网络定位权限，一般需要 -->
 <uses-permission android:name="android.permission.INTERNET" />
 

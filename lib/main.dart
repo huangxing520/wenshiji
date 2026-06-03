@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
@@ -22,6 +23,8 @@ Future<void> main() async {
     final deviceId = await preferences.getDeviceId();
     final version = await Utils().getVersion();
     await httpUtil.ensureInitialized();
+    await NotificationService().init();
+   
     runApp(
       ProviderScope(
         child: Application(
@@ -119,7 +122,7 @@ class Application extends StatelessWidget {
               routes: [
                 GoRoute(
                   path: '/profile',
-                  builder: (context, state) => const ProfileScreen(),
+                  builder: (context, state) =>  ProfileScreen(version: version),
                 ),
               ],
             ),

@@ -23,15 +23,16 @@ class EventNotifier extends _$EventNotifier {
   Future<List<Event>> build() async {
     return _loadEvents();
   }
- List<Event> get _currentEvents {
-   return state.value ?? [];
+
+  List<Event> get _currentEvents {
+    return state.value ?? [];
   }
+
   Future<List<Event>> _loadEvents() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final events = await preferences.getEvents();
       if (events.isNotEmpty) {
-       return events;
+        return events;
       } else {
         //todo
         return _getSampleEvents();
@@ -44,10 +45,10 @@ class EventNotifier extends _$EventNotifier {
   }
 
   List<Event> _getSampleEvents() {
-    // ... 保持原有的示例数据不变 ...
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     return [
+      // ========== birthday 生日类型 ==========
       Event(
         id: '1',
         name: '妈妈生日',
@@ -56,16 +57,128 @@ class EventNotifier extends _$EventNotifier {
         priority: EventPriority.high,
         isPinned: true,
         isStarred: true,
+        description: '记得准备礼物和蛋糕',
+        reminder: [EventReminder.daily, EventReminder.sevenDays],
       ),
-      // ... 其余示例数据（与原代码相同）...
+      Event(
+        id: '2',
+        name: '爸爸生日',
+        date: today.add(const Duration(days: 30)),
+        type: EventType.birthday,
+        priority: EventPriority.mid,
+        isStarred: true,
+        description: '提前准备礼物',
+      ),
+      Event(
+        id: '3',
+        name: '好朋友小明生日',
+        date: today.add(const Duration(days: 15)),
+        type: EventType.birthday,
+        priority: EventPriority.low,
+      ),
+
+      // ========== task 倒计时任务类型 ==========
+      Event(
+        id: '4',
+        name: '期末考试',
+        date: today.add(const Duration(days: 20)),
+        type: EventType.task,
+        priority: EventPriority.high,
+        isPinned: true,
+        description: '高等数学期末考试',
+        reminder: [EventReminder.sevenDays, EventReminder.threeDays],
+      ),
+      Event(
+        id: '5',
+        name: '项目截止日期',
+        date: today.add(const Duration(days: 7)),
+        type: EventType.task,
+        priority: EventPriority.high,
+        isStarred: true,
+        description: '完成Flutter项目开发',
+      ),
+      Event(
+        id: '6',
+        name: '健身计划',
+        date: today.add(const Duration(days: 60)),
+        type: EventType.task,
+        priority: EventPriority.mid,
+        description: '坚持健身60天',
+      ),
+
+      // ========== dailySignIn 每日签到类型 ==========
+      Event(
+        id: '7',
+        name: '每日背单词',
+        date: today.subtract(const Duration(days: 10)),
+        type: EventType.dailySignIn,
+        priority: EventPriority.mid,
+        hasCheckin: true,
+        streak: 10,
+        checkedToday: false,
+        description: '每天背50个单词',
+      ),
+      Event(
+        id: '8',
+        name: '每日运动',
+        date: today.subtract(const Duration(days: 5)),
+        type: EventType.dailySignIn,
+        priority: EventPriority.high,
+        hasCheckin: true,
+        streak: 5,
+        checkedToday: true,
+        isStarred: true,
+        description: '每天运动30分钟',
+      ),
+      Event(
+        id: '9',
+        name: '每日阅读',
+        date: today.subtract(const Duration(days: 20)),
+        type: EventType.dailySignIn,
+        priority: EventPriority.low,
+        hasCheckin: true,
+        streak: 20,
+        checkedToday: false,
+        description: '每天阅读1小时',
+      ),
+
+      // ========== holiday 节日类型 ==========
+      Event(
+        id: '10',
+        name: '春节',
+        date: DateTime(now.year + 1, 1, 1),
+        type: EventType.holiday,
+        priority: EventPriority.special,
+        isPinned: true,
+        isStarred: true,
+        description: '农历新年',
+      ),
+      Event(
+        id: '11',
+        name: '中秋节',
+        date: DateTime(now.year, 9, 15),
+        type: EventType.holiday,
+        priority: EventPriority.special,
+        isStarred: true,
+        description: '团圆节',
+      ),
+      Event(
+        id: '12',
+        name: '国庆节',
+        date: DateTime(now.year, 10, 1),
+        type: EventType.holiday,
+        priority: EventPriority.high,
+        description: '祖国生日',
+      ),
     ];
   }
 
   // 保存到本地（异步，不阻塞状态更新）
   Future<void> _saveEvents(List<Event> events) async {
     try {
-      final List<Map<String, dynamic>> jsonList =
-          events.map((e) => e.toJson()).toList();
+      final List<Map<String, dynamic>> jsonList = events
+          .map((e) => e.toJson())
+          .toList();
       await preferences.setEvents(json.encode(jsonList));
     } catch (e) {
       if (kDebugMode) print('保存事件数据失败: $e');
@@ -73,7 +186,7 @@ class EventNotifier extends _$EventNotifier {
   }
 
   // 增删改查方法（操作 state 自动触发 UI 重建）
-Future<void> addEvent(Event event) async {
+  Future<void> addEvent(Event event) async {
     final updatedEvents = [..._currentEvents, event];
     print(updatedEvents);
     state = AsyncValue.data(updatedEvents); // 正确赋值状态
@@ -81,7 +194,9 @@ Future<void> addEvent(Event event) async {
   }
 
   Future<void> updateEvent(String id, Event updated) async {
-    final updatedEvents = _currentEvents.map((e) => e.id == id ? updated : e).toList();
+    final updatedEvents = _currentEvents
+        .map((e) => e.id == id ? updated : e)
+        .toList();
     state = AsyncValue.data(updatedEvents);
     await _saveEvents(updatedEvents);
   }
@@ -125,7 +240,9 @@ Future<void> addEvent(Event event) async {
 
   // 3. 业务优化：每日重置打卡状态（必须加，否则第二天无法打卡）
   Future<void> resetDailyCheckin() async {
-    final updatedEvents = _currentEvents.map((e) => e.copyWith(checkedToday: false)).toList();
+    final updatedEvents = _currentEvents
+        .map((e) => e.copyWith(checkedToday: false))
+        .toList();
     state = AsyncValue.data(updatedEvents);
     await _saveEvents(updatedEvents);
   }
@@ -164,8 +281,9 @@ List<Event> filteredEvents(Ref ref) {
           filtered = events.where((e) => e.type == EventType.task).toList();
           break;
         case EventCategory.dailySignIn:
-          filtered =
-              events.where((e) => e.type == EventType.dailySignIn).toList();
+          filtered = events
+              .where((e) => e.type == EventType.dailySignIn)
+              .toList();
           break;
         case EventCategory.star:
           filtered = events.where((e) => e.isStarred).toList();
@@ -203,22 +321,27 @@ Map<String, int> stats(Ref ref) {
   final threeDaysLater = today.add(const Duration(days: 3));
 
   final todayCount = events
-      .where((e) =>
-          e.type != EventType.dailySignIn &&
-          e.date.year == today.year &&
-          e.date.month == today.month &&
-          e.date.day == today.day)
+      .where(
+        (e) =>
+            e.type != EventType.dailySignIn &&
+            e.date.year == today.year &&
+            e.date.month == today.month &&
+            e.date.day == today.day,
+      )
       .length;
 
   final upcomingCount = events
-      .where((e) =>
-          e.type != EventType.dailySignIn &&
-          e.date.isAfter(today.subtract(const Duration(days: 1))) &&
-          e.date.isBefore(threeDaysLater.add(const Duration(days: 1))))
+      .where(
+        (e) =>
+            e.type != EventType.dailySignIn &&
+            e.date.isAfter(today.subtract(const Duration(days: 1))) &&
+            e.date.isBefore(threeDaysLater.add(const Duration(days: 1))),
+      )
       .length;
 
-  final dailySignInCount =
-      events.where((e) => e.type == EventType.dailySignIn).length;
+  final dailySignInCount = events
+      .where((e) => e.type == EventType.dailySignIn)
+      .length;
 
   return {
     'today': todayCount,
@@ -261,13 +384,14 @@ Future<List<File>> savedImageFilesForId(Ref ref, String id) async {
   final service = ref.watch(imageServiceProvider);
   return await service.loadImageFilesForId(id);
 }
+
 @riverpod
 Future<List<CardItem>> getCardItems(Ref ref, String id) async {
   final paths = await ref.watch(savedImagePathsForIdProvider(id).future);
-  return  paths.map((e) => CardItem(
-        id: e.hashCode,
-        name: e,
-        imagePath: e,
-        isUploading:false,
-      )).toList();
+  return paths
+      .map(
+        (e) =>
+            CardItem(id: e.hashCode, name: e, imagePath: e, isUploading: false),
+      )
+      .toList();
 }

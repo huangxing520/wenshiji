@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:location/location.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/permission.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/constants/config_constant.dart';
@@ -33,7 +34,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     preferences.saveInitState(true);
     //_loadWeatherData();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+    _timer = Timer.periodic(const Duration(seconds: 60), (timer) async {
       if (mounted) {
         setState(() {});
       }
@@ -119,8 +120,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Row(
                 children: [
                   IconButton(
-                    icon: Icon(Icons.search, size: 28, color: Color(0xFF8B7648)),
-                    onPressed: () => Utils().showErrorToast('搜索功能开发中', null),
+                    icon: Icon(
+                      Icons.search,
+                      size: 28,
+                      color: Color(0xFF8B7648),
+                    ),
+                    onPressed: () async =>
+                        await NotificationService().showInstantNotification(
+                          title: "即时提醒",
+                          body: "这是一条立即弹出的通知",
+                          payload: "test_payload", // 点击通知携带的参数
+                        ),
                   ),
                   // IconButton(
                   //   icon: Icon(Icons.person, size: 28, color: Color(0xFF8B7648)),
@@ -1401,7 +1411,6 @@ class _ContextMenuItem extends StatelessWidget {
 //     }
 //   }
 
-  
 // }
 
 // 整体卡片入场动画（整个组件一次动画，无逐个）
