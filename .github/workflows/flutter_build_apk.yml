@@ -52,7 +52,7 @@ jobs:
       - name: 发布 APK
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/*.apk
           name: 发布 ${{ github.ref_name }}
           body: |
             🚀 自动构建完成
