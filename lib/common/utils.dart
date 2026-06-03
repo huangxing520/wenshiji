@@ -4,12 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 
 class Utils {
-  static ImagePicker? _picker;
   static Utils? _instance;
-  Utils._internal() {}
+  Utils._internal();
   factory Utils() {
     _instance ??= Utils._internal();
     return _instance!;
@@ -29,8 +29,6 @@ class Utils {
     }
   }
 
-
-
   void showToast(String? label, String? message) {
     HyperSnackbar.show(
       title: label,
@@ -42,11 +40,12 @@ class Utils {
       enterAnimationDuration: const Duration(milliseconds: 500),
       displayDuration: Duration(milliseconds: 500),
 
-    maxWidth: 300,
+      maxWidth: 300,
     );
   }
+
   void showErrorToast(String? label, String? message) {
-     HyperSnackbar.show(
+    HyperSnackbar.show(
       title: label,
       message: message,
       backgroundColor: const Color.fromARGB(255, 224, 7, 7),
@@ -56,13 +55,24 @@ class Utils {
       enterAnimationDuration: const Duration(milliseconds: 500),
       displayDuration: Duration(milliseconds: 500),
 
-    maxWidth: 300,
+      maxWidth: 300,
     );
   }
-   Future<String?> getVersion() async {
+
+  Future<String?> getVersion() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
     final String version = packageInfo.version;
     final String buildNumber = packageInfo.buildNumber;
     return version;
+  }
+
+  Future<void> launchInBrowser(String url) async {
+    try {
+      final uri = Uri.parse(url);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+     Utils().showErrorToast('打开失败', '无法打开链接，请检查网络或安装浏览器');
+      
+    }
   }
 }

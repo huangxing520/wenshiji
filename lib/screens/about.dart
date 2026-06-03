@@ -1,6 +1,9 @@
 import 'dart:math';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/utils.dart';
+import 'package:wenshiji/constants/config_constant.dart';
 
 const _kPrimaryDark = Color(0xFF5D4037);
 const _kPrimary = Color(0xFF795548);
@@ -44,7 +47,7 @@ class _AboutScreenState extends State<AboutScreen>
   bool _showAgreementPage = false;
   String _agreementPageTitle = '';
   String _agreementPageBody = '';
-
+  String _latestVersion = '';
   bool _isLatestVersion = true;
   late AnimationController _scrollAnimationController;
 
@@ -232,8 +235,8 @@ class _AboutScreenState extends State<AboutScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            '当前版本 V1.2.0',
+           Text(
+            '当前版本 ${widget.version}',
             style: TextStyle(
               fontSize: 12,
               color: _kSecondary,
@@ -485,14 +488,16 @@ class _AboutScreenState extends State<AboutScreen>
             : _kWarning.withValues(alpha: 0.12),
         title: _isLatestVersion ? '已是最新版本' : '发现新版本',
         body: _isLatestVersion
-            ? '当前版本 V1.2.0 已为最新，无需更新。'
-            : '新版本 V1.3.0 已发布\n· 新增时光热力复盘功能\n· 优化小组件加载速度\n· 修复已知问题',
+            ? '当前版本 V${widget.version} 已为最新，无需更新。'
+            : '新版本 V${_latestVersion.replaceFirst('v', '')} 已发布\n',
         isRichBody: !_isLatestVersion,
         primaryBtnText: _isLatestVersion ? '知道了' : '立即更新',
         secondaryBtnText: _isLatestVersion ? null : '稍后更新',
         onPrimaryTap: () {
           setState(() => _showUpdateModal = false);
-          if (!_isLatestVersion) _showToast('正在下载更新…');
+          if (!_isLatestVersion) {
+            Utils().launchInBrowser(ConfigConstant.githubUrl);
+          };
         },
         onSecondaryTap: _isLatestVersion
             ? null
@@ -976,14 +981,20 @@ github.com/lxgw/LxgwWenKai
 
   void _checkUpdate() async {
     _scrollAnimationController.repeat();
-    await Future.delayed(const Duration(seconds: 2));
+    try {
+      final latestVersion = await httpUtil.getLatestReleaseVersion(ConfigConstant.owner, ConfigConstant.repo);
+      if (latestVersion != null) {
+        setState(() {
+          _latestVersion = latestVersion;
+          _isLatestVersion = latestVersion.replaceFirst('v', '') == widget.version;
+          _showUpdateModal = true;
+        });
+      }
+    }  on DioException catch (e) {
+      Utils().showErrorToast('检查更新失败', null);
+    }
     _scrollAnimationController.stop();
 
-    print(widget.version);
-    setState(() {
-      _isLatestVersion = (DateTime.now().millisecond % 10) > 2;
-      _showUpdateModal = true;
-    });
   }
 
   void _openAgreementPage(String type) {

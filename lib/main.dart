@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
+import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
@@ -20,6 +21,7 @@ Future<void> main() async {
     final isInitBool = await preferences.getInitState();
     final deviceId = await preferences.getDeviceId();
     final version = await Utils().getVersion();
+    await httpUtil.ensureInitialized();
     runApp(
       ProviderScope(
         child: Application(

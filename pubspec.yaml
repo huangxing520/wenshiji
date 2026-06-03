@@ -1,7 +1,7 @@
 name: wenshiji
 description: 温时记 - 记录每一个重要时刻
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.0.1+1
 
 environment:
   sdk: '>=3.8.0 <4.0.0'
@@ -29,6 +29,7 @@ dependencies:
   hyper_snackbar: ^0.11.3
   contribution_heatmap: ^0.5.3
   package_info_plus: ^10.1.0  
+  url_launcher: ^6.3.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

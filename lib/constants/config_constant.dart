@@ -14,6 +14,9 @@ class ConfigConstant {
   static const List<Color> winterColor = [Color(0xFFE0F2FE), Color(0xFFB1D4E0)];
   static const List<Color> defaultColor = [ Color(0xFFF7A800),  Color(0xFFF59E0B)];
   static const deviceIdKey = 'unique_device_id';
+  static const String owner = "huangxing520";
+  static const String repo = "wenshiji";
+  static const String githubUrl = 'https://github.com/huangxing520/wenshiji/releases';
 }
 enum Season {
   @JsonValue(0)

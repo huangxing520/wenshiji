@@ -53,10 +53,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: build/app/outputs/flutter-apk/*.apk
-          name: 发布 ${{ github.ref_name }}
+          name:  ${{ github.ref_name }}
           body: |
             🚀 自动构建完成
             版本：${{ github.ref_name }}
-            安装包已自动生成，可直接下载安装
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
