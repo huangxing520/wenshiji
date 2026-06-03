@@ -8,6 +8,7 @@ import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/screens/about.dart';
+import 'package:wenshiji/screens/notification_setting.dart';
 import 'package:wenshiji/screens/stats.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart' hide AddEventScreen;
@@ -95,6 +96,10 @@ class Application extends StatelessWidget {
         GoRoute(
           path: '/about',
           builder: (context, state) => AboutScreen(version: version),
+        ),
+        GoRoute(
+          path: '/notification_setting',
+          builder: (context, state) => NotificationSettingScreen(),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {

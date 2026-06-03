@@ -533,9 +533,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
           _buildMenuItem(
             Icons.lock_outlined,
-            '隐私安全设置',
-            '密码锁、私密事件管理',
-            'ic-privacy',
+            '通知设置',
+            '聚合免打扰时段、每日聚合推送，系统通知设置',
+            'ic-notification',
             surfaceColor,
             accentSoftColor,
             accentDeepColor,
@@ -556,18 +556,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             mutedColor,
             badge: 'NEW',
           ),
-          _buildMenuItem(
-            Icons.calendar_today_outlined,
-            '节日管理',
-            '自定义节日与公历农历',
-            'ic-holiday',
-            surfaceColor,
-            accentSoftColor,
-            accentDeepColor,
-            borderColor,
-            fgColor,
-            mutedColor,
-          ),
+          // _buildMenuItem(
+          //   Icons.calendar_today_outlined,
+          //   '节日管理',
+          //   '自定义节日与公历农历',
+          //   'ic-holiday',
+          //   surfaceColor,
+          //   accentSoftColor,
+          //   accentDeepColor,
+          //   borderColor,
+          //   fgColor,
+          //   mutedColor,
+          // ),
         ],
       ),
     );
@@ -631,7 +631,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         iconBgColor = const Color(0xFFE6F3F8);
         iconColor = const Color(0xFF4A80A4);
         break;
-      case 'ic-privacy':
+      case 'ic-notification':
         iconBgColor = const Color(0xFFE6F7F0);
         iconColor = const Color(0xFF3D9970);
         break;
@@ -656,7 +656,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => context.push('/about'),
+        onTap: () {
+          switch (type) {
+          case 'ic-notification':
+            context.push('/notification_setting');
+            break;
+          case 'ic-about':
+            context.push('/about');
+            break;
+            
+        }
+        } ,
         onHighlightChanged: (_) {},
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
