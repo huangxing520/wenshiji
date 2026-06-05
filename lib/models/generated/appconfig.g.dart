@@ -20,7 +20,11 @@ _AppConfig _$AppConfigFromJson(Map<String, dynamic> json) => _AppConfig(
       (json['notificationDndDays'] as List<dynamic>?)
           ?.map((e) => e as bool)
           .toList() ??
-      const [false, false, false, false, false, false, false],
+      const [true, true, true, true, true, true, true],
+  backupDirectory: json['backupDirectory'] as String? ?? '/backup/温时记',
+  backupServerUrl: json['backupServerUrl'] as String? ?? '',
+  backupUsername: json['backupUsername'] as String? ?? '',
+  backupPassword: json['backupPassword'] as String? ?? '',
 );
 
 Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
@@ -33,4 +37,8 @@ Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
       'notificationEndMinute': instance.notificationEndMinute,
       'notificationDigestTime': instance.notificationDigestTime,
       'notificationDndDays': instance.notificationDndDays,
+      'backupDirectory': instance.backupDirectory,
+      'backupServerUrl': instance.backupServerUrl,
+      'backupUsername': instance.backupUsername,
+      'backupPassword': instance.backupPassword,
     };

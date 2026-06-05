@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$AppConfig {
 
- bool get notificationDndOn; bool get notificationDigestOn; int get notificationStartHour; int get notificationStartMinute; int get notificationEndHour; int get notificationEndMinute; String get notificationDigestTime; List<bool> get notificationDndDays;
+ bool get notificationDndOn; bool get notificationDigestOn; int get notificationStartHour; int get notificationStartMinute; int get notificationEndHour; int get notificationEndMinute; String get notificationDigestTime; List<bool> get notificationDndDays; String get backupDirectory; String get backupServerUrl; String get backupUsername; String get backupPassword;
 /// Create a copy of AppConfig
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -28,16 +28,16 @@ $AppConfigCopyWith<AppConfig> get copyWith => _$AppConfigCopyWithImpl<AppConfig>
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppConfig&&(identical(other.notificationDndOn, notificationDndOn) || other.notificationDndOn == notificationDndOn)&&(identical(other.notificationDigestOn, notificationDigestOn) || other.notificationDigestOn == notificationDigestOn)&&(identical(other.notificationStartHour, notificationStartHour) || other.notificationStartHour == notificationStartHour)&&(identical(other.notificationStartMinute, notificationStartMinute) || other.notificationStartMinute == notificationStartMinute)&&(identical(other.notificationEndHour, notificationEndHour) || other.notificationEndHour == notificationEndHour)&&(identical(other.notificationEndMinute, notificationEndMinute) || other.notificationEndMinute == notificationEndMinute)&&(identical(other.notificationDigestTime, notificationDigestTime) || other.notificationDigestTime == notificationDigestTime)&&const DeepCollectionEquality().equals(other.notificationDndDays, notificationDndDays));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AppConfig&&(identical(other.notificationDndOn, notificationDndOn) || other.notificationDndOn == notificationDndOn)&&(identical(other.notificationDigestOn, notificationDigestOn) || other.notificationDigestOn == notificationDigestOn)&&(identical(other.notificationStartHour, notificationStartHour) || other.notificationStartHour == notificationStartHour)&&(identical(other.notificationStartMinute, notificationStartMinute) || other.notificationStartMinute == notificationStartMinute)&&(identical(other.notificationEndHour, notificationEndHour) || other.notificationEndHour == notificationEndHour)&&(identical(other.notificationEndMinute, notificationEndMinute) || other.notificationEndMinute == notificationEndMinute)&&(identical(other.notificationDigestTime, notificationDigestTime) || other.notificationDigestTime == notificationDigestTime)&&const DeepCollectionEquality().equals(other.notificationDndDays, notificationDndDays)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory)&&(identical(other.backupServerUrl, backupServerUrl) || other.backupServerUrl == backupServerUrl)&&(identical(other.backupUsername, backupUsername) || other.backupUsername == backupUsername)&&(identical(other.backupPassword, backupPassword) || other.backupPassword == backupPassword));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,notificationDndOn,notificationDigestOn,notificationStartHour,notificationStartMinute,notificationEndHour,notificationEndMinute,notificationDigestTime,const DeepCollectionEquality().hash(notificationDndDays));
+int get hashCode => Object.hash(runtimeType,notificationDndOn,notificationDigestOn,notificationStartHour,notificationStartMinute,notificationEndHour,notificationEndMinute,notificationDigestTime,const DeepCollectionEquality().hash(notificationDndDays),backupDirectory,backupServerUrl,backupUsername,backupPassword);
 
 @override
 String toString() {
-  return 'AppConfig(notificationDndOn: $notificationDndOn, notificationDigestOn: $notificationDigestOn, notificationStartHour: $notificationStartHour, notificationStartMinute: $notificationStartMinute, notificationEndHour: $notificationEndHour, notificationEndMinute: $notificationEndMinute, notificationDigestTime: $notificationDigestTime, notificationDndDays: $notificationDndDays)';
+  return 'AppConfig(notificationDndOn: $notificationDndOn, notificationDigestOn: $notificationDigestOn, notificationStartHour: $notificationStartHour, notificationStartMinute: $notificationStartMinute, notificationEndHour: $notificationEndHour, notificationEndMinute: $notificationEndMinute, notificationDigestTime: $notificationDigestTime, notificationDndDays: $notificationDndDays, backupDirectory: $backupDirectory, backupServerUrl: $backupServerUrl, backupUsername: $backupUsername, backupPassword: $backupPassword)';
 }
 
 
@@ -48,7 +48,7 @@ abstract mixin class $AppConfigCopyWith<$Res>  {
   factory $AppConfigCopyWith(AppConfig value, $Res Function(AppConfig) _then) = _$AppConfigCopyWithImpl;
 @useResult
 $Res call({
- bool notificationDndOn, bool notificationDigestOn, int notificationStartHour, int notificationStartMinute, int notificationEndHour, int notificationEndMinute, String notificationDigestTime, List<bool> notificationDndDays
+ bool notificationDndOn, bool notificationDigestOn, int notificationStartHour, int notificationStartMinute, int notificationEndHour, int notificationEndMinute, String notificationDigestTime, List<bool> notificationDndDays, String backupDirectory, String backupServerUrl, String backupUsername, String backupPassword
 });
 
 
@@ -65,7 +65,7 @@ class _$AppConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppConfig
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? notificationDndOn = null,Object? notificationDigestOn = null,Object? notificationStartHour = null,Object? notificationStartMinute = null,Object? notificationEndHour = null,Object? notificationEndMinute = null,Object? notificationDigestTime = null,Object? notificationDndDays = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? notificationDndOn = null,Object? notificationDigestOn = null,Object? notificationStartHour = null,Object? notificationStartMinute = null,Object? notificationEndHour = null,Object? notificationEndMinute = null,Object? notificationDigestTime = null,Object? notificationDndDays = null,Object? backupDirectory = null,Object? backupServerUrl = null,Object? backupUsername = null,Object? backupPassword = null,}) {
   return _then(_self.copyWith(
 notificationDndOn: null == notificationDndOn ? _self.notificationDndOn : notificationDndOn // ignore: cast_nullable_to_non_nullable
 as bool,notificationDigestOn: null == notificationDigestOn ? _self.notificationDigestOn : notificationDigestOn // ignore: cast_nullable_to_non_nullable
@@ -75,7 +75,11 @@ as int,notificationEndHour: null == notificationEndHour ? _self.notificationEndH
 as int,notificationEndMinute: null == notificationEndMinute ? _self.notificationEndMinute : notificationEndMinute // ignore: cast_nullable_to_non_nullable
 as int,notificationDigestTime: null == notificationDigestTime ? _self.notificationDigestTime : notificationDigestTime // ignore: cast_nullable_to_non_nullable
 as String,notificationDndDays: null == notificationDndDays ? _self.notificationDndDays : notificationDndDays // ignore: cast_nullable_to_non_nullable
-as List<bool>,
+as List<bool>,backupDirectory: null == backupDirectory ? _self.backupDirectory : backupDirectory // ignore: cast_nullable_to_non_nullable
+as String,backupServerUrl: null == backupServerUrl ? _self.backupServerUrl : backupServerUrl // ignore: cast_nullable_to_non_nullable
+as String,backupUsername: null == backupUsername ? _self.backupUsername : backupUsername // ignore: cast_nullable_to_non_nullable
+as String,backupPassword: null == backupPassword ? _self.backupPassword : backupPassword // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 
@@ -160,10 +164,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays,  String backupDirectory,  String backupServerUrl,  String backupUsername,  String backupPassword)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _AppConfig() when $default != null:
-return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays);case _:
+return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays,_that.backupDirectory,_that.backupServerUrl,_that.backupUsername,_that.backupPassword);case _:
   return orElse();
 
 }
@@ -181,10 +185,10 @@ return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notific
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays,  String backupDirectory,  String backupServerUrl,  String backupUsername,  String backupPassword)  $default,) {final _that = this;
 switch (_that) {
 case _AppConfig():
-return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays);case _:
+return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays,_that.backupDirectory,_that.backupServerUrl,_that.backupUsername,_that.backupPassword);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -201,10 +205,10 @@ return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notific
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool notificationDndOn,  bool notificationDigestOn,  int notificationStartHour,  int notificationStartMinute,  int notificationEndHour,  int notificationEndMinute,  String notificationDigestTime,  List<bool> notificationDndDays,  String backupDirectory,  String backupServerUrl,  String backupUsername,  String backupPassword)?  $default,) {final _that = this;
 switch (_that) {
 case _AppConfig() when $default != null:
-return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays);case _:
+return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notificationStartHour,_that.notificationStartMinute,_that.notificationEndHour,_that.notificationEndMinute,_that.notificationDigestTime,_that.notificationDndDays,_that.backupDirectory,_that.backupServerUrl,_that.backupUsername,_that.backupPassword);case _:
   return null;
 
 }
@@ -216,7 +220,7 @@ return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notific
 @JsonSerializable()
 
 class _AppConfig implements AppConfig {
-   _AppConfig({this.notificationDndOn = false, this.notificationDigestOn = false, this.notificationStartHour = 22, this.notificationStartMinute = 0, this.notificationEndHour = 7, this.notificationEndMinute = 0, this.notificationDigestTime = 'evening', final  List<bool> notificationDndDays = const [false, false, false, false, false, false, false]}): _notificationDndDays = notificationDndDays;
+   _AppConfig({this.notificationDndOn = false, this.notificationDigestOn = false, this.notificationStartHour = 22, this.notificationStartMinute = 0, this.notificationEndHour = 7, this.notificationEndMinute = 0, this.notificationDigestTime = 'evening', final  List<bool> notificationDndDays = const [true, true, true, true, true, true, true], this.backupDirectory = '/backup/温时记', this.backupServerUrl = '', this.backupUsername = '', this.backupPassword = ''}): _notificationDndDays = notificationDndDays;
   factory _AppConfig.fromJson(Map<String, dynamic> json) => _$AppConfigFromJson(json);
 
 @override@JsonKey() final  bool notificationDndOn;
@@ -233,6 +237,10 @@ class _AppConfig implements AppConfig {
   return EqualUnmodifiableListView(_notificationDndDays);
 }
 
+@override@JsonKey() final  String backupDirectory;
+@override@JsonKey() final  String backupServerUrl;
+@override@JsonKey() final  String backupUsername;
+@override@JsonKey() final  String backupPassword;
 
 /// Create a copy of AppConfig
 /// with the given fields replaced by the non-null parameter values.
@@ -247,16 +255,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppConfig&&(identical(other.notificationDndOn, notificationDndOn) || other.notificationDndOn == notificationDndOn)&&(identical(other.notificationDigestOn, notificationDigestOn) || other.notificationDigestOn == notificationDigestOn)&&(identical(other.notificationStartHour, notificationStartHour) || other.notificationStartHour == notificationStartHour)&&(identical(other.notificationStartMinute, notificationStartMinute) || other.notificationStartMinute == notificationStartMinute)&&(identical(other.notificationEndHour, notificationEndHour) || other.notificationEndHour == notificationEndHour)&&(identical(other.notificationEndMinute, notificationEndMinute) || other.notificationEndMinute == notificationEndMinute)&&(identical(other.notificationDigestTime, notificationDigestTime) || other.notificationDigestTime == notificationDigestTime)&&const DeepCollectionEquality().equals(other._notificationDndDays, _notificationDndDays));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AppConfig&&(identical(other.notificationDndOn, notificationDndOn) || other.notificationDndOn == notificationDndOn)&&(identical(other.notificationDigestOn, notificationDigestOn) || other.notificationDigestOn == notificationDigestOn)&&(identical(other.notificationStartHour, notificationStartHour) || other.notificationStartHour == notificationStartHour)&&(identical(other.notificationStartMinute, notificationStartMinute) || other.notificationStartMinute == notificationStartMinute)&&(identical(other.notificationEndHour, notificationEndHour) || other.notificationEndHour == notificationEndHour)&&(identical(other.notificationEndMinute, notificationEndMinute) || other.notificationEndMinute == notificationEndMinute)&&(identical(other.notificationDigestTime, notificationDigestTime) || other.notificationDigestTime == notificationDigestTime)&&const DeepCollectionEquality().equals(other._notificationDndDays, _notificationDndDays)&&(identical(other.backupDirectory, backupDirectory) || other.backupDirectory == backupDirectory)&&(identical(other.backupServerUrl, backupServerUrl) || other.backupServerUrl == backupServerUrl)&&(identical(other.backupUsername, backupUsername) || other.backupUsername == backupUsername)&&(identical(other.backupPassword, backupPassword) || other.backupPassword == backupPassword));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,notificationDndOn,notificationDigestOn,notificationStartHour,notificationStartMinute,notificationEndHour,notificationEndMinute,notificationDigestTime,const DeepCollectionEquality().hash(_notificationDndDays));
+int get hashCode => Object.hash(runtimeType,notificationDndOn,notificationDigestOn,notificationStartHour,notificationStartMinute,notificationEndHour,notificationEndMinute,notificationDigestTime,const DeepCollectionEquality().hash(_notificationDndDays),backupDirectory,backupServerUrl,backupUsername,backupPassword);
 
 @override
 String toString() {
-  return 'AppConfig(notificationDndOn: $notificationDndOn, notificationDigestOn: $notificationDigestOn, notificationStartHour: $notificationStartHour, notificationStartMinute: $notificationStartMinute, notificationEndHour: $notificationEndHour, notificationEndMinute: $notificationEndMinute, notificationDigestTime: $notificationDigestTime, notificationDndDays: $notificationDndDays)';
+  return 'AppConfig(notificationDndOn: $notificationDndOn, notificationDigestOn: $notificationDigestOn, notificationStartHour: $notificationStartHour, notificationStartMinute: $notificationStartMinute, notificationEndHour: $notificationEndHour, notificationEndMinute: $notificationEndMinute, notificationDigestTime: $notificationDigestTime, notificationDndDays: $notificationDndDays, backupDirectory: $backupDirectory, backupServerUrl: $backupServerUrl, backupUsername: $backupUsername, backupPassword: $backupPassword)';
 }
 
 
@@ -267,7 +275,7 @@ abstract mixin class _$AppConfigCopyWith<$Res> implements $AppConfigCopyWith<$Re
   factory _$AppConfigCopyWith(_AppConfig value, $Res Function(_AppConfig) _then) = __$AppConfigCopyWithImpl;
 @override @useResult
 $Res call({
- bool notificationDndOn, bool notificationDigestOn, int notificationStartHour, int notificationStartMinute, int notificationEndHour, int notificationEndMinute, String notificationDigestTime, List<bool> notificationDndDays
+ bool notificationDndOn, bool notificationDigestOn, int notificationStartHour, int notificationStartMinute, int notificationEndHour, int notificationEndMinute, String notificationDigestTime, List<bool> notificationDndDays, String backupDirectory, String backupServerUrl, String backupUsername, String backupPassword
 });
 
 
@@ -284,7 +292,7 @@ class __$AppConfigCopyWithImpl<$Res>
 
 /// Create a copy of AppConfig
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? notificationDndOn = null,Object? notificationDigestOn = null,Object? notificationStartHour = null,Object? notificationStartMinute = null,Object? notificationEndHour = null,Object? notificationEndMinute = null,Object? notificationDigestTime = null,Object? notificationDndDays = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? notificationDndOn = null,Object? notificationDigestOn = null,Object? notificationStartHour = null,Object? notificationStartMinute = null,Object? notificationEndHour = null,Object? notificationEndMinute = null,Object? notificationDigestTime = null,Object? notificationDndDays = null,Object? backupDirectory = null,Object? backupServerUrl = null,Object? backupUsername = null,Object? backupPassword = null,}) {
   return _then(_AppConfig(
 notificationDndOn: null == notificationDndOn ? _self.notificationDndOn : notificationDndOn // ignore: cast_nullable_to_non_nullable
 as bool,notificationDigestOn: null == notificationDigestOn ? _self.notificationDigestOn : notificationDigestOn // ignore: cast_nullable_to_non_nullable
@@ -294,7 +302,11 @@ as int,notificationEndHour: null == notificationEndHour ? _self.notificationEndH
 as int,notificationEndMinute: null == notificationEndMinute ? _self.notificationEndMinute : notificationEndMinute // ignore: cast_nullable_to_non_nullable
 as int,notificationDigestTime: null == notificationDigestTime ? _self.notificationDigestTime : notificationDigestTime // ignore: cast_nullable_to_non_nullable
 as String,notificationDndDays: null == notificationDndDays ? _self._notificationDndDays : notificationDndDays // ignore: cast_nullable_to_non_nullable
-as List<bool>,
+as List<bool>,backupDirectory: null == backupDirectory ? _self.backupDirectory : backupDirectory // ignore: cast_nullable_to_non_nullable
+as String,backupServerUrl: null == backupServerUrl ? _self.backupServerUrl : backupServerUrl // ignore: cast_nullable_to_non_nullable
+as String,backupUsername: null == backupUsername ? _self.backupUsername : backupUsername // ignore: cast_nullable_to_non_nullable
+as String,backupPassword: null == backupPassword ? _self.backupPassword : backupPassword // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

@@ -38,7 +38,7 @@ class Utils {
       enterAnimationType: HyperSnackAnimationType.scale,
       enterCurve: Curves.elasticOut,
       enterAnimationDuration: const Duration(milliseconds: 500),
-      displayDuration: Duration(milliseconds: 500),
+      displayDuration: Duration(milliseconds: 800),
 
       maxWidth: 300,
     );
@@ -75,4 +75,26 @@ class Utils {
       
     }
   }
+Future<void> deleteFolder(String folderPath) async {
+  try {
+    final directory = Directory(folderPath);
+    
+    // 先判断文件夹是否存在
+    if (await directory.exists()) {
+      // recursive: true → 递归删除文件夹内所有文件/子文件夹
+      await directory.delete(recursive: true);
+      print("文件夹删除成功：$folderPath");
+    } else {
+      print("文件夹不存在，跳过删除：$folderPath");
+    }
+  } catch (e) {
+    print("删除文件夹失败：$e");
+  }
+}
+// 字节(Byte) 转 KB，保留2位小数
+String bytesToKB(int bytes) {
+  if (bytes <= 0) return "0 KB";
+  double kbSize = bytes / 1024;
+  return "${kbSize.toStringAsFixed(2)} KB";
+}
 }

@@ -8,6 +8,7 @@ import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/screens/about.dart';
+import 'package:wenshiji/screens/backup.dart';
 import 'package:wenshiji/screens/notification_setting.dart';
 import 'package:wenshiji/screens/stats.dart';
 import 'screens/splash_screen.dart';
@@ -100,6 +101,10 @@ class Application extends StatelessWidget {
         GoRoute(
           path: '/notification_setting',
           builder: (context, state) => NotificationSettingScreen(),
+        ),
+        GoRoute(
+          path: '/backup',
+          builder: (context, state) => const BackupScreen(),
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {

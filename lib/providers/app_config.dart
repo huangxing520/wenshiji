@@ -34,48 +34,65 @@ class AppConfigNotifier extends _$AppConfigNotifier {
     final jsonString = jsonEncode(config.toJson());
     await prefs.setString(_storageKey, jsonString);
   }
-  void setNotificationDndOn(bool value) async{
+ Future<void> setNotificationDndOn(bool value) async{
     state = AsyncData(state.requireValue.copyWith(notificationDndOn: value));
     await _saveToLocal(state.requireValue);
   }
 
-  void setNotificationDigestOn(bool value) async{
+  Future<void> setNotificationDigestOn(bool value) async{
    state = AsyncData(state.requireValue.copyWith(notificationDigestOn: value));
     await _saveToLocal(state.requireValue);
 
   }
 
-  void setNotificationStartHour(int value) async{
+  Future<void> setNotificationStartHour(int value) async{
     state = AsyncData(state.requireValue.copyWith(notificationStartHour: value));
         await _saveToLocal(state.requireValue);
 
   }
 
-  void setNotificationEndHour(int value) async{
+  Future<void> setNotificationEndHour(int value) async{
    state = AsyncData(state.requireValue.copyWith(notificationEndHour: value));
     await _saveToLocal(state.requireValue);
 
   }
 
-  void setNotificationEndMinute(int value) async{
+  Future<void> setNotificationEndMinute(int value) async{
     state = AsyncData(state.requireValue.copyWith(notificationEndMinute: value));
         await _saveToLocal(state.requireValue);
 
   }
 
-  void setNotificationStartMinute(int value) async{
+  Future<void> setNotificationStartMinute(int value) async{
     state = AsyncData(state.requireValue.copyWith(notificationStartMinute: value));
         await _saveToLocal(state.requireValue);
 
   }
-  void setNotificationDigestTime(String value) async{
+  Future<void> setNotificationDigestTime(String value) async{
     state = AsyncData(state.requireValue.copyWith(notificationDigestTime: value));
         await _saveToLocal(state.requireValue);
 
   }
 
-  void setNotificationDndDays(List<bool> value) async{
+  Future<void> setNotificationDndDays(List<bool> value) async{
     state = AsyncData(state.requireValue.copyWith(notificationDndDays: List<bool>.from(value)));
         await _saveToLocal(state.requireValue);
   }
+  Future<void> setBackupDirectory(String value) async{
+    state = AsyncData(state.requireValue.copyWith(backupDirectory: value));
+        await _saveToLocal(state.requireValue);
+  }
+  Future<void> setBackupServerUrl(String value) async{
+    state = AsyncData(state.requireValue.copyWith(backupServerUrl: value));
+        await _saveToLocal(state.requireValue);
+  }
+  Future<void> setBackupUsername(String value) async{
+    state = AsyncData(state.requireValue.copyWith(backupUsername: value));
+        await _saveToLocal(state.requireValue);
+  }
+  Future<void> setBackupPassword(String value) async{
+    state = AsyncData(state.requireValue.copyWith(backupPassword: value));
+        await _saveToLocal(state.requireValue);
+  }
+
 }

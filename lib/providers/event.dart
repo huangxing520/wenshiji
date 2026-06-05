@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wenshiji/common/picture_service.dart';
 import 'package:wenshiji/widget/card.dart';
 import 'dart:convert';
@@ -16,7 +15,7 @@ enum EventCategory { all, birthday, task, dailySignIn, star, holiday }
 
 // ==================== 1. 核心事件管理（AsyncNotifier） ====================
 /// 自动生成 provider 名称为 eventNotifierProvider
-@riverpod
+@Riverpod(keepAlive: true)
 class EventNotifier extends _$EventNotifier {
   /// 初始化加载（相当于原来的 _loadEvents）
   @override

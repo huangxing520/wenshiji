@@ -664,7 +664,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           case 'ic-about':
             context.push('/about');
             break;
-            
+          case 'ic-backup':
+            context.push('/backup');
+            break;
+          default:
+            break;
         }
         } ,
         onHighlightChanged: (_) {},

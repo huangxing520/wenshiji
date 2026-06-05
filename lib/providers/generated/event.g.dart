@@ -23,7 +23,7 @@ final class EventNotifierProvider
         argument: null,
         retry: null,
         name: r'eventProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -36,7 +36,7 @@ final class EventNotifierProvider
   EventNotifier create() => EventNotifier();
 }
 
-String _$eventNotifierHash() => r'd4f561ed65f1625e56b3d351b02eae9cc5862a92';
+String _$eventNotifierHash() => r'b5f732b8dc658e6616248e01579e5a3e24b002ed';
 
 /// 自动生成 provider 名称为 eventNotifierProvider
 
