@@ -10,20 +10,22 @@ _Event _$EventFromJson(Map<String, dynamic> json) => _Event(
   id: json['id'] as String,
   name: json['name'] as String,
   date: DateTime.parse(json['date'] as String),
+  nextEffectiveTime: DateTime.parse(json['nextEffectiveTime'] as String),
   type: $enumDecode(_$EventTypeEnumMap, json['type']),
   priority:
       $enumDecodeNullable(_$EventPriorityEnumMap, json['priority']) ??
       EventPriority.mid,
   isPinned: json['isPinned'] as bool? ?? false,
   isStarred: json['isStarred'] as bool? ?? false,
-  hasCheckin: json['hasCheckin'] as bool? ?? false,
-  streak: (json['streak'] as num?)?.toInt() ?? 0,
-  checkedToday: json['checkedToday'] as bool? ?? false,
-  reminder:
-      (json['reminder'] as List<dynamic>?)
-          ?.map((e) => $enumDecode(_$EventReminderEnumMap, e))
+  checkinTimes:
+      (json['checkinTimes'] as List<dynamic>?)
+          ?.map((e) => DateTime.parse(e as String))
           .toList() ??
-      const [EventReminder.none],
+      const [],
+  checkinStreakCount: (json['checkinStreakCount'] as num?)?.toInt() ?? 0,
+  repeatRule:
+      $enumDecodeNullable(_$RepeatRuleEnumMap, json['repeatRule']) ??
+      RepeatRule.none,
   description: json['description'] as String? ?? '',
   picturePaths:
       (json['picturePaths'] as List<dynamic>?)
@@ -39,14 +41,16 @@ Map<String, dynamic> _$EventToJson(_Event instance) => <String, dynamic>{
   'id': instance.id,
   'name': instance.name,
   'date': instance.date.toIso8601String(),
+  'nextEffectiveTime': instance.nextEffectiveTime.toIso8601String(),
   'type': _$EventTypeEnumMap[instance.type]!,
   'priority': _$EventPriorityEnumMap[instance.priority]!,
   'isPinned': instance.isPinned,
   'isStarred': instance.isStarred,
-  'hasCheckin': instance.hasCheckin,
-  'streak': instance.streak,
-  'checkedToday': instance.checkedToday,
-  'reminder': instance.reminder.map((e) => _$EventReminderEnumMap[e]!).toList(),
+  'checkinTimes': instance.checkinTimes
+      .map((e) => e.toIso8601String())
+      .toList(),
+  'checkinStreakCount': instance.checkinStreakCount,
+  'repeatRule': _$RepeatRuleEnumMap[instance.repeatRule]!,
   'description': instance.description,
   'picturePaths': instance.picturePaths,
   'tags': instance.tags,
@@ -66,13 +70,10 @@ const _$EventPriorityEnumMap = {
   EventPriority.special: 3,
 };
 
-const _$EventReminderEnumMap = {
-  EventReminder.none: 0,
-  EventReminder.daily: 1,
-  EventReminder.weekly: 2,
-  EventReminder.threeDays: 3,
-  EventReminder.sevenDays: 4,
-  EventReminder.fifteenDays: 5,
-  EventReminder.thirtyDays: 6,
-  EventReminder.oneHour: 7,
+const _$RepeatRuleEnumMap = {
+  RepeatRule.none: 0,
+  RepeatRule.daily: 1,
+  RepeatRule.weekly: 2,
+  RepeatRule.monthly: 3,
+  RepeatRule.yearly: 4,
 };

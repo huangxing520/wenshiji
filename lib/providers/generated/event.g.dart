@@ -36,7 +36,7 @@ final class EventNotifierProvider
   EventNotifier create() => EventNotifier();
 }
 
-String _$eventNotifierHash() => r'b5f732b8dc658e6616248e01579e5a3e24b002ed';
+String _$eventNotifierHash() => r'daa8b7f79a7253b46416e6ed606cb3eced40662f';
 
 /// 自动生成 provider 名称为 eventNotifierProvider
 

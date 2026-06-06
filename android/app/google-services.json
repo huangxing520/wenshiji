@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613054248594",
+    "project_id": "wenshiji",
+    "storage_bucket": "wenshiji.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613054248594:android:3367587c1638bf7dbc184b",
+        "android_client_info": {
+          "package_name": "com.roc.wenshiji"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZECo5eR7AlrHtnRZHt4FBQueHkZRXSQM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

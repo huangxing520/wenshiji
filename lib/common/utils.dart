@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wenshiji/constants/config_constant.dart';
+import 'package:wenshiji/models/event.dart';
 
 class Utils {
   static Utils? _instance;
@@ -71,30 +72,225 @@ class Utils {
       final uri = Uri.parse(url);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-     Utils().showErrorToast('打开失败', '无法打开链接，请检查网络或安装浏览器');
-      
+      Utils().showErrorToast('打开失败', '无法打开链接，请检查网络或安装浏览器');
     }
   }
-Future<void> deleteFolder(String folderPath) async {
-  try {
-    final directory = Directory(folderPath);
-    
-    // 先判断文件夹是否存在
-    if (await directory.exists()) {
-      // recursive: true → 递归删除文件夹内所有文件/子文件夹
-      await directory.delete(recursive: true);
-      print("文件夹删除成功：$folderPath");
-    } else {
-      print("文件夹不存在，跳过删除：$folderPath");
+
+  Future<void> deleteFolder(String folderPath) async {
+    try {
+      final directory = Directory(folderPath);
+
+      // 先判断文件夹是否存在
+      if (await directory.exists()) {
+        // recursive: true → 递归删除文件夹内所有文件/子文件夹
+        await directory.delete(recursive: true);
+        print("文件夹删除成功：$folderPath");
+      } else {
+        print("文件夹不存在，跳过删除：$folderPath");
+      }
+    } catch (e) {
+      print("删除文件夹失败：$e");
     }
-  } catch (e) {
-    print("删除文件夹失败：$e");
   }
-}
-// 字节(Byte) 转 KB，保留2位小数
-String bytesToKB(int bytes) {
-  if (bytes <= 0) return "0 KB";
-  double kbSize = bytes / 1024;
-  return "${kbSize.toStringAsFixed(2)} KB";
-}
+
+  // 字节(Byte) 转 KB，保留2位小数
+  String bytesToKB(int bytes) {
+    if (bytes <= 0) return "0 KB";
+    double kbSize = bytes / 1024;
+    return "${kbSize.toStringAsFixed(2)} KB";
+  }
+
+  bool hasToday(List<DateTime> checkinTimes) {
+    final today = DateTime.now().toLocal();
+    return checkinTimes.contains(DateTime(today.year, today.month, today.day));
+  }
+
+  bool isMissed(
+    List<DateTime> checkinTimes,
+    int checkinStreakCount,
+    DateTime createTime,
+  ) {
+    if (checkinTimes.isEmpty) return true;
+    if (!hasToday(checkinTimes)) return true;
+    return checkinTimes.last.difference(createTime).inDays !=
+        checkinStreakCount - 1;
+  }
+
+  int getRemainingTime(DateTime nextCheckinTime) {
+    final today = DateTime.now().toLocal();
+    // final todayZero = DateTime(today.year, today.month, today.day);
+    return today.difference(nextCheckinTime).inDays;
+
+ 
+  }
+  List<Event> getSampleEvents() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return [
+      // ========== birthday 生日类型 ==========
+      Event(
+        id: '1',
+        name: '妈妈生日',
+        date: today.add(const Duration(days: 3)),
+        nextEffectiveTime: today.add(const Duration(days: 3)),
+        type: EventType.birthday,
+        priority: EventPriority.high,
+        isPinned: true,
+        isStarred: true,
+        description: '记得准备礼物和蛋糕',
+        repeatRule: RepeatRule.weekly,
+      ),
+      Event(
+        id: '2',
+        name: '爸爸生日',
+        date: today.add(const Duration(days: 30)),
+        nextEffectiveTime: today.add(const Duration(days: 30)),
+        type: EventType.birthday,
+        priority: EventPriority.mid,
+        isStarred: true,
+        description: '提前准备礼物',
+      ),
+      Event(
+        id: '3',
+        name: '好朋友小明生日',
+        date: today.add(const Duration(days: 15)),
+        nextEffectiveTime: today.add(const Duration(days: 15)),
+        type: EventType.birthday,
+        priority: EventPriority.low,
+      ),
+
+      // ========== task 倒计时任务类型 ==========
+      Event(
+        id: '4',
+        name: '期末考试',
+        date: today.add(const Duration(days: 20)),
+        nextEffectiveTime: today.add(const Duration(days: 20)),
+        type: EventType.task,
+        priority: EventPriority.high,
+        isPinned: true,
+        description: '高等数学期末考试',
+        repeatRule: RepeatRule.weekly,
+      ),
+      Event(
+        id: '5',
+        name: '项目截止日期',
+        date: today.add(const Duration(days: 7)),
+        nextEffectiveTime: today.add(const Duration(days: 7)),
+        type: EventType.task,
+        priority: EventPriority.high,
+        isStarred: true,
+        description: '完成Flutter项目开发',
+        repeatRule: RepeatRule.weekly,
+      ),
+      Event(
+        id: '6',
+        name: '健身计划',
+        date: today.add(const Duration(days: 60)),
+        nextEffectiveTime: today.add(const Duration(days: 60)),
+        type: EventType.task,
+        priority: EventPriority.mid,
+        description: '坚持健身60天',
+        repeatRule: RepeatRule.weekly,
+      ),
+
+      // ========== dailySignIn 每日签到类型 ==========
+      Event(
+        id: '7',
+        name: '每日背单词',
+        date: today.subtract(const Duration(days: 10)),
+        nextEffectiveTime: today.subtract(const Duration(days: 10)),
+        repeatRule: RepeatRule.daily,
+        type: EventType.dailySignIn,
+        priority: EventPriority.mid,
+        checkinStreakCount: 7,
+        checkinTimes: [
+          today.subtract(const Duration(days: 10)),
+          today.subtract(const Duration(days: 9)),
+          today.subtract(const Duration(days: 8)),
+          today.subtract(const Duration(days: 6)),
+          today.subtract(const Duration(days: 5)),
+          today.subtract(const Duration(days: 4)),
+          today.subtract(const Duration(days: 2)),
+        ],
+        description: '每天背50个单词',
+      ),
+      Event(
+        id: '8',
+        name: '每日运动',
+        date: today.subtract(const Duration(days: 5)),
+        nextEffectiveTime: today.subtract(const Duration(days: 5)),
+        repeatRule: RepeatRule.daily,
+        type: EventType.dailySignIn,
+        priority: EventPriority.high,
+        checkinStreakCount: 6,
+        isStarred: true,
+        checkinTimes: [
+          today.subtract(const Duration(days: 5)),
+          today.subtract(const Duration(days: 4)),
+          today.subtract(const Duration(days: 3)),
+          today.subtract(const Duration(days: 2)),
+          today.subtract(const Duration(days: 1)),
+          today,
+        ],
+        description: '每天运动30分钟',
+      ),
+      Event(
+        id: '9',
+        name: '每日阅读',
+        date: today.subtract(const Duration(days: 20)),
+        nextEffectiveTime: today.subtract(const Duration(days: 20)),
+        repeatRule: RepeatRule.daily,
+        type: EventType.dailySignIn,
+        priority: EventPriority.low,
+        checkinStreakCount: 12,
+        checkinTimes: [
+          today.subtract(const Duration(days: 20)),
+          today.subtract(const Duration(days: 19)),
+          today.subtract(const Duration(days: 18)),
+          today.subtract(const Duration(days: 16)),
+          today.subtract(const Duration(days: 15)),
+          today.subtract(const Duration(days: 14)),
+          today.subtract(const Duration(days: 12)),
+          today.subtract(const Duration(days: 11)),
+          today.subtract(const Duration(days: 10)),
+          today.subtract(const Duration(days: 7)),
+          today.subtract(const Duration(days: 6)),
+          today.subtract(const Duration(days: 5)),
+        ],
+        description: '每天阅读1小时',
+      ),
+
+      // ========== holiday 节日类型 ==========
+      Event(
+        id: '10',
+        name: '春节',
+        date: DateTime(now.year + 1, 1, 1),
+        nextEffectiveTime: DateTime(now.year + 1, 1, 1),
+        type: EventType.holiday,
+        priority: EventPriority.special,
+        isPinned: true,
+        isStarred: true,
+        description: '农历新年',
+      ),
+      Event(
+        id: '11',
+        name: '中秋节',
+        date: DateTime(now.year, 9, 15),
+        nextEffectiveTime: DateTime(now.year, 9, 15),
+        type: EventType.holiday,
+        priority: EventPriority.special,
+        isStarred: true,
+        description: '团圆节',
+      ),
+      Event(
+        id: '12',
+        name: '国庆节',
+        date: DateTime(now.year, 10, 1),
+        nextEffectiveTime: DateTime(now.year, 10, 1),
+        type: EventType.holiday,
+        priority: EventPriority.high,
+        description: '祖国生日',
+      ),
+    ];
+  }
 }

@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 const _kBg = Color(0xFFFFFDF7);
 const _kSurface = Color(0xFFFFFFFF);
@@ -110,10 +111,34 @@ class _AchievementScreenState extends State<AchievementScreen>
   ];
 
   final List<Event> events = [
-    Event(id: 1, name: '戒烟', cat: 'quit', startDate: '2025-03-08', checkedToday: true),
-    Event(id: 2, name: '每日冥想', cat: 'discipline', startDate: '2025-06-15', checkedToday: false),
-    Event(id: 3, name: '和小雨在一起', cat: 'love', startDate: '2024-11-20', checkedToday: true),
-    Event(id: 4, name: '日语N2备考', cat: 'study', startDate: '2025-05-01', checkedToday: false),
+    Event(
+      id: 1,
+      name: '戒烟',
+      cat: 'quit',
+      startDate: '2025-03-08',
+      checkedToday: true,
+    ),
+    Event(
+      id: 2,
+      name: '每日冥想',
+      cat: 'discipline',
+      startDate: '2025-06-15',
+      checkedToday: false,
+    ),
+    Event(
+      id: 3,
+      name: '和小雨在一起',
+      cat: 'love',
+      startDate: '2024-11-20',
+      checkedToday: true,
+    ),
+    Event(
+      id: 4,
+      name: '日语N2备考',
+      cat: 'study',
+      startDate: '2025-05-01',
+      checkedToday: false,
+    ),
   ];
 
   Event? _celebrationEvent;
@@ -241,7 +266,7 @@ class _AchievementScreenState extends State<AchievementScreen>
           children: [
             Column(
               children: [
-                _buildStatusBar(),
+                //_buildStatusBar(),
                 _buildTopNav(),
                 Expanded(
                   child: CustomScrollView(
@@ -255,9 +280,7 @@ class _AchievementScreenState extends State<AchievementScreen>
                         ]),
                       ),
                       _buildBadgeGrid(),
-                      SliverToBoxAdapter(
-                        child: const SizedBox(height: 40),
-                      ),
+                      SliverToBoxAdapter(child: const SizedBox(height: 40)),
                     ],
                   ),
                 ),
@@ -325,11 +348,7 @@ class _AchievementScreenState extends State<AchievementScreen>
   }
 
   Widget _buildStatusIcon(IconData icon) {
-    return Icon(
-      icon,
-      size: 16,
-      color: _kFg,
-    );
+    return Icon(icon, size: 16, color: _kFg);
   }
 
   Widget _buildTopNav() {
@@ -340,7 +359,7 @@ class _AchievementScreenState extends State<AchievementScreen>
       child: Row(
         children: [
           InkWell(
-            onTap: () => Navigator.pop(context),
+            onTap: () => context.pop(),
             child: Container(
               width: 42,
               height: 42,
@@ -357,7 +376,7 @@ class _AchievementScreenState extends State<AchievementScreen>
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 16),
           Text(
             '正计时成就打卡',
             style: TextStyle(
@@ -367,24 +386,6 @@ class _AchievementScreenState extends State<AchievementScreen>
             ),
           ),
           const Spacer(),
-          InkWell(
-            onTap: openAddModal,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: _kAccent,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.add,
-                  size: 20,
-                  color: Color(0xFF3D2E1E),
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -440,25 +441,19 @@ class _AchievementScreenState extends State<AchievementScreen>
             ),
             child: Row(
               children: [
-                Expanded(
-                  child: _buildSummaryStat(events.length, '进行中'),
-                ),
+                Expanded(child: _buildSummaryStat(events.length, '进行中')),
                 Container(
                   width: 1,
                   height: 24,
                   color: const Color(0xFF3D2E1E).withValues(alpha: 0.1),
                 ),
-                Expanded(
-                  child: _buildSummaryStat(totalBadges, '已获徽章'),
-                ),
+                Expanded(child: _buildSummaryStat(totalBadges, '已获徽章')),
                 Container(
                   width: 1,
                   height: 24,
                   color: const Color(0xFF3D2E1E).withValues(alpha: 0.1),
                 ),
-                Expanded(
-                  child: _buildSummaryStat(longest, '最长天数'),
-                ),
+                Expanded(child: _buildSummaryStat(longest, '最长天数')),
               ],
             ),
           ),
@@ -507,10 +502,7 @@ class _AchievementScreenState extends State<AchievementScreen>
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: Text(
-                icon,
-                style: const TextStyle(fontSize: 14),
-              ),
+              child: Text(icon, style: const TextStyle(fontSize: 14)),
             ),
           ),
           const SizedBox(width: 8),
@@ -528,187 +520,191 @@ class _AchievementScreenState extends State<AchievementScreen>
   }
 
   List<Widget> _buildEventList() {
-    return List.generate(
-      events.length,
-      (index) {
-        final ev = events[index];
-        final days = daysSince(ev.startDate);
-        final meta = catMeta[ev.cat]!;
-        final next = getNextMilestone(days);
-        final progressPct = next != null ? (days / next.days * 100).clamp(0.0, 100.0) : 100.0;
+    return List.generate(events.length, (index) {
+      final ev = events[index];
+      final days = daysSince(ev.startDate);
+      final meta = catMeta[ev.cat]!;
+      final next = getNextMilestone(days);
+      final progressPct = next != null
+          ? (days / next.days * 100).clamp(0.0, 100.0)
+          : 100.0;
 
-        Color accentColor;
-        switch (ev.cat) {
-          case 'quit':
-            accentColor = _kDanger;
-            break;
-          case 'discipline':
-            accentColor = _kAccent;
-            break;
-          case 'study':
-            accentColor = _kSuccess;
-            break;
-          case 'love':
-            accentColor = const Color(0xFFFF69B4);
-            break;
-          default:
-            accentColor = _kAccent;
-        }
+      Color accentColor;
+      switch (ev.cat) {
+        case 'quit':
+          accentColor = _kDanger;
+          break;
+        case 'discipline':
+          accentColor = _kAccent;
+          break;
+        case 'study':
+          accentColor = _kSuccess;
+          break;
+        case 'love':
+          accentColor = const Color(0xFFFF69B4);
+          break;
+        default:
+          accentColor = _kAccent;
+      }
 
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: _kCard,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _kBorder),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Center(
-                          child: Text(
-                            meta.icon,
-                            style: const TextStyle(fontSize: 16),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        meta.label,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: _kMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  InkWell(
-                    onTap: () => checkin(ev.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: _kCard,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
-                        color: ev.checkedToday ? _kAccentSoft : _kAccent,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Text(
-                        ev.checkedToday ? '✓ ${meta.checkin}' : '打卡',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: ev.checkedToday ? _kAccentDeep : const Color(0xFF3D2E1E),
+                      child: Center(
+                        child: Text(
+                          meta.icon,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      meta.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: _kMuted,
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => checkin(ev.id),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: ev.checkedToday ? _kAccentSoft : _kAccent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      ev.checkedToday ? '✓ ${meta.checkin}' : '打卡',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: ev.checkedToday
+                            ? _kAccentDeep
+                            : const Color(0xFF3D2E1E),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  days.toString(),
+                  style: TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w900,
+                    color: _kFg,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '天',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: _kMuted,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              ev.name,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: _kFg,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8DCC8),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: FractionallySizedBox(
+                      widthFactor: progressPct / 100,
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: accentColor,
+                          borderRadius: BorderRadius.circular(3),
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    days.toString(),
-                    style: TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w900,
-                      color: _kFg,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '天',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: _kMuted,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                ev.name,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _kFg,
                 ),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Container(
+                const SizedBox(width: 8),
+                Row(
+                  children: milestoneDefs.map((m) {
+                    final isEarned = days >= m.days;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                      width: 6,
                       height: 6,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE8DCC8),
-                        borderRadius: BorderRadius.circular(3),
+                        color: isEarned ? _kAccent : _kBorder,
+                        shape: BoxShape.circle,
+                        boxShadow: isEarned
+                            ? [
+                                BoxShadow(
+                                  color: _kAccent.withValues(alpha: 0.4),
+                                  blurRadius: 4,
+                                ),
+                              ]
+                            : [],
                       ),
-                      child: FractionallySizedBox(
-                        widthFactor: progressPct / 100,
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: accentColor,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        ),
-                      ),
-                    ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  next != null ? '→ ${next.label}' : '🏆 全部达成',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _kMuted,
                   ),
-                  const SizedBox(width: 8),
-                  Row(
-                    children: milestoneDefs.map((m) {
-                      final isEarned = days >= m.days;
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                        width: 6,
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: isEarned ? _kAccent : _kBorder,
-                          shape: BoxShape.circle,
-                          boxShadow: isEarned
-                              ? [
-                                  BoxShadow(
-                                    color: _kAccent.withValues(alpha: 0.4),
-                                    blurRadius: 4,
-                                  ),
-                                ]
-                              : [],
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    next != null ? '→ ${next.label}' : '🏆 全部达成',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kMuted,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _buildBadgeGrid() {
@@ -730,9 +726,9 @@ class _AchievementScreenState extends State<AchievementScreen>
       if (a['earned'] != b['earned']) {
         return a['earned'] ? -1 : 1;
       }
-      return (a['milestone'] as MilestoneDef)
-          .days
-          .compareTo((b['milestone'] as MilestoneDef).days);
+      return (a['milestone'] as MilestoneDef).days.compareTo(
+        (b['milestone'] as MilestoneDef).days,
+      );
     });
 
     return SliverPadding(
@@ -742,99 +738,90 @@ class _AchievementScreenState extends State<AchievementScreen>
           crossAxisCount: 4,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
+          childAspectRatio: 1,
         ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final badge = allBadges[index];
-            final earned = badge['earned'] as bool;
-            final milestone = badge['milestone'] as MilestoneDef;
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final badge = allBadges[index];
+          final earned = badge['earned'] as bool;
+          final milestone = badge['milestone'] as MilestoneDef;
 
-            Color? badgeColor;
-            if (earned) {
-              switch (milestone.tier) {
-                case 'bronze':
-                  badgeColor = const Color(0xFFCD7F32).withValues(alpha: 0.2);
-                  break;
-                case 'silver':
-                  badgeColor = const Color(0xFFC0C0C0).withValues(alpha: 0.2);
-                  break;
-                case 'gold':
-                  badgeColor = const Color(0xFFFFF3DC);
-                  break;
-                case 'diamond':
-                  badgeColor = const Color(0xFFB9F2FF).withValues(alpha: 0.2);
-                  break;
-              }
+          Color? badgeColor;
+          if (earned) {
+            switch (milestone.tier) {
+              case 'bronze':
+                badgeColor = const Color(0xFFCD7F32).withValues(alpha: 0.2);
+                break;
+              case 'silver':
+                badgeColor = const Color(0xFFC0C0C0).withValues(alpha: 0.2);
+                break;
+              case 'gold':
+                badgeColor = const Color(0xFFFFF3DC);
+                break;
+              case 'diamond':
+                badgeColor = const Color(0xFFB9F2FF).withValues(alpha: 0.2);
+                break;
             }
+          }
 
-            return InkWell(
-              onTap: earned
-                  ? () {
-                      showToast(
-                        '${badge['event']} · ${milestone.label} 已达成',
-                      );
-                    }
-                  : null,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-                decoration: BoxDecoration(
-                  color: earned ? _kAccentSoft : _kCard,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: earned ? _kAccent : _kBorder,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: earned ? badgeColor : const Color(0xFFE8DCC8),
-                        shape: BoxShape.circle,
-                        boxShadow: earned
-                            ? [
-                                BoxShadow(
-                                  color: _kAccent.withValues(alpha: 0.25),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : [],
-                      ),
-                      child: Center(
-                        child: Text(
-                          earned ? milestone.icon : '🔒',
-                          style: const TextStyle(fontSize: 22),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      milestone.label,
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: earned ? _kFg : _kMuted,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      earned ? badge['event'] : '未解锁',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: _kMuted,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+          return InkWell(
+            onTap: earned
+                ? () {
+                    showToast('${badge['event']} · ${milestone.label} 已达成');
+                  }
+                : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+              decoration: BoxDecoration(
+                color: earned ? _kAccentSoft : _kCard,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: earned ? _kAccent : _kBorder),
               ),
-            );
-          },
-          childCount: allBadges.length,
-        ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: earned ? badgeColor : const Color(0xFFE8DCC8),
+                      shape: BoxShape.circle,
+                      boxShadow: earned
+                          ? [
+                              BoxShadow(
+                                color: _kAccent.withValues(alpha: 0.25),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : [],
+                    ),
+                    child: Center(
+                      child: Text(
+                        earned ? milestone.icon : '🔒',
+                        style: const TextStyle(fontSize: 22),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    milestone.label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: earned ? _kFg : _kMuted,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  Text(
+                    earned ? badge['event'] : '未解锁',
+                    style: TextStyle(fontSize: 10, color: _kMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }, childCount: allBadges.length),
       ),
     );
   }
@@ -847,14 +834,10 @@ class _AchievementScreenState extends State<AchievementScreen>
     final milestone = _celebrationMilestone!;
     final days = daysSince(ev.startDate);
     final descs = {
-      'bronze':
-          '万事开头难，你已经迈出了最坚定的第一步。坚持下去，你会感谢现在的自己！',
-      'silver':
-          '一个月的坚持不是每个人都能做到的，你做到了！这份毅力正在变成习惯。',
-      'gold':
-          '一百天！这已经不是坚持，而是生活的一部分了。你值得这枚闪亮的徽章！',
-      'diamond':
-          '整整一年！你用365天证明了自己的决心。这份成就，无人可以替代。',
+      'bronze': '万事开头难，你已经迈出了最坚定的第一步。坚持下去，你会感谢现在的自己！',
+      'silver': '一个月的坚持不是每个人都能做到的，你做到了！这份毅力正在变成习惯。',
+      'gold': '一百天！这已经不是坚持，而是生活的一部分了。你值得这枚闪亮的徽章！',
+      'diamond': '整整一年！你用365天证明了自己的决心。这份成就，无人可以替代。',
     };
 
     return Stack(
@@ -887,7 +870,9 @@ class _AchievementScreenState extends State<AchievementScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: _getBadgeColor(milestone.tier).withValues(alpha: 0.35),
+                          color: _getBadgeColor(
+                            milestone.tier,
+                          ).withValues(alpha: 0.35),
                           blurRadius: 32,
                           offset: const Offset(0, 8),
                         ),
@@ -912,10 +897,7 @@ class _AchievementScreenState extends State<AchievementScreen>
                   const SizedBox(height: 4),
                   Text(
                     '${milestone.label} 徽章',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _kMuted,
-                    ),
+                    style: TextStyle(fontSize: 14, color: _kMuted),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -929,11 +911,7 @@ class _AchievementScreenState extends State<AchievementScreen>
                   const SizedBox(height: 16),
                   Text(
                     descs[milestone.tier] ?? '恭喜你达成了这个里程碑！',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: _kMuted,
-                      height: 1.5,
-                    ),
+                    style: TextStyle(fontSize: 13, color: _kMuted, height: 1.5),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
@@ -994,9 +972,7 @@ class _AchievementScreenState extends State<AchievementScreen>
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
                 decoration: const BoxDecoration(
                   color: _kSurface,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1066,8 +1042,7 @@ class _AchievementScreenState extends State<AchievementScreen>
                                   style: TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
-                                    color:
-                                        selected ? _kAccentDeep : _kMuted,
+                                    color: selected ? _kAccentDeep : _kMuted,
                                   ),
                                 ),
                               ],
@@ -1111,22 +1086,18 @@ class _AchievementScreenState extends State<AchievementScreen>
   Widget _buildFieldLabel(String label) {
     return Text(
       label,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: _kFg,
-      ),
+      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kFg),
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String placeholder,
-      {String type = 'text'}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String placeholder, {
+    String type = 'text',
+  }) {
     return TextField(
       controller: controller,
-      style: TextStyle(
-        fontSize: 15,
-        color: _kFg,
-      ),
+      style: TextStyle(fontSize: 15, color: _kFg),
       decoration: InputDecoration(
         hintText: placeholder,
         filled: true,
@@ -1174,10 +1145,7 @@ class _AchievementScreenState extends State<AchievementScreen>
           scale: _toastVisible ? 1 : 0.9,
           duration: const Duration(milliseconds: 300),
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 12,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             decoration: BoxDecoration(
               color: _kFg.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(12),

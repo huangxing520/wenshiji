@@ -1,0 +1,22 @@
+{
+    "flutter": {
+        "platforms": {
+            "android": {
+                "default": {
+                    "projectId": "wenshiji",
+                    "appId": "1:613054248594:android:3367587c1638bf7dbc184b",
+                    "fileOutput": "android/app/google-services.json"
+                }
+            },
+            "dart": {
+                "lib/firebase_options.dart": {
+                    "projectId": "wenshiji",
+                    "configurations": {
+                        "android": "1:613054248594:android:3367587c1638bf7dbc184b",
+                        "windows": "1:613054248594:web:486cf0ebb754e17fbc184b"
+                    }
+                }
+            }
+        }
+    }
+}

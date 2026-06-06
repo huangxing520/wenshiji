@@ -35,6 +35,10 @@ dependencies:
   flutter_timezone: ^5.1.0
   app_settings: ^7.0.0
   webdav_client_plus: ^1.0.2
+  firebase_crashlytics: ^5.2.3
+  firebase_analytics: ^12.4.2
+  firebase_core: ^4.10.0
+  logger: ^2.7.0 
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -43,7 +43,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   String _repeatRule = 'yearly';
 
   //todo
-  final Set<EventReminder> _selectedReminders = {EventReminder.none};
+  // final Set<EventReminder> _selectedReminders = {EventReminder.none};
   final Set<String> _selectedTags = {};
   bool _isAdvancedExpanded = true;
   bool _showSuccess = false;
@@ -95,21 +95,21 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     });
   }
 
-  void _toggleReminder(EventReminder rem) {
-    setState(() {
-      if (_selectedReminders.contains(rem)) {
-        _selectedReminders.remove(rem);
-        if (!_selectedReminders.isNotEmpty) {
-          _selectedReminders.add(EventReminder.none);
-        }
-      } else {
-        _selectedReminders.add(rem);
-        if (_selectedReminders.contains(EventReminder.none)) {
-          _selectedReminders.remove(EventReminder.none);
-        }
-      }
-    });
-  }
+  // void _toggleReminder(EventReminder rem) {
+  //   setState(() {
+  //     if (_selectedReminders.contains(rem)) {
+  //       _selectedReminders.remove(rem);
+  //       if (!_selectedReminders.isNotEmpty) {
+  //         _selectedReminders.add(EventReminder.none);
+  //       }
+  //     } else {
+  //       _selectedReminders.add(rem);
+  //       if (_selectedReminders.contains(EventReminder.none)) {
+  //         _selectedReminders.remove(EventReminder.none);
+  //       }
+  //     }
+  //   });
+  // }
 
   void _toggleTag(String tag) {
     setState(() {
@@ -197,6 +197,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
         _selectedTime.hour,
         _selectedTime.minute,
       ),
+      nextEffectiveTime: DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      ),
       type: switch (_currentMode) {
         AddEventMode.birthday => EventType.birthday,
         AddEventMode.task =>
@@ -205,7 +212,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
       },
       priority: _currentPriority,
       tags: _selectedTags.toList(),
-      reminder: _selectedReminders.toList(),
+      //reminder: _selectedReminders.toList(),
       description: _notesController.text.trim(),
       picturePaths: imagePaths,
          );
@@ -835,16 +842,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                           fgColor,
                           mutedColor,
                         ),
-                      (!_isCountdown && _currentMode == AddEventMode.task)
-                          ? const SizedBox.shrink()
-                          : _buildReminderField(
-                              surfaceColor,
-                              accentSoftColor,
-                              accentDeepColor,
-                              borderColor,
-                              fgColor,
-                              mutedColor,
-                            ),
+                      // (!_isCountdown && _currentMode == AddEventMode.task)
+                      //     ? const SizedBox.shrink()
+                      //     : _buildReminderField(
+                      //         surfaceColor,
+                      //         accentSoftColor,
+                      //         accentDeepColor,
+                      //         borderColor,
+                      //         fgColor,
+                      //         mutedColor,
+                      //       ),
 
                       _buildTagField(
                         surfaceColor,
@@ -1006,78 +1013,78 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     );
   }
 
-  Widget _buildReminderField(
-    Color surfaceColor,
-    Color accentSoftColor,
-    Color accentDeepColor,
-    Color borderColor,
-    Color fgColor,
-    Color mutedColor,
-  ) {
-    final reminders = [
-      (EventReminder.oneHour, '1小时'),
-      (EventReminder.daily, '1天'),
-      (EventReminder.threeDays, '3天'),
-      (EventReminder.sevenDays, '7天'),
-      (EventReminder.fifteenDays, '15天'),
-      (EventReminder.thirtyDays, '30天'),
-    ];
+  // Widget _buildReminderField(
+  //   Color surfaceColor,
+  //   Color accentSoftColor,
+  //   Color accentDeepColor,
+  //   Color borderColor,
+  //   Color fgColor,
+  //   Color mutedColor,
+  // ) {
+  //   final reminders = [
+  //     (EventReminder.oneHour, '1小时'),
+  //     (EventReminder.daily, '1天'),
+  //     (EventReminder.threeDays, '3天'),
+  //     (EventReminder.sevenDays, '7天'),
+  //     (EventReminder.fifteenDays, '15天'),
+  //     (EventReminder.thirtyDays, '30天'),
+  //   ];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '提前提醒',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: reminders.map((rem) {
-              final isSelected = _selectedReminders.contains(rem.$1);
-              return GestureDetector(
-                onTap: () => _toggleReminder(rem.$1),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 0),
-                  curve: Curves.easeOutCubic,
-                  transform: isSelected
-                      ? Matrix4.identity().scaledByDouble(1.04, 1.04, 1.0, 1.0)
-                      : Matrix4.identity(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? const Color(0xFFD4A853) : borderColor,
-                      width: 1.5,
-                    ),
-                    color: isSelected ? accentSoftColor : surfaceColor,
-                  ),
-                  child: Text(
-                    rem.$2,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? accentDeepColor : mutedColor,
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
+  //   return Padding(
+  //     padding: const EdgeInsets.only(bottom: 14),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text(
+  //           '提前提醒',
+  //           style: TextStyle(
+  //             fontSize: 13,
+  //             fontWeight: FontWeight.w600,
+  //             color: fgColor,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 6),
+  //         Wrap(
+  //           spacing: 8,
+  //           runSpacing: 8,
+  //           children: reminders.map((rem) {
+  //             final isSelected = _selectedReminders.contains(rem.$1);
+  //             return GestureDetector(
+  //               onTap: () => _toggleReminder(rem.$1),
+  //               child: AnimatedContainer(
+  //                 duration: const Duration(milliseconds: 0),
+  //                 curve: Curves.easeOutCubic,
+  //                 transform: isSelected
+  //                     ? Matrix4.identity().scaledByDouble(1.04, 1.04, 1.0, 1.0)
+  //                     : Matrix4.identity(),
+  //                 padding: const EdgeInsets.symmetric(
+  //                   horizontal: 16,
+  //                   vertical: 9,
+  //                 ),
+  //                 decoration: BoxDecoration(
+  //                   borderRadius: BorderRadius.circular(20),
+  //                   border: Border.all(
+  //                     color: isSelected ? const Color(0xFFD4A853) : borderColor,
+  //                     width: 1.5,
+  //                   ),
+  //                   color: isSelected ? accentSoftColor : surfaceColor,
+  //                 ),
+  //                 child: Text(
+  //                   rem.$2,
+  //                   style: TextStyle(
+  //                     fontSize: 13,
+  //                     fontWeight: FontWeight.w600,
+  //                     color: isSelected ? accentDeepColor : mutedColor,
+  //                   ),
+  //                 ),
+  //               ),
+  //             );
+  //           }).toList(),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildTimerField(
     Color surfaceColor,

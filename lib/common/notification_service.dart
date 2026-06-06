@@ -45,9 +45,10 @@ class NotificationService {
         settings: initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationTap,
       );
-      hasNotificationPermission = await _checkAndRequestNotificationPermissions();
+      hasNotificationPermission =
+          await _checkAndRequestNotificationPermissions();
       if (!hasNotificationPermission) {
-       await openNotificationSettings();
+        await openNotificationSettings();
       }
 
       if (kDebugMode) {
@@ -84,7 +85,7 @@ class NotificationService {
   Future<void> openNotificationSettings() async {
     if (Platform.isAndroid) {
       await AppSettings.openAppSettings(type: AppSettingsType.notification);
-    } 
+    }
   }
 
   void _onNotificationTap(NotificationResponse notificationResponse) {
@@ -179,7 +180,7 @@ class NotificationService {
             channelDescription: '用于即时通知',
             importance: Importance.max,
             priority: Priority.high,
-            playSound: false
+            playSound: false,
           );
 
       const DarwinNotificationDetails iosPlatformChannelSpecifics =
@@ -205,72 +206,18 @@ class NotificationService {
   }
 
   Future<void> scheduleEventReminders(Event event) async {
-    for (final reminder in event.reminder) {
-      DateTime? scheduledDate;
-
-      switch (reminder) {
-        case EventReminder.none:
-          continue;
-        case EventReminder.daily:
-          scheduledDate = event.date.subtract(const Duration(days: 1));
-          break;
-        case EventReminder.weekly:
-          scheduledDate = event.date.subtract(const Duration(days: 7));
-          break;
-        case EventReminder.threeDays:
-          scheduledDate = event.date.subtract(const Duration(days: 3));
-          break;
-        case EventReminder.sevenDays:
-          scheduledDate = event.date.subtract(const Duration(days: 7));
-          break;
-        case EventReminder.fifteenDays:
-          scheduledDate = event.date.subtract(const Duration(days: 15));
-          break;
-        case EventReminder.thirtyDays:
-          scheduledDate = event.date.subtract(const Duration(days: 30));
-          break;
-        case EventReminder.oneHour:
-          scheduledDate = event.date.subtract(const Duration(hours: 1));
-          break;
-      }
-
-      if (scheduledDate != null && scheduledDate.isAfter(DateTime.now())) {
-        final reminderTitle = _getReminderTitle(reminder);
-        await scheduleEventNotification(
-          id: '${event.id}_${reminder.index}',
-          title: '$reminderTitle - ${event.name}',
-          body: event.description.isNotEmpty ? event.description : '',
-          scheduledDate: scheduledDate,
-          payload: event.id,
-        );
-      }
-    }
-  }
-
-  String _getReminderTitle(EventReminder reminder) {
-    switch (reminder) {
-      case EventReminder.none:
-        return '';
-      case EventReminder.daily:
-        return '明天';
-      case EventReminder.weekly:
-        return '一周后';
-      case EventReminder.threeDays:
-        return '3天后';
-      case EventReminder.sevenDays:
-        return '7天后';
-      case EventReminder.fifteenDays:
-        return '15天后';
-      case EventReminder.thirtyDays:
-        return '30天后';
-      case EventReminder.oneHour:
-        return '1小时后';
+    if (event.nextEffectiveTime.isAfter(DateTime.now())) {
+      await scheduleEventNotification(
+        id: event.id,
+        title: event.name,
+        body: event.description.isNotEmpty ? event.description : '',
+        scheduledDate: event.nextEffectiveTime,
+        payload: event.id,
+      );
     }
   }
 
   Future<void> cancelEventNotifications(String eventId) async {
-    for (int i = 0; i < EventReminder.values.length; i++) {
-      await cancelNotification('${eventId}_$i');
-    }
+    await cancelNotification(eventId);
   }
 }

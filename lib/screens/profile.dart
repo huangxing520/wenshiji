@@ -532,7 +532,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             mutedColor,
           ),
           _buildMenuItem(
-            Icons.lock_outlined,
+            Icons.notifications_outlined,
             '通知设置',
             '聚合免打扰时段、每日聚合推送，系统通知设置',
             'ic-notification',
@@ -556,18 +556,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             mutedColor,
             badge: 'NEW',
           ),
-          // _buildMenuItem(
-          //   Icons.calendar_today_outlined,
-          //   '节日管理',
-          //   '自定义节日与公历农历',
-          //   'ic-holiday',
-          //   surfaceColor,
-          //   accentSoftColor,
-          //   accentDeepColor,
-          //   borderColor,
-          //   fgColor,
-          //   mutedColor,
-          // ),
+          _buildMenuItem(
+            Icons.emoji_events_outlined,
+            '成就',
+            '打卡勋章、完成里程碑、成果汇总',
+            'ic-achievement',
+            surfaceColor,
+            accentSoftColor,
+            accentDeepColor,
+            borderColor,
+            fgColor,
+            mutedColor,
+          ),
         ],
       ),
     );
@@ -639,7 +639,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         iconBgColor = accentSoftColor;
         iconColor = accentDeepColor;
         break;
-      case 'ic-holiday':
+      case 'ic-achievement':
         iconBgColor = const Color(0xFFF9E6E6);
         iconColor = const Color(0xFFD9534F);
         break;
@@ -658,6 +658,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       child: InkWell(
         onTap: () {
           switch (type) {
+          case 'ic-achievement':
+            context.push('/archivement');
+            break;
           case 'ic-notification':
             context.push('/notification_setting');
             break;
