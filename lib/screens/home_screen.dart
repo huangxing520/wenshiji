@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:location/location.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/permission.dart';
 import 'package:wenshiji/common/utils.dart';
@@ -41,19 +42,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  Future<void> _loadWeatherData() async {
-    if (!mounted) return;
-    LocationData? location = await permission.getCurrentLocation();
-    if (location != null) {
-      final lat = location.latitude;
-      final lng = location.longitude;
-      if (lat != null && lng != null) {
-        print('当前位置: $lat, $lng');
-        final weather = await httpUtil.fetchWeather(lat, lng);
-      }
-    }
-  }
-
   @override
   void dispose() {
     _timer?.cancel();
@@ -63,7 +51,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventProvider);
-    final filteredEvents = ref.watch(filteredEventsProvider);
+    final filteredEvents = ref.watch(filteredEventsProvider(filterType: FilterType.active));
+    AppLogger().info('filteredEvents: $filteredEvents');
     final stats = ref.watch(statsProvider);
     final currentCategory = ref.watch(selectedCategoryProvider);
 
@@ -131,10 +120,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         body: "这是一条立即弹出的通知",
                         payload: "test_payload", // 点击通知携带的参数
                       );
-                      
                     },
                   ),
-                 
                 ],
               ),
             ],
@@ -544,9 +531,9 @@ class _PinnedCardState extends State<_PinnedCard>
 
   @override
   Widget build(BuildContext context) {
-     final today = DateTime.now().toLocal();
-    
-    final days =  today.difference(widget.event.date).inDays;
+    final today = DateTime.now().toLocal();
+
+    final days = widget.event.nextEffectiveTime.difference(today).inDays;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -652,7 +639,7 @@ class _PinnedCardState extends State<_PinnedCard>
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${widget.event.date.month}月${widget.event.date.day}日 · ${_getTypeLabel(widget.event.type)}',
+                        '${widget.event.nextEffectiveTime.month}月${widget.event.nextEffectiveTime.day}日 · ${_getTypeLabel(widget.event.type)}',
                         style: TextStyle(
                           fontSize: 13,
                           color: const Color(0xFF302D26).withValues(alpha: 0.7),
@@ -866,11 +853,14 @@ class _EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final days = event.type == EventType.task
-        ? today.difference(event.date).inDays
-        : event.date.difference(today).inDays;
+    final days = Utils().getRemainingTime(event.nextEffectiveTime);
+
     final isToday = event.type != EventType.task && days == 0;
-    final daysText = isToday ? '今天' : days.toString();
+    final daysText = isToday
+        ? '今天'
+        : (event.type == EventType.dailySignIn
+              ? days.toString()
+              : days.toString());
     final daysLabel = isToday ? '' : '天';
 
     return GestureDetector(
@@ -930,7 +920,7 @@ class _EventCard extends StatelessWidget {
                   Text(
                     event.type == EventType.dailySignIn
                         ? '开始于 ${event.date.month}月${event.date.day}日'
-                        : '${event.date.month}月${event.date.day}日',
+                        : '${event.nextEffectiveTime.month}月${event.nextEffectiveTime.day}日',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF8B8066),
@@ -961,14 +951,16 @@ class _EventCard extends StatelessWidget {
                       ),
                       if (event.type == EventType.dailySignIn)
                         GestureDetector(
-                          onTap:  Utils().hasToday(event.checkinTimes) ? null : onQuickCheckin,
+                          onTap: Utils().hasToday(event.checkinTimes)
+                              ? null
+                              : onQuickCheckin,
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color:  Utils().hasToday(event.checkinTimes)
+                              color: Utils().hasToday(event.checkinTimes)
                                   ? const Color(0xFFE8F5E8)
                                   : const Color(0xFFFFF3E8),
                               borderRadius: BorderRadius.circular(8),
@@ -980,7 +972,7 @@ class _EventCard extends StatelessWidget {
                                   width: 5,
                                   height: 5,
                                   decoration: BoxDecoration(
-                                    color:Utils().hasToday(event.checkinTimes)
+                                    color: Utils().hasToday(event.checkinTimes)
                                         ? const Color(0xFF4CAF50)
                                         : const Color(0xFFFF9800),
                                     borderRadius: BorderRadius.circular(2.5),
@@ -989,17 +981,13 @@ class _EventCard extends StatelessWidget {
                                 const SizedBox(width: 3),
                                 Text(
                                   Utils().hasToday(event.checkinTimes)
-                                      ? (Utils().isMissed(event.checkinTimes,event.checkinStreakCount,event.date)
-                                            ? '打卡${event.checkinTimes.length}天'
-                                            
-                                            
-                                            
-                                            
-                                            : '连续打卡${event.checkinTimes.length}天'
-                                            
-                                            
-                                            
+                                      ? (Utils().isMissed(
+                                              event.checkinTimes,
+                                              event.checkinStreakCount,
+                                              event.date,
                                             )
+                                            ? '打卡${event.checkinTimes.length}天'
+                                            : '连续打卡${event.checkinTimes.length}天')
                                       : '今日未打卡',
                                   style: TextStyle(
                                     fontSize: 10,
@@ -1133,8 +1121,6 @@ class _ContextMenuItem extends StatelessWidget {
     );
   }
 }
-
-
 
 // 整体卡片入场动画（整个组件一次动画，无逐个）
 class CardSpring extends StatefulWidget {

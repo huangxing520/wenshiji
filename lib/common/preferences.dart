@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/models/event.dart';
 
 import '../constants/config_constant.dart';
@@ -59,6 +60,7 @@ class Preferences {
     try {
       final preferences = await sharedPreferencesCompleter.future;
       final eventsString = preferences?.getString('events');
+      AppLogger().info('eventsString: $eventsString');
       if (eventsString == null) return [];
       
         final List<dynamic> jsonList = json.decode(eventsString);

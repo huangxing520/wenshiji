@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
 
 import 'package:wenshiji/common/preferences.dart';
 
@@ -18,6 +23,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   final List<_ParticleData> _particles = [];
   final math.Random _random = math.Random();
   String _deviceId = '';
+  Uint8List? _avatarBytes;
 
   @override
   void initState() {
@@ -37,6 +43,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       setState(() {
         _deviceId = id;
       });
+      _fetchAvatar(id);
+    }
+  }
+
+  Future<void> _fetchAvatar(String seed) async {
+    final url =
+        'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$seed';
+    try {
+      final response = await HttpUtil().get<List<int>>(
+        url,
+        options: Options(
+          responseType: ResponseType.bytes,
+          connectTimeout: const Duration(milliseconds: 500),
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          },
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _avatarBytes = Uint8List.fromList(response);
+        });
+      }
+    } catch (e) {
+      AppLogger().error('Avatar fetch error: $e, loading local avatar');
+      try {
+        final byteData = await rootBundle.load('assets/icon/avatar.png');
+        if (mounted) {
+          setState(() {
+            _avatarBytes = byteData.buffer.asUint8List();
+          });
+        }
+      } catch (localError) {
+        AppLogger().error('Local avatar load error: $localError');
+      }
     }
   }
 
@@ -344,6 +386,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   // 构建用户信息
   Widget _buildProfileTop(Color accentSoftColor, Color accentDeepColor) {
+    AppLogger().info(
+      'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$_deviceId',
+    );
     return Row(
       children: [
         Stack(
@@ -361,24 +406,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 ),
               ),
 
-              child: Image.network(
-                'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$_deviceId',
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.person_outline,
-                    size: 36,
-                    color: const Color(0xFF383428).withValues(alpha: 0.35),
-                  );
-                },
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  if (frame != null || wasSynchronouslyLoaded) {
-                    return child;
-                  }
-                  return const Center(child: CircularProgressIndicator());
-                },
-                width: 36,
-                height: 36,
-              ),
+              child: _avatarBytes != null
+                  ? ClipOval(
+                      child: Image.memory(
+                        _avatarBytes!,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Icon(
+                        Icons.person_outline,
+                        size: 36,
+                        color: const Color(0xFF383428).withValues(alpha: 0.35),
+                      ),
+                    ),
             ),
             Positioned.fill(child: CustomPaint(painter: _DashedRingPainter())),
           ],
@@ -543,24 +586,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             fgColor,
             mutedColor,
           ),
+          // _buildMenuItem(
+          //   Icons.palette_outlined,
+          //   '主题中心',
+          //   '个性化色彩与字体',
+          //   'ic-theme',
+          //   surfaceColor,
+          //   accentSoftColor,
+          //   accentDeepColor,
+          //   borderColor,
+          //   fgColor,
+          //   mutedColor,
+          //   badge: 'NEW',
+          // ),
           _buildMenuItem(
-            Icons.palette_outlined,
-            '主题中心',
-            '个性化色彩与字体',
-            'ic-theme',
+            Icons.emoji_events_outlined,
+            '成就',
+            '打卡勋章、完成里程碑、成果汇总',
+            'ic-achievement',
             surfaceColor,
             accentSoftColor,
             accentDeepColor,
             borderColor,
             fgColor,
             mutedColor,
-            badge: 'NEW',
           ),
           _buildMenuItem(
-            Icons.emoji_events_outlined,
-            '成就',
-            '打卡勋章、完成里程碑、成果汇总',
-            'ic-achievement',
+            Icons.inbox_outlined,
+            '归档',
+            '已归档的事件记录',
+            'ic-archive',
             surfaceColor,
             accentSoftColor,
             accentDeepColor,
@@ -592,7 +647,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       ),
       child: Column(
         children: [
-    
           _buildMenuItem(
             Icons.info_outline,
             '关于我们',
@@ -643,10 +697,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         iconBgColor = const Color(0xFFF9E6E6);
         iconColor = const Color(0xFFD9534F);
         break;
-  
+
       case 'ic-about':
         iconBgColor = const Color(0xFFF0F0E8);
         iconColor = const Color(0xFF66665A);
+        break;
+      case 'ic-archive':
+        iconBgColor = const Color(0xFFF8F5E6); // 更浅的米黄背景
+        iconColor = const Color(0xFF5A5A4F); // 深一点的灰棕，对比度更高
         break;
       default:
         iconBgColor = accentSoftColor;
@@ -658,22 +716,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
       child: InkWell(
         onTap: () {
           switch (type) {
-          case 'ic-achievement':
-            context.push('/archivement');
-            break;
-          case 'ic-notification':
-            context.push('/notification_setting');
-            break;
-          case 'ic-about':
-            context.push('/about');
-            break;
-          case 'ic-backup':
-            context.push('/backup');
-            break;
-          default:
-            break;
-        }
-        } ,
+            case 'ic-achievement':
+              context.push('/archivement');
+              break;
+            case 'ic-notification':
+              context.push('/notification_setting');
+              break;
+            case 'ic-about':
+              context.push('/about');
+              break;
+            case 'ic-archive':
+              context.push('/archive');
+              break;
+            case 'ic-backup':
+              context.push('/backup');
+              break;
+            default:
+              break;
+          }
+        },
         onHighlightChanged: (_) {},
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),

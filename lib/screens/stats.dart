@@ -2,23 +2,25 @@ import 'dart:math';
 import 'package:contribution_heatmap/contribution_heatmap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/providers/event.dart';
 
 const _accentDeep = Color(0xFFD4A853);
 
 enum StatsTimeType { all, month, year, quarter }
 
-class StatsScreen extends StatefulWidget {
+class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key});
 
   @override
-  State<StatsScreen> createState() => _StatsScreenState();
+  ConsumerState<StatsScreen> createState() => _StatsScreenState();
 }
 
-class _StatsScreenState extends State<StatsScreen>
+class _StatsScreenState extends ConsumerState<StatsScreen>
     with TickerProviderStateMixin {
   static const Color bg = Color(0xFFF8F7F2);
   static const Color surface = Color(0xFFFFFEFA);
@@ -38,7 +40,7 @@ class _StatsScreenState extends State<StatsScreen>
   static const Color heat3 = Color(0xFF808080);
   static const Color heat4 = Color(0xFF404040);
 
-  final List<Event> allEvents = Utils().getSampleEvents();
+  //final List<Event> allEvents = Utils().getSampleEvents();
 
   StatsTimeType currentRange = StatsTimeType.all;
   StatsTimeType currentHeatmapRange = StatsTimeType.year;
@@ -98,7 +100,7 @@ class _StatsScreenState extends State<StatsScreen>
     });
   }
 
-  List<Event> getFilteredEvents() {
+  List<Event> getFilteredEvents(List<Event> allEvents) {
     final now = DateTime.now();
     final y = now.year;
     final m = now.month - 1; // 保留：专门给月份筛选用
@@ -132,17 +134,17 @@ class _StatsScreenState extends State<StatsScreen>
     }
   }
 
-  Map<String, int> buildDayMap() {
+  Map<String, int> buildDayMap(List<Event> allEvents) {
     final map = <String, int>{};
-    for (final e in getFilteredEvents()) {
+    for (final e in getFilteredEvents(allEvents)) {
       final key = DateFormat('yyyy-MM-dd').format(e.date);
       map[key] = (map[key] ?? 0) + 1;
     }
     return map;
   }
 
-  Map<String, dynamic> calculateStats() {
-    final filtered = getFilteredEvents();
+  Map<String, dynamic> calculateStats(List<Event> allEvents) {
+    final filtered = getFilteredEvents(allEvents);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final in7 = today.add(const Duration(days: 7));
@@ -254,25 +256,33 @@ class _StatsScreenState extends State<StatsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final stats = calculateStats();
-    final isEmpty = stats['total'] == 0;
+    final events = ref.watch(eventProvider);
 
     return Scaffold(
       backgroundColor: bg,
-      body: Stack(
-        children: [
-          SafeArea(
-            child: Column(
-              children: [
-                _buildTopNav(),
-                _buildTimeFilter(),
-                Expanded(child: _buildContent(isEmpty, stats)),
-              ],
-            ),
-          ),
-          if (_showToastFlag) _buildToast(),
-          if (_selectedDateEvents != null) _buildDateModal(),
-        ],
+      body: events.when(
+        data: (events) {
+          final filtered = getFilteredEvents(events);
+          final stats = calculateStats(filtered);
+          final isEmpty = stats['total'] == 0;
+          return Stack(
+            children: [
+              SafeArea(
+                child: Column(
+                  children: [
+                    _buildTopNav(),
+                    _buildTimeFilter(),
+                    Expanded(child: _buildContent(isEmpty, stats, filtered)),
+                  ],
+                ),
+              ),
+              if (_showToastFlag) _buildToast(),
+              if (_selectedDateEvents != null) _buildDateModal(),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => const Center(child: Text('Error')),
       ),
     );
   }
@@ -372,8 +382,12 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  Widget _buildContent(bool isEmpty, Map<String, dynamic> stats) {
-    return isEmpty ? _buildEmptyState() : _buildStatsContent(stats);
+  Widget _buildContent(
+    bool isEmpty,
+    Map<String, dynamic> stats,
+    List<Event> allEvents,
+  ) {
+    return isEmpty ? _buildEmptyState() : _buildStatsContent(stats, allEvents);
   }
 
   Widget _buildEmptyState() {
@@ -434,14 +448,14 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  Widget _buildStatsContent(Map<String, dynamic> stats) {
+  Widget _buildStatsContent(Map<String, dynamic> stats, List<Event> allEvents) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
         children: [
           _buildStatsGrid(stats),
           const SizedBox(height: 22),
-          _buildHeatmapSection(),
+          _buildHeatmapSection(allEvents),
           const SizedBox(height: 14),
           _buildLifeSection(),
           const SizedBox(height: 40),
@@ -592,13 +606,13 @@ class _StatsScreenState extends State<StatsScreen>
   }
 
   // 日历热力图
-  Widget _buildHeatmapSection() {
+  Widget _buildHeatmapSection(List<Event> allEvents) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(),
         const SizedBox(height: 12),
-        _buildHeatmapCard(),
+        _buildHeatmapCard(allEvents),
       ],
     );
   }
@@ -670,7 +684,7 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  Widget _buildHeatmapCard() {
+  Widget _buildHeatmapCard(List<Event> allEvents) {
     return Container(
       decoration: BoxDecoration(
         color: card,
@@ -678,12 +692,12 @@ class _StatsScreenState extends State<StatsScreen>
         border: Border.all(color: border),
       ),
       child: currentHeatmapRange == StatsTimeType.year
-          ? _buildYearView()
-          : _buildMonthView(),
+          ? _buildYearView(allEvents)
+          : _buildMonthView(allEvents),
     );
   }
 
-  Widget _buildYearView() {
+  Widget _buildYearView(List<Event> allEvents) {
     return Padding(
       padding: const EdgeInsets.only(right: 18),
       child: SingleChildScrollView(
@@ -706,15 +720,15 @@ class _StatsScreenState extends State<StatsScreen>
             // Add more entries...
           ], // Only required parameter, other are optional
           onCellTap: (date, value) {
-            _openDateModal(date.toIso8601String());
+            _openDateModal(date.toIso8601String(), allEvents);
           },
         ),
       ),
     );
   }
 
-  Widget _buildMonthView() {
-    final dayMap = buildDayMap();
+  Widget _buildMonthView(List<Event> allEvents) {
+    final dayMap = buildDayMap(allEvents);
     final today = DateTime.now();
 
     return Padding(
@@ -723,7 +737,7 @@ class _StatsScreenState extends State<StatsScreen>
         children: [
           _buildMonthNav(),
           const SizedBox(height: 12),
-          _buildMonthGrid(dayMap, today),
+          _buildMonthGrid(dayMap, today, allEvents),
         ],
       ),
     );
@@ -785,7 +799,11 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  Widget _buildMonthGrid(Map<String, int> dayMap, DateTime today) {
+  Widget _buildMonthGrid(
+    Map<String, int> dayMap,
+    DateTime today,
+    List<Event> allEvents,
+  ) {
     final first = DateTime(viewYear, viewMonth + 1, 1);
     var startDay = first.weekday;
     if (startDay == 7) startDay = 1;
@@ -829,7 +847,7 @@ class _StatsScreenState extends State<StatsScreen>
 
       cells.add(
         GestureDetector(
-          onTap: () => _openDateModal(key),
+          onTap: () => _openDateModal(key, allEvents),
           child: Container(
             margin: const EdgeInsets.all(2),
             decoration: BoxDecoration(
@@ -1177,7 +1195,7 @@ class _StatsScreenState extends State<StatsScreen>
     );
   }
 
-  void _openDateModal(String dateStr) {
+  void _openDateModal(String dateStr, List<Event> allEvents) {
     final targetDate = DateFormat('yyyy-MM-dd').parse(dateStr);
     final dayEvents = allEvents.where((e) {
       final d = e.date;

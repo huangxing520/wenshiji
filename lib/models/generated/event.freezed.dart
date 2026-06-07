@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$Event {
 
- String get id; String get name;/// 事件日期
+ String get id; String get name;/// 创建事件日期
  DateTime get date;/// 下次生效事件时间
  DateTime get nextEffectiveTime;/// 事件类型
  EventType get type;/// 事件优先级
@@ -236,7 +236,7 @@ class _Event implements Event {
 
 @override final  String id;
 @override final  String name;
-/// 事件日期
+/// 创建事件日期
 @override final  DateTime date;
 /// 下次生效事件时间
 @override final  DateTime nextEffectiveTime;

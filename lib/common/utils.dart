@@ -3,8 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:location/location.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/permission.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 import 'package:wenshiji/models/event.dart';
 
@@ -119,7 +122,7 @@ class Utils {
   int getRemainingTime(DateTime nextCheckinTime) {
     final today = DateTime.now().toLocal();
     // final todayZero = DateTime(today.year, today.month, today.day);
-    return today.difference(nextCheckinTime).inDays;
+    return nextCheckinTime.difference(today).inDays;
 
  
   }
@@ -131,19 +134,18 @@ class Utils {
       Event(
         id: '1',
         name: '妈妈生日',
-        date: today.add(const Duration(days: 3)),
+        date: today.subtract(const Duration(days: 3)),
         nextEffectiveTime: today.add(const Duration(days: 3)),
         type: EventType.birthday,
         priority: EventPriority.high,
         isPinned: true,
         isStarred: true,
         description: '记得准备礼物和蛋糕',
-        repeatRule: RepeatRule.weekly,
       ),
       Event(
         id: '2',
         name: '爸爸生日',
-        date: today.add(const Duration(days: 30)),
+        date: today.subtract(const Duration(days: 30)),
         nextEffectiveTime: today.add(const Duration(days: 30)),
         type: EventType.birthday,
         priority: EventPriority.mid,
@@ -153,7 +155,7 @@ class Utils {
       Event(
         id: '3',
         name: '好朋友小明生日',
-        date: today.add(const Duration(days: 15)),
+        date: today.subtract(const Duration(days: 15)),
         nextEffectiveTime: today.add(const Duration(days: 15)),
         type: EventType.birthday,
         priority: EventPriority.low,
@@ -163,43 +165,43 @@ class Utils {
       Event(
         id: '4',
         name: '期末考试',
-        date: today.add(const Duration(days: 20)),
+        date: today.subtract(const Duration(days: 20)),
         nextEffectiveTime: today.add(const Duration(days: 20)),
         type: EventType.task,
         priority: EventPriority.high,
         isPinned: true,
         description: '高等数学期末考试',
-        repeatRule: RepeatRule.weekly,
+        repeatRule: RepeatRule.none,
       ),
       Event(
         id: '5',
         name: '项目截止日期',
-        date: today.add(const Duration(days: 7)),
-        nextEffectiveTime: today.add(const Duration(days: 7)),
+        date: today.subtract(const Duration(days: 1)),
+        nextEffectiveTime: today.add(const Duration(days: 3)),
         type: EventType.task,
         priority: EventPriority.high,
         isStarred: true,
         description: '完成Flutter项目开发',
-        repeatRule: RepeatRule.weekly,
+        repeatRule: RepeatRule.none,
       ),
       Event(
         id: '6',
-        name: '健身计划',
-        date: today.add(const Duration(days: 60)),
-        nextEffectiveTime: today.add(const Duration(days: 60)),
+        name: '已截止',
+        date: today.subtract(const Duration(days: 10)),
+        nextEffectiveTime: today.subtract(const Duration(days: 3)),
         type: EventType.task,
-        priority: EventPriority.mid,
-        description: '坚持健身60天',
-        repeatRule: RepeatRule.weekly,
+        priority: EventPriority.high,
+        isStarred: true,
+        description: '完成Flutter项目开发',
+        repeatRule: RepeatRule.none,
       ),
-
       // ========== dailySignIn 每日签到类型 ==========
       Event(
         id: '7',
         name: '每日背单词',
         date: today.subtract(const Duration(days: 10)),
-        nextEffectiveTime: today.subtract(const Duration(days: 10)),
-        repeatRule: RepeatRule.daily,
+        nextEffectiveTime: today.add(const Duration(days: 10)),
+        repeatRule: RepeatRule.none,
         type: EventType.dailySignIn,
         priority: EventPriority.mid,
         checkinStreakCount: 7,
@@ -218,8 +220,8 @@ class Utils {
         id: '8',
         name: '每日运动',
         date: today.subtract(const Duration(days: 5)),
-        nextEffectiveTime: today.subtract(const Duration(days: 5)),
-        repeatRule: RepeatRule.daily,
+        nextEffectiveTime: today.add(const Duration(days: 5)),
+        repeatRule: RepeatRule.none,
         type: EventType.dailySignIn,
         priority: EventPriority.high,
         checkinStreakCount: 6,
@@ -238,8 +240,8 @@ class Utils {
         id: '9',
         name: '每日阅读',
         date: today.subtract(const Duration(days: 20)),
-        nextEffectiveTime: today.subtract(const Duration(days: 20)),
-        repeatRule: RepeatRule.daily,
+        nextEffectiveTime: today.subtract(const Duration(days: 3)),
+        repeatRule: RepeatRule.none,
         type: EventType.dailySignIn,
         priority: EventPriority.low,
         checkinStreakCount: 12,
@@ -293,4 +295,17 @@ class Utils {
       ),
     ];
   }
+
+  Future<void> _loadWeatherData() async {
+    LocationData? location = await permission.getCurrentLocation();
+    if (location != null) {
+      final lat = location.latitude;
+      final lng = location.longitude;
+      if (lat != null && lng != null) {
+        print('当前位置: $lat, $lng');
+        final weather = await HttpUtil().fetchWeather(lat, lng);
+      }
+    }
+  }
+
 }

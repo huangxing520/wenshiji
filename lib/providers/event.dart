@@ -2,7 +2,9 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/picture_service.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/widget/card.dart';
@@ -43,8 +45,6 @@ class EventNotifier extends _$EventNotifier {
       throw Exception('加载失败: $e');
     }
   }
-
-  
 
   // 保存到本地（异步，不阻塞状态更新）
   Future<void> _saveEvents(List<Event> events) async {
@@ -114,6 +114,7 @@ class EventNotifier extends _$EventNotifier {
       }
       return e;
     }).toList();
+    AppLogger().info('updatedEvents: $updatedEvents');
     state = AsyncValue.data(updatedEvents);
     await _saveEvents(updatedEvents);
   }
@@ -128,19 +129,22 @@ class SelectedCategory extends _$SelectedCategory {
   void setCategory(EventCategory category) => state = category;
 }
 
-// ==================== 3. 派生 Provider：过滤 & 排序 ====================
-@riverpod
-List<Event> filteredEvents(Ref ref) {
-  // 监听异步状态 - AsyncNotifierProvider 返回的是 AsyncValue<List<Event>>
-  final eventsAsync = ref.watch(eventProvider);
-  final category = ref.watch(selectedCategoryProvider); // 自动生成的 provider 名称
+enum FilterType { all, archived, active }
 
+@riverpod
+List<Event> filteredEvents(Ref ref, {required FilterType filterType}) {
+  // 1. 监听依赖（异步数据源 + 分类）
+  final eventsAsync = ref.watch(eventProvider);
+  final category = ref.watch(selectedCategoryProvider);
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+
+  // 2. 用 when 处理异步状态，加载/错误时返回空列表
   return eventsAsync.when(
     data: (events) {
       List<Event> filtered;
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
 
+      // 按分类过滤
       switch (category) {
         case EventCategory.all:
           filtered = events;
@@ -164,6 +168,19 @@ List<Event> filteredEvents(Ref ref) {
           break;
       }
 
+      // 按激活/归档过滤
+      filtered = filtered.where((e) {
+        switch (filterType) {
+          case FilterType.all:
+            return true;
+          case FilterType.archived:
+            return e.nextEffectiveTime.isBefore(today);
+          case FilterType.active:
+            return e.nextEffectiveTime.isAfter(today);
+        }
+      }).toList();
+
+      // 排序
       filtered.sort((a, b) {
         if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
         final aDays = a.type == EventType.dailySignIn
@@ -176,6 +193,7 @@ List<Event> filteredEvents(Ref ref) {
             ? bDays.compareTo(aDays)
             : aDays.compareTo(bDays);
       });
+
       return filtered;
     },
     loading: () => [],
@@ -186,7 +204,8 @@ List<Event> filteredEvents(Ref ref) {
 // ==================== 4. 派生 Provider：统计信息 ====================
 @riverpod
 Map<String, int> stats(Ref ref) {
-  final events = ref.watch(filteredEventsProvider); // 注意自动生成的名称
+  final events = ref.watch(filteredEventsProvider(filterType: FilterType.all));
+
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final threeDaysLater = today.add(const Duration(days: 3));

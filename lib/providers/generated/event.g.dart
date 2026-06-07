@@ -36,7 +36,7 @@ final class EventNotifierProvider
   EventNotifier create() => EventNotifier();
 }
 
-String _$eventNotifierHash() => r'daa8b7f79a7253b46416e6ed606cb3eced40662f';
+String _$eventNotifierHash() => r'410d54cb1a88edaa3b3b8cc869fe6f27c3abad3d';
 
 /// 自动生成 provider 名称为 eventNotifierProvider
 
@@ -111,24 +111,31 @@ abstract class _$SelectedCategory extends $Notifier<EventCategory> {
 }
 
 @ProviderFor(filteredEvents)
-final filteredEventsProvider = FilteredEventsProvider._();
+final filteredEventsProvider = FilteredEventsFamily._();
 
 final class FilteredEventsProvider
     extends $FunctionalProvider<List<Event>, List<Event>, List<Event>>
     with $Provider<List<Event>> {
-  FilteredEventsProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'filteredEventsProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
+  FilteredEventsProvider._({
+    required FilteredEventsFamily super.from,
+    required FilterType super.argument,
+  }) : super(
+         retry: null,
+         name: r'filteredEventsProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
 
   @override
   String debugGetCreateSourceHash() => _$filteredEventsHash();
+
+  @override
+  String toString() {
+    return r'filteredEventsProvider'
+        ''
+        '($argument)';
+  }
 
   @$internal
   @override
@@ -137,7 +144,8 @@ final class FilteredEventsProvider
 
   @override
   List<Event> create(Ref ref) {
-    return filteredEvents(ref);
+    final argument = this.argument as FilterType;
+    return filteredEvents(ref, filterType: argument);
   }
 
   /// {@macro riverpod.override_with_value}
@@ -147,9 +155,37 @@ final class FilteredEventsProvider
       providerOverride: $SyncValueProvider<List<Event>>(value),
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is FilteredEventsProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
 }
 
-String _$filteredEventsHash() => r'5d46e1f447d4c6c9b615b28344600022c5472eb6';
+String _$filteredEventsHash() => r'833b6b137ebebc04728c20b2c59df8b9734697cc';
+
+final class FilteredEventsFamily extends $Family
+    with $FunctionalFamilyOverride<List<Event>, FilterType> {
+  FilteredEventsFamily._()
+    : super(
+        retry: null,
+        name: r'filteredEventsProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  FilteredEventsProvider call({required FilterType filterType}) =>
+      FilteredEventsProvider._(argument: filterType, from: this);
+
+  @override
+  String toString() => r'filteredEventsProvider';
+}
 
 @ProviderFor(stats)
 final statsProvider = StatsProvider._();
@@ -195,7 +231,7 @@ final class StatsProvider
   }
 }
 
-String _$statsHash() => r'b03b39ca920c8c2ffa38451701ef6e196b1c7661';
+String _$statsHash() => r'3b685fa45d1c69a80f2095450a9e903444fa6555';
 
 @ProviderFor(imageService)
 final imageServiceProvider = ImageServiceProvider._();

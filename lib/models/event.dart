@@ -71,7 +71,7 @@ abstract class Event with _$Event {
   factory Event(
       {required String id,
       required String name,
-      /// 事件日期
+      /// 创建事件日期
       required DateTime date,
       /// 下次生效事件时间
       required DateTime nextEffectiveTime,
