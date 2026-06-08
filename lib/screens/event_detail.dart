@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -395,12 +396,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                       alignment: Alignment.centerLeft,
                       child: Wrap(
                         crossAxisAlignment: WrapCrossAlignment.center,
+
                         spacing: 10,
                         runSpacing: 6,
                         children: [
-                          _buildPriorityBadge(),
-                          //const SizedBox(width: 4),
-                          _buildCategoryBadge(),
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -422,6 +421,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                                 ),
                             ],
                           ),
+                          _buildPriorityBadge(),
+                          //const SizedBox(width: 4),
+                          ..._buildCategoryBadge(),
                         ],
                       ),
                     ),
@@ -522,7 +524,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     );
   }
 
-  Widget _buildCategoryBadge() {
+  List<Widget> _buildCategoryBadge() {
     final categories = {
       'birthday': '🎂 生日',
       'work': '💼 工作',
@@ -532,27 +534,25 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     final event = ref.watch(getEventProvider(widget.eventId));
     final tags = event?.tags ?? [];
     if (tags.isEmpty) {
-      return SizedBox.shrink();
+      return [SizedBox.shrink()];
     }
-    return Row(
-      children: tags.map((e) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: borderColor,
-            borderRadius: BorderRadius.circular(6),
+    return tags.map((e) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: borderColor,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          e,
+          style: TextStyle(
+            color: fgColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
           ),
-          child: Text(
-            e,
-            style: TextStyle(
-              color: fgColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        );
-      }).toList(),
-    );
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildInfoCards() {
@@ -709,23 +709,26 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           Container(
             width: double.infinity,
             height: 100,
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.image, color: mutedColor, size: 32),
-                  const SizedBox(height: 4),
-                  Text(
-                    '图片占位符',
-                    style: TextStyle(color: mutedColor, fontSize: 12),
-                  ),
-                ],
-              ),
+            // decoration: BoxDecoration(
+            //   //color: bgColor,
+            //   borderRadius: BorderRadius.circular(12),
+            //   border: Border.all(color: borderColor),
+            // ),
+            // child: Center(
+            //   child: Column(
+            //     mainAxisAlignment: MainAxisAlignment.center,
+            //     children: [
+            //       Icon(Icons.image, color: mutedColor, size: 32),
+            //       const SizedBox(height: 4),
+            //       Text(
+            //         '图片占位符',
+            //         style: TextStyle(color: mutedColor, fontSize: 12),
+            //       ),
+            //     ],
+            //   ),
+            // ),
+            child: InteractiveMultiImageGrid(
+              imageUrls: event?.picturePaths ?? [],
             ),
           ),
         ],
@@ -926,4 +929,94 @@ class ParticlePainter extends CustomPainter {
   bool shouldRepaint(covariant ParticlePainter oldDelegate) {
     return oldDelegate.animation != animation;
   }
+}
+
+class InteractiveMultiImageGrid extends StatefulWidget {
+  const InteractiveMultiImageGrid({super.key, required this.imageUrls});
+
+  final List<String> imageUrls;
+
+  @override
+  State<InteractiveMultiImageGrid> createState() =>
+      _InteractiveMultiImageGridState();
+}
+
+class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
+  @override
+  Widget build(BuildContext context) {
+    return  Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: widget.imageUrls
+            .map((url) => _buildThumbnail(context, url))
+            .toList(),
+      
+    );
+  }
+
+  // 构建单个缩略图（支持点击放大）
+  Widget _buildThumbnail(BuildContext context, String url) {
+    final String cleanPath = url.startsWith('file://')
+        ? url.replaceFirst('file://', '')
+        : url;
+    return GestureDetector(
+      onTap: () => _showFullImage(context, cleanPath),
+      child: Hero(
+        tag: url, // 用于动画过渡，确保唯一
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.file(
+            File(cleanPath),
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+
+            // 可选：加载占位图/错误图
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 全屏预览大图（支持缩放）
+  void _showFullImage(BuildContext context, String url) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _FullScreenImagePage(url: url),
+      ),
+    );
+  }
+}
+
+// 全屏大图页面（内部用 InteractiveViewer 或 PhotoView 实现缩放）
+class _FullScreenImagePage extends StatelessWidget {
+  final String url;
+  const _FullScreenImagePage({required this.url});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      //backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: Center(
+        child: Hero(
+          tag: url,
+          child: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 5.0,
+            child:  Image.file(
+              File(url),
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 }
