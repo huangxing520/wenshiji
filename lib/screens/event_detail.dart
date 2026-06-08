@@ -4,12 +4,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-final isPinnedProvider = StateProvider<bool>((ref) => false);
-final isArchivedProvider = StateProvider<bool>((ref) => false);
+import 'package:intl/intl.dart';
+import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/providers/event.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
-  const EventDetailScreen({super.key});
+  const EventDetailScreen({super.key, required this.eventId});
+
+  final String eventId;
 
   @override
   ConsumerState<EventDetailScreen> createState() => _EventDetailScreenState();
@@ -22,11 +24,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   late Animation<double> _countdownAnimation;
   final math.Random _random = math.Random();
 
-  final Map<String, Color> priorityColors = {
-    'special': const Color(0xFFDE7855),
-    'high': const Color(0xFFE09D62),
-    'mid': const Color(0xFFD4A853),
-    'low': const Color(0xFF7DB87D),
+  final Map<EventPriority, Color> priorityColors = {
+    EventPriority.special: const Color(0xFFDE7855),
+    EventPriority.high: const Color(0xFFE09D62),
+    EventPriority.mid: const Color(0xFFD4A853),
+    EventPriority.low: const Color(0xFF7DB87D),
   };
 
   final Color bgColor = const Color(0xFFF7F4EE);
@@ -37,21 +39,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   final Color accentColor = const Color(0xFFD4A853);
   final Color accentSoftColor = const Color(0xFFECE6D9);
   final Color accentDeepColor = const Color(0xFFA17E38);
-
-  final Map<String, String> eventData = {
-    'name': '妈妈生日',
-    'date': '2025-07-18',
-    'time': '09:00',
-    'category': 'birthday',
-    'priority': 'high',
-    'repeat': 'yearly',
-    'timerMode': 'countdown',
-    'reminders': '1天前, 7天前',
-    'calendar': '公历',
-    'notes': '记得提前订蛋糕，妈妈喜欢鲜奶油水果蛋糕。准备一份手写贺卡，晚上全家一起吃饭庆祝 🎂',
-    'tags': '🎂 生日, 💝 纪念日',
-  };
-
   List<Particle> _particles = [];
   int _daysRemaining = 0;
   int _hoursRemaining = 0;
@@ -62,7 +49,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   void initState() {
     super.initState();
     _initParticles();
-    _calculateCountdown();
+    // _calculateCountdown();
     _particleController = AnimationController(
       duration: const Duration(seconds: 3),
       vsync: this,
@@ -76,7 +63,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       curve: Curves.elasticOut,
     );
     _countdownController.forward();
-    _startCountdownTimer();
+    //_startCountdownTimer();
   }
 
   void _initParticles() {
@@ -91,34 +78,34 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     });
   }
 
-  void _calculateCountdown() {
-    final eventDate = DateTime(2025, 7, 18, 9, 0);
-    final now = DateTime.now();
-    final difference = eventDate.difference(now);
+  // void _calculateCountdown() {
+  //   final eventDate = DateTime(2025, 7, 18, 9, 0);
+  //   final now = DateTime.now();
+  //   final difference = eventDate.difference(now);
 
-    if (difference.isNegative) {
-      _daysRemaining = 0;
-      _hoursRemaining = 0;
-      _minutesRemaining = 0;
-      _secondsRemaining = 0;
-    } else {
-      _daysRemaining = difference.inDays;
-      _hoursRemaining = difference.inHours % 24;
-      _minutesRemaining = difference.inMinutes % 60;
-      _secondsRemaining = difference.inSeconds % 60;
-    }
-  }
+  //   if (difference.isNegative) {
+  //     _daysRemaining = 0;
+  //     _hoursRemaining = 0;
+  //     _minutesRemaining = 0;
+  //     _secondsRemaining = 0;
+  //   } else {
+  //     _daysRemaining = difference.inDays;
+  //     _hoursRemaining = difference.inHours % 24;
+  //     _minutesRemaining = difference.inMinutes % 60;
+  //     _secondsRemaining = difference.inSeconds % 60;
+  //   }
+  // }
 
-  void _startCountdownTimer() {
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) {
-        setState(() {
-          _calculateCountdown();
-        });
-        _startCountdownTimer();
-      }
-    });
-  }
+  // void _startCountdownTimer() {
+  //   Future.delayed(const Duration(seconds: 1), () {
+  //     if (mounted) {
+  //       setState(() {
+  //         _calculateCountdown();
+  //       });
+  //       _startCountdownTimer();
+  //     }
+  //   });
+  // }
 
   @override
   void dispose() {
@@ -171,7 +158,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     });
   }
 
-  void _showConfirmDialog(BuildContext context, String title, String message, VoidCallback onConfirm) {
+  void _showConfirmDialog(
+    BuildContext context,
+    String title,
+    String message,
+    VoidCallback onConfirm,
+  ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -192,7 +184,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               Navigator.pop(context);
               onConfirm();
             },
-            child: Text('确认', style: TextStyle(color: accentColor, fontWeight: FontWeight.w600)),
+            child: Text(
+              '确认',
+              style: TextStyle(color: accentColor, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -201,33 +196,37 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final isPinned = ref.watch(isPinnedProvider);
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final isPinned = event?.isPinned ?? false;
     final screenWidth = MediaQuery.of(context).size.width;
     final statusBarHeight = MediaQuery.of(context).padding.top;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: Scaffold(
-        backgroundColor: bgColor,
-        body: Column(
-          children: [
-            _buildStatusBar(statusBarHeight),
-            _buildNavigationBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    _buildCountdownHero(isPinned, screenWidth),
-                    _buildInfoCards(),
-                    const SizedBox(height: 100),
-                  ],
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                // _buildStatusBar(statusBarHeight),
+                _buildNavigationBar(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        _buildCountdownHero(isPinned, screenWidth),
+                        _buildInfoCards(),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
-        bottomSheet: _buildBottomActionBar(),
+          ),
+        ],
+        // bottomSheet: _buildBottomActionBar(),
       ),
     );
   }
@@ -297,6 +296,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   Widget _buildCountdownHero(bool isPinned, double screenWidth) {
+    final event = ref.watch(getEventProvider(widget.eventId));
+
     return AnimatedBuilder(
       animation: _particleController,
       builder: (context, child) {
@@ -338,26 +339,32 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     if (isPinned)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: accentColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Icon(Icons.push_pin, color: Colors.white, size: 12),
+                            Icon(Icons.push_pin, color: Colors.black, size: 12),
                             SizedBox(width: 4),
                             Text(
                               '已置顶',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.black,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
+                                height: 1.0,
                               ),
                             ),
                           ],
@@ -365,9 +372,18 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                       ),
                     const SizedBox(height: 20),
                     _buildCountdownDisplay(),
-                    const SizedBox(height: 20),
+                    //const SizedBox(height: 5),
                     Text(
-                      eventData['name']!,
+                      (event?.isArchived ?? false) ? '已过去' : '还剩',
+                      style: TextStyle(
+                        color: const Color.fromARGB(110, 63, 67, 63),
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      event?.name ?? '',
                       style: TextStyle(
                         color: fgColor,
                         fontSize: 24,
@@ -375,23 +391,39 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        _buildPriorityBadge(),
-                        const SizedBox(width: 8),
-                        _buildCategoryBadge(),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, color: mutedColor, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${eventData['date']} ${eventData['time']}',
-                          style: TextStyle(color: mutedColor, fontSize: 13),
-                        ),
-                      ],
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 10,
+                        runSpacing: 6,
+                        children: [
+                          _buildPriorityBadge(),
+                          //const SizedBox(width: 4),
+                          _buildCategoryBadge(),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                color: mutedColor,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 6),
+                              if (event?.date != null)
+                                Text(
+                                  DateFormat('yyyy-MM-dd').format(event!.date),
+                                  style: TextStyle(
+                                    color: mutedColor,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -405,15 +437,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
 
   Widget _buildCountdownDisplay() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildCountdownUnit(_daysRemaining.toString().padLeft(3, '0'), '天'),
-        const SizedBox(width: 8),
-        _buildCountdownUnit(_hoursRemaining.toString().padLeft(2, '0'), '时'),
-        const SizedBox(width: 8),
-        _buildCountdownUnit(_minutesRemaining.toString().padLeft(2, '0'), '分'),
-        const SizedBox(width: 8),
-        _buildCountdownUnit(_secondsRemaining.toString().padLeft(2, '0'), '秒'),
+        _buildCountdownUnit('10', '天'),
+        // //const SizedBox(width: 8),
+        // _buildCountdownUnit(_hoursRemaining.toString().padLeft(2, '0'), '时'),
+        // const SizedBox(width: 8),
+        // _buildCountdownUnit(_minutesRemaining.toString().padLeft(2, '0'), '分'),
+        // const SizedBox(width: 8),
+        // _buildCountdownUnit(_secondsRemaining.toString().padLeft(2, '0'), '秒'),
       ],
     );
   }
@@ -428,7 +460,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: surfaceColor.withOpacity(0.9),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -438,24 +470,21 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 ),
               ],
             ),
-            child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Text(
                   value,
                   style: TextStyle(
                     color: accentDeepColor,
-                    fontSize: 28,
+                    fontSize: 64,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 2,
+                    height: 1.0,
                   ),
                 ),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: mutedColor,
-                    fontSize: 11,
-                  ),
-                ),
+                const SizedBox(width: 4),
+                Text(label, style: TextStyle(color: mutedColor, fontSize: 20)),
               ],
             ),
           ),
@@ -465,13 +494,14 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   Widget _buildPriorityBadge() {
-    final priority = eventData['priority']!;
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final priority = event?.priority ?? EventPriority.mid;
     final color = priorityColors[priority] ?? accentColor;
     final labels = {
-      'special': '特殊',
-      'high': '高',
-      'mid': '中',
-      'low': '低',
+      EventPriority.special: '最高',
+      EventPriority.high: '高',
+      EventPriority.mid: '中',
+      EventPriority.low: '低',
     };
 
     return Container(
@@ -499,21 +529,29 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       'meeting': '📅 会议',
       'travel': '✈️ 旅行',
     };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: borderColor,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        categories[eventData['category']] ?? '📌 其他',
-        style: TextStyle(
-          color: fgColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final tags = event?.tags ?? [];
+    if (tags.isEmpty) {
+      return SizedBox.shrink();
+    }
+    return Row(
+      children: tags.map((e) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: borderColor,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            e,
+            style: TextStyle(
+              color: fgColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -522,48 +560,62 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          _buildReminderRulesCard(),
+          //_buildReminderRulesCard(),
           const SizedBox(height: 12),
           _buildNotesCard(),
           const SizedBox(height: 12),
-          _buildTagsCard(),
+          //_buildTagsCard(),
         ],
       ),
     );
   }
 
-  Widget _buildReminderRulesCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '提醒与规则',
-            style: TextStyle(
-              color: fgColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildInfoRow(Icons.repeat, '重复规则', _getRepeatLabel(eventData['repeat']!)),
-          const Divider(height: 16, color: Colors.transparent),
-          _buildInfoRow(Icons.timer, '计时模式', _getTimerModeLabel(eventData['timerMode']!)),
-          const Divider(height: 16, color: Colors.transparent),
-          _buildInfoRow(Icons.notifications_active, '提前提醒', eventData['reminders']!),
-          const Divider(height: 16, color: Colors.transparent),
-          _buildInfoRow(Icons.calendar_month, '日历类型', eventData['calendar']!),
-        ],
-      ),
-    );
-  }
+  // Widget _buildReminderRulesCard() {
+  //       final event = ref.watch(getEventProvider(widget.eventId));
+
+  //   return Container(
+  //     width: double.infinity,
+  //     padding: const EdgeInsets.all(16),
+  //     decoration: BoxDecoration(
+  //       color: surfaceColor,
+  //       borderRadius: BorderRadius.circular(16),
+  //       border: Border.all(color: borderColor),
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text(
+  //           '提醒与规则',
+  //           style: TextStyle(
+  //             color: fgColor,
+  //             fontSize: 15,
+  //             fontWeight: FontWeight.w600,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 12),
+  //         // _buildInfoRow(
+  //         //   Icons.repeat,
+  //         //   '重复规则',
+  //         //   _getRepeatLabel(eventData['repeat']!),
+  //         // ),
+  //         const Divider(height: 16, color: Colors.transparent),
+  //         _buildInfoRow(
+  //           Icons.timer,
+  //           '计时模式',
+  //           _getTimerModeLabel(event.type['timerMode']!),
+  //         ),
+  //         const Divider(height: 16, color: Colors.transparent),
+  //         _buildInfoRow(
+  //           Icons.notifications_active,
+  //           '提前提醒',
+  //           eventData['reminders']!,
+  //         ),
+  //         const Divider(height: 16, color: Colors.transparent),
+  //         _buildInfoRow(Icons.calendar_month, '日历类型', eventData['calendar']!),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
     return Row(
@@ -577,14 +629,15 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           child: Icon(icon, color: accentColor, size: 16),
         ),
         const SizedBox(width: 12),
-        Text(
-          label,
-          style: TextStyle(color: mutedColor, fontSize: 13),
-        ),
+        Text(label, style: TextStyle(color: mutedColor, fontSize: 13)),
         const Spacer(),
         Text(
           value,
-          style: TextStyle(color: fgColor, fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: fgColor,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -602,14 +655,16 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   String _getTimerModeLabel(String mode) {
-    final labels = {
-      'countdown': '倒计时',
-      'countup': '正计时',
-    };
+    final labels = {'countdown': '倒计时', 'countup': '正计时'};
     return labels[mode] ?? mode;
   }
 
   Widget _buildNotesCard() {
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final notes = event?.description ?? '';
+    if (notes.isEmpty) {
+      return SizedBox.shrink();
+    }
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -639,7 +694,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${eventData['notes']!.length} 字',
+                  '${notes.length} 字',
                   style: TextStyle(color: accentDeepColor, fontSize: 11),
                 ),
               ),
@@ -647,12 +702,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           ),
           const SizedBox(height: 12),
           Text(
-            eventData['notes']!,
-            style: TextStyle(
-              color: fgColor,
-              fontSize: 14,
-              height: 1.6,
-            ),
+            notes,
+            style: TextStyle(color: fgColor, fontSize: 14, height: 1.6),
           ),
           const SizedBox(height: 12),
           Container(
@@ -682,111 +733,118 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     );
   }
 
-  Widget _buildTagsCard() {
-    final tags = eventData['tags']!.split(', ');
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '分类标签',
-            style: TextStyle(
-              color: fgColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: tags.map((tag) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: accentSoftColor,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Text(
-                  tag,
-                  style: TextStyle(
-                    color: fgColor,
-                    fontSize: 13,
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildTagsCard() {
+  //       final event = ref.watch(getEventProvider(widget.eventId));
 
-  Widget _buildBottomActionBar() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
-      ),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        boxShadow: [
-          BoxShadow(
-            color: fgColor.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildActionButton(Icons.edit, '编辑', () => _showToast(context, '编辑功能')),
-          _buildActionButton(Icons.share, '分享', () {
-            _showConfirmDialog(
-              context,
-              '分享事件',
-              '确定要分享这个事件吗？',
-              () => _showToast(context, '分享成功'),
-            );
-          }),
-          _buildActionButton(Icons.archive, '归档', () {
-            _showConfirmDialog(
-              context,
-              '归档事件',
-              '归档后可以在归档列表中找到，确定归档吗？',
-              () {
-                ref.read(isArchivedProvider.notifier).state = true;
-                _showToast(context, '已归档');
-              },
-            );
-          }),
-          _buildActionButton(
-            Icons.push_pin,
-            '置顶',
-            () {
-              final currentState = ref.read(isPinnedProvider);
-              ref.read(isPinnedProvider.notifier).state = !currentState;
-              _showToast(context, currentState ? '已取消置顶' : '已置顶');
-            },
-            isActive: ref.watch(isPinnedProvider),
-          ),
-        ],
-      ),
-    );
-  }
+  //   final tags = eventData['tags']!.split(', ');
+  //   return Container(
+  //     width: double.infinity,
+  //     padding: const EdgeInsets.all(16),
+  //     decoration: BoxDecoration(
+  //       color: surfaceColor,
+  //       borderRadius: BorderRadius.circular(16),
+  //       border: Border.all(color: borderColor),
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         Text(
+  //           '分类标签',
+  //           style: TextStyle(
+  //             color: fgColor,
+  //             fontSize: 15,
+  //             fontWeight: FontWeight.w600,
+  //           ),
+  //         ),
+  //         const SizedBox(height: 12),
+  //         Wrap(
+  //           spacing: 8,
+  //           runSpacing: 8,
+  //           children: tags.map((tag) {
+  //             return Container(
+  //               padding: const EdgeInsets.symmetric(
+  //                 horizontal: 12,
+  //                 vertical: 6,
+  //               ),
+  //               decoration: BoxDecoration(
+  //                 color: accentSoftColor,
+  //                 borderRadius: BorderRadius.circular(16),
+  //                 border: Border.all(color: borderColor),
+  //               ),
+  //               child: Text(
+  //                 tag,
+  //                 style: TextStyle(color: fgColor, fontSize: 13),
+  //               ),
+  //             );
+  //           }).toList(),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
-  Widget _buildActionButton(IconData icon, String label, VoidCallback onTap, {bool isActive = false}) {
+  // Widget _buildBottomActionBar() {
+  //   return Container(
+  //     padding: EdgeInsets.only(
+  //       left: 16,
+  //       right: 16,
+  //       top: 12,
+  //       bottom: MediaQuery.of(context).padding.bottom + 12,
+  //     ),
+  //     decoration: BoxDecoration(
+  //       color: surfaceColor,
+  //       boxShadow: [
+  //         BoxShadow(
+  //           color: fgColor.withOpacity(0.05),
+  //           blurRadius: 10,
+  //           offset: const Offset(0, -5),
+  //         ),
+  //       ],
+  //     ),
+  //     child: Row(
+  //       mainAxisAlignment: MainAxisAlignment.spaceAround,
+  //       children: [
+  //         _buildActionButton(Icons.edit, '编辑', () => _showToast(context, '编辑功能')),
+  //         _buildActionButton(Icons.share, '分享', () {
+  //           _showConfirmDialog(
+  //             context,
+  //             '分享事件',
+  //             '确定要分享这个事件吗？',
+  //             () => _showToast(context, '分享成功'),
+  //           );
+  //         }),
+  //         _buildActionButton(Icons.archive, '归档', () {
+  //           _showConfirmDialog(
+  //             context,
+  //             '归档事件',
+  //             '归档后可以在归档列表中找到，确定归档吗？',
+  //             () {
+  //               ref.read(isArchivedProvider.notifier).state = true;
+  //               _showToast(context, '已归档');
+  //             },
+  //           );
+  //         }),
+  //         _buildActionButton(
+  //           Icons.push_pin,
+  //           '置顶',
+  //           () {
+  //             final currentState = ref.read(isPinnedProvider);
+  //             ref.read(isPinnedProvider.notifier).state = !currentState;
+  //             _showToast(context, currentState ? '已取消置顶' : '已置顶');
+  //           },
+  //           isActive: ref.watch(isPinnedProvider),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+
+  Widget _buildActionButton(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    bool isActive = false,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -799,11 +857,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isActive ? accentColor : mutedColor,
-              size: 22,
-            ),
+            Icon(icon, color: isActive ? accentColor : mutedColor, size: 22),
             const SizedBox(height: 4),
             Text(
               label,
@@ -851,11 +905,18 @@ class ParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var particle in particles) {
       final paint = Paint()
-        ..color = color.withOpacity(particle.opacity * (0.5 + 0.5 * math.sin(animation * 2 * math.pi + particle.x * 10)))
+        ..color = color.withOpacity(
+          particle.opacity *
+              (0.5 + 0.5 * math.sin(animation * 2 * math.pi + particle.x * 10)),
+        )
         ..style = PaintingStyle.fill;
 
-      final x = particle.x * size.width + math.sin(animation * 2 * math.pi + particle.y * 5) * 10;
-      final y = particle.y * size.height - (animation * particle.speed * 50) % size.height;
+      final x =
+          particle.x * size.width +
+          math.sin(animation * 2 * math.pi + particle.y * 5) * 10;
+      final y =
+          particle.y * size.height -
+          (animation * particle.speed * 50) % size.height;
 
       canvas.drawCircle(Offset(x, y), particle.size, paint);
     }

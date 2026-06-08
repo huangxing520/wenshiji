@@ -9,6 +9,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 
 import 'package:wenshiji/common/preferences.dart';
+import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/providers/event.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key, required this.version});
@@ -264,6 +266,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     );
   }
 
+  // 个人中心卡片
   Widget _buildProfileHero(
     Color accentColor,
     Color accentSoftColor,
@@ -457,34 +460,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Widget _buildProfileStats(Color accentColor) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF2A2822).withValues(alpha: 0.08),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: _buildStatItem('6', '生日')),
-          Container(
-            width: 1,
-            height: 36,
-            color: const Color(0xFF2A2822).withValues(alpha: 0.1),
+    final events = ref.watch(eventProvider);
+    final now = DateTime.now();
+    return events.when(
+      error: (error, stackTrace) => Center(child: Text('Error')),
+      loading: () => const Center(child: CircularProgressIndicator()),
+      data: (events) {
+        final birthCount = events
+            .where((e) => e.type == EventType.birthday).toList()
+            .length;
+        final taskCount = events
+            .where((e) => e.type == EventType.task).toList()
+            .length;
+        final holidayCount = events
+            .where((e) => e.type == EventType.holiday).toList()
+            .length;
+        final archivedCount = events
+            .where((e) => e.nextEffectiveTime.isBefore(DateTime(now.year, now.month, now.day))||e.isArchived).toList()
+            .length;
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF2A2822).withValues(alpha: 0.08),
           ),
-          Expanded(child: _buildStatItem('4', '事项')),
-          Container(
-            width: 1,
-            height: 36,
-            color: const Color(0xFF2A2822).withValues(alpha: 0.1),
+          child: Row(
+            children: [
+              Expanded(child: _buildStatItem(birthCount.toString(), '生日')),
+              Container(
+                width: 1,
+                height: 36,
+                color: const Color(0xFF2A2822).withValues(alpha: 0.1),
+              ),
+              Expanded(child: _buildStatItem(taskCount.toString(), '事项')),
+              Container(
+                width: 1,
+                height: 36,
+                color: const Color(0xFF2A2822).withValues(alpha: 0.1),
+              ),
+              Expanded(child: _buildStatItem(holidayCount.toString(), '节日')),
+              Container(
+                width: 1,
+                height: 36,
+                color: const Color(0xFF2A2822).withValues(alpha: 0.1),
+              ),
+              Expanded(child: _buildStatItem(archivedCount.toString(), '已归档')),
+            ],
           ),
-          Expanded(child: _buildStatItem('2', '节日')),
-          Container(
-            width: 1,
-            height: 36,
-            color: const Color(0xFF2A2822).withValues(alpha: 0.1),
-          ),
-          Expanded(child: _buildStatItem('5', '已归档')),
-        ],
-      ),
+        );
+      },
     );
   }
 

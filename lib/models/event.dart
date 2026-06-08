@@ -87,6 +87,8 @@ abstract class Event with _$Event {
       @Default([]) List<DateTime> checkinTimes,
       /// 连续打卡天数
       @Default(0) int checkinStreakCount,
+      /// 是否归档
+      @Default(false) bool isArchived,
       /// 重复规则
       @Default(RepeatRule.none) RepeatRule repeatRule,
       @Default('') String description,

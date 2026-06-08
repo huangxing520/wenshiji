@@ -15,11 +15,12 @@ import 'package:wenshiji/firebase_options.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/screens/about.dart';
 import 'package:wenshiji/screens/achievement.dart' hide Event;
+import 'package:wenshiji/screens/archive.dart';
 import 'package:wenshiji/screens/backup.dart';
 import 'package:wenshiji/screens/notification_setting.dart';
 import 'package:wenshiji/screens/stats.dart';
 import 'screens/splash_screen.dart';
-import 'screens/home_screen.dart' ;
+import 'screens/home_screen.dart';
 import 'screens/add_event.dart';
 import 'screens/profile.dart';
 import 'screens/event_detail.dart';
@@ -28,12 +29,12 @@ import 'screens/main_shell.dart';
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
-      await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  // 绑定全局崩溃捕获，自动上报日志到Firebase后台
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (error, stack) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // 绑定全局崩溃捕获，自动上报日志到Firebase后台
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
       FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
@@ -42,7 +43,7 @@ Future<void> main() async {
     final version = await Utils().getVersion();
     await httpUtil.ensureInitialized();
     await NotificationService().init();
-   
+
     runApp(
       ProviderScope(
         child: Application(
@@ -106,10 +107,7 @@ class Application extends StatelessWidget {
             return AddEventScreen(event: event);
           },
         ),
-        GoRoute(
-          path: '/event-detail',
-          builder: (context, state) => const EventDetailScreen(),
-        ),
+       
         GoRoute(
           path: '/about',
           builder: (context, state) => AboutScreen(version: version),
@@ -125,6 +123,20 @@ class Application extends StatelessWidget {
         GoRoute(
           path: '/archivement',
           builder: (context, state) => const AchievementScreen(),
+        ),
+        GoRoute(
+          path: '/archive',
+          builder: (context, state) => const ArchiveScreen(),
+        ),
+        GoRoute(
+          path: '/event-detail/:id',
+          builder: (context, state) {
+            final id = state.pathParameters['id']; // 获取参数
+            if (id == null || id.isEmpty) {
+              return const InitErrorScreen(error: '跳转事件id为空');
+            }
+            return EventDetailScreen(eventId: id);
+          },
         ),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) {
@@ -152,7 +164,7 @@ class Application extends StatelessWidget {
               routes: [
                 GoRoute(
                   path: '/profile',
-                  builder: (context, state) =>  ProfileScreen(version: version),
+                  builder: (context, state) => ProfileScreen(version: version),
                 ),
               ],
             ),

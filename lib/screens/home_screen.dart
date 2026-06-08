@@ -29,6 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _showContextMenu = false;
   String? _selectedEventId;
   final GlobalKey _listViewKey = GlobalKey();
+  final ScrollController _tabScrollController = ScrollController();
 
   @override
   void initState() {
@@ -45,14 +46,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _tabScrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final eventsAsync = ref.watch(eventProvider);
-    final filteredEvents = ref.watch(filteredEventsProvider(filterType: FilterType.active));
-    AppLogger().info('filteredEvents: $filteredEvents');
+    final filteredEvents = ref.watch(
+      filteredEventsProvider(filterType: FilterType.active),
+    );
+    //AppLogger().info('filteredEvents: $filteredEvents');
     final stats = ref.watch(statsProvider);
     final currentCategory = ref.watch(selectedCategoryProvider);
 
@@ -106,24 +110,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: Color(0xFFD4AF37), // 设置字体颜色
                 ),
               ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      Icons.search,
-                      size: 28,
-                      color: Color(0xFF8B7648),
-                    ),
-                    onPressed: () async {
-                      await NotificationService().showInstantNotification(
-                        title: "即时提醒",
-                        body: "这是一条立即弹出的通知",
-                        payload: "test_payload", // 点击通知携带的参数
-                      );
-                    },
-                  ),
-                ],
-              ),
+              // Row(
+              //   children: [
+              //     IconButton(
+              //       icon: Icon(
+              //         Icons.search,
+              //         size: 28,
+              //         color: Color(0xFF8B7648),
+              //       ),
+              //       onPressed: () async {
+              //         await NotificationService().showInstantNotification(
+              //           title: "即时提醒",
+              //           body: "这是一条立即弹出的通知",
+              //           payload: "test_payload", // 点击通知携带的参数
+              //         );
+              //       },
+              //     ),
+              //   ],
+              // ),
             ],
           ),
         );
@@ -136,10 +140,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       (EventCategory.all, '全部', (Icons.view_list_rounded)),
       (EventCategory.birthday, '生日', (Icons.cake_rounded)),
       (EventCategory.task, '事项', (Icons.push_pin_rounded)),
-      (EventCategory.dailySignIn, '正计时', Icons.trending_up_rounded),
+      (EventCategory.dailySignIn, '日程打卡', Icons.trending_up_rounded),
       (EventCategory.star, '星标', Icons.star_rounded),
       (EventCategory.holiday, '节日', Icons.celebration_rounded),
     ];
+
+    // 找到当前选中项的索引
+    final activeIndex = categories.indexWhere(
+      (item) => item.$1 == currentCategory,
+    );
+
+    // 在下一帧滚动到选中项
+    if (activeIndex >= 0 && _tabScrollController.hasClients) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToActiveTab(activeIndex, categories.length);
+      });
+    }
 
     return Container(
       height: 52,
@@ -147,6 +163,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       color: const Color(0xFFFAF7F0),
       child: ListView.builder(
         key: _listViewKey,
+        controller: _tabScrollController,
         scrollDirection: Axis.horizontal,
         itemCount: categories.length,
         itemBuilder: (context, index) {
@@ -167,16 +184,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _scrollToActiveTab(int index, int totalCount) {
+    if (!_tabScrollController.hasClients) return;
+
+    // 估算每个 tab 的宽度（可以根据实际调整）
+    const double tabWidth = 100.0;
+    const double tabSpacing = 14.0; // margin right
+    final double itemWidth = tabWidth + tabSpacing;
+
+    // 计算目标滚动位置，让选中项居中显示
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double targetOffset =
+        (index * itemWidth) - (screenWidth / 2) + (itemWidth / 2);
+
+    // 限制滚动范围
+    final double maxScroll = _tabScrollController.position.maxScrollExtent;
+    final double clampedOffset = targetOffset.clamp(0.0, maxScroll);
+
+    _tabScrollController.animateTo(
+      clampedOffset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
   Widget _buildContent(List<Event> events, Map<String, int> stats) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        children: [
-          const SizedBox(height: 18),
-          _buildTodayOverview(stats),
-          if (events.isEmpty) _buildEmptyState() else _buildEventList(events),
-          const SizedBox(height: 100),
-        ],
+    final currentCategory = ref.watch(selectedCategoryProvider);
+
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final velocity = details.velocity.pixelsPerSecond.dx;
+        if (velocity.abs() > 100.0) {
+          if (velocity > 0 && currentCategory.index > 0) {
+            ref
+                .read(selectedCategoryProvider.notifier)
+                .setCategory(EventCategory.values[currentCategory.index - 1]);
+          } else if (velocity < 0 &&
+              currentCategory.index < EventCategory.values.length - 1) {
+            ref
+                .read(selectedCategoryProvider.notifier)
+                .setCategory(EventCategory.values[currentCategory.index + 1]);
+          }
+        }
+      },
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          children: [
+            const SizedBox(height: 18),
+            _buildTodayOverview(stats),
+            if (events.isEmpty) _buildEmptyState() else _buildEventList(events),
+            const SizedBox(height: 100),
+          ],
+        ),
       ),
     );
   }
@@ -197,7 +257,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Expanded(
               child: _StatPill(
                 number: stats['dailySignIn'] ?? 0,
-                label: '进行中正计时',
+                label: '进行中日程打卡',
               ),
             ),
           ],
@@ -387,13 +447,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 _ContextMenuItem(
                   icon: Icons.archive,
                   label: '归档',
-                  onTap: () {
+                  onTap: () async {
                     if (_selectedEventId != null) {
-                      ref
+                     await ref
                           .read(eventProvider.notifier)
-                          .deleteEvent(_selectedEventId!);
+                          .setArchivedEvent(_selectedEventId!, true);
                       _showToast('已归档');
                     }
+                    setState(() => _showContextMenu = false);
+                  },
+                ),
+                 _ContextMenuItem(
+                  icon: Icons.info ,
+                  label: '详情',
+                  onTap: () {                
+                    AppLogger().info('点击详情 $_selectedEventId');
+                    context.push('/event-detail/${_selectedEventId!}');
                     setState(() => _showContextMenu = false);
                   },
                 ),
@@ -406,9 +475,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   icon: Icons.delete,
                   label: '删除',
                   isDanger: true,
-                  onTap: () {
+                  onTap: () async {
                     if (_selectedEventId != null) {
-                      ref
+                      await ref
                           .read(eventProvider.notifier)
                           .deleteEvent(_selectedEventId!);
                       _showToast('已删除');
@@ -436,11 +505,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _showToast('✓ 打卡成功！');
   }
 
-  // void _openAddModal() {
-  //   Navigator.of(context).push(
-  //     MaterialPageRoute(builder: (context) => const AddEventScreen()),
-  //   );
-  // }
+
 
   void _showToast(String message) {
     Utils().showToast(message, null);
@@ -534,7 +599,8 @@ class _PinnedCardState extends State<_PinnedCard>
     final today = DateTime.now().toLocal();
 
     final days = widget.event.nextEffectiveTime.difference(today).inDays;
-
+    //print(widget.event.nextEffectiveTime);
+    //print(days);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 550),
@@ -855,7 +921,7 @@ class _EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final days = Utils().getRemainingTime(event.nextEffectiveTime);
 
-    final isToday = event.type != EventType.task && days == 0;
+    final isToday =  days == 0;
     final daysText = isToday
         ? '今天'
         : (event.type == EventType.dailySignIn
@@ -1092,7 +1158,7 @@ class _ContextMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap,  behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -1226,7 +1292,7 @@ class CategoryTabItem extends StatelessWidget {
     required this.selectedColor,
     required this.unselectedColor,
     this.fontSize = 18,
-    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    this.padding = const EdgeInsets.symmetric(horizontal: 24, vertical: 6),
   });
 
   @override
@@ -1234,16 +1300,20 @@ class CategoryTabItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       // AnimatedContainer 自动实现状态切换的平滑动画
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200), // 切换动画时长
-        curve: Curves.easeOut,
+      child: Container(
+        //duration: const Duration(milliseconds: 500), // 切换动画时长
+        // curve: Curves.easeOut,
         padding: padding,
-        margin: const EdgeInsets.only(right: 14, top: 4),
+        margin: const EdgeInsets.only(right: 14, bottom: 12),
         decoration: BoxDecoration(
           // 背景色：选中时白色，未选中时透明（和整体背景融合）
-          color: Colors.white,
+          color: isSelected ? selectedColor : Colors.transparent,
           // 胶囊圆角（根据内边距调整，实现椭圆效果）
           borderRadius: BorderRadius.circular(32),
+          // 未选中时添加边框
+          // border: isSelected
+          //     ? null
+          //     : Border.all(color: const Color.fromARGB(255, 115, 114, 114).withOpacity(0.3), width:2),
           // 选中时的柔和外发光（匹配你截图里的暖黄高亮）
           boxShadow: isSelected
               ? [
@@ -1254,14 +1324,21 @@ class CategoryTabItem extends StatelessWidget {
                     offset: const Offset(0, 2), // 轻微向下偏移，更自然
                   ),
                 ]
-              : null,
+              : [
+                  BoxShadow(
+                    color: Colors.transparent, // 未选中时的微弱阴影
+                    blurRadius: 6,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min, // 自适应宽度，不占多余空间
+          // mainAxisSize: MainAxisSize.min, // 自适应宽度，不占多余空间
           children: [
             // 图标
-            Icon(icon, color: isSelected ? selectedColor : unselectedColor),
-            const SizedBox(width: 8), // 图标和文字的间距
+            //Icon(icon, color: isSelected ? Colors.white : unselectedColor),
+            //const SizedBox(width: 8), // 图标和文字的间距
             // 标签文字
             Text(
               label,
@@ -1270,7 +1347,7 @@ class CategoryTabItem extends StatelessWidget {
                 // 选中时加粗
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 // 颜色：选中时橙色，未选中时深棕色
-                color: isSelected ? selectedColor : unselectedColor,
+                color: isSelected ? Colors.white : unselectedColor,
               ),
             ),
           ],

@@ -121,8 +121,8 @@ class Utils {
 
   int getRemainingTime(DateTime nextCheckinTime) {
     final today = DateTime.now().toLocal();
-    // final todayZero = DateTime(today.year, today.month, today.day);
-    return nextCheckinTime.difference(today).inDays;
+   final todayZero = DateTime(today.year, today.month, today.day);
+    return nextCheckinTime.difference(todayZero).inDays;
 
  
   }
@@ -135,7 +135,7 @@ class Utils {
         id: '1',
         name: '妈妈生日',
         date: today.subtract(const Duration(days: 3)),
-        nextEffectiveTime: today.add(const Duration(days: 3)),
+        nextEffectiveTime: today.subtract(const Duration(days: 3)),
         type: EventType.birthday,
         priority: EventPriority.high,
         isPinned: true,
@@ -177,9 +177,9 @@ class Utils {
         id: '5',
         name: '项目截止日期',
         date: today.subtract(const Duration(days: 1)),
-        nextEffectiveTime: today.add(const Duration(days: 3)),
+        nextEffectiveTime: today.add(const Duration(days: 2)),
         type: EventType.task,
-        priority: EventPriority.high,
+        priority: EventPriority.special,
         isStarred: true,
         description: '完成Flutter项目开发',
         repeatRule: RepeatRule.none,
@@ -273,6 +273,7 @@ class Utils {
         isPinned: true,
         isStarred: true,
         description: '农历新年',
+        tags: ['春节'],
       ),
       Event(
         id: '11',
@@ -307,5 +308,8 @@ class Utils {
       }
     }
   }
-
+bool isMonthDayBefore(DateTime a, DateTime b) {
+  if (a.month != b.month) return a.month < b.month;
+  return a.day <= b.day;
+}
 }

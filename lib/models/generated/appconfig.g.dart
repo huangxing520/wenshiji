@@ -21,7 +21,7 @@ _AppConfig _$AppConfigFromJson(Map<String, dynamic> json) => _AppConfig(
           ?.map((e) => e as bool)
           .toList() ??
       const [true, true, true, true, true, true, true],
-  backupDirectory: json['backupDirectory'] as String? ?? '/backup/温时记',
+  backupDirectory: json['backupDirectory'] as String? ?? '/温时记',
   backupServerUrl: json['backupServerUrl'] as String? ?? '',
   backupUsername: json['backupUsername'] as String? ?? '',
   backupPassword: json['backupPassword'] as String? ?? '',

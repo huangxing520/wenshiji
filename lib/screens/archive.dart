@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/providers/event.dart';
 
 const _bg = Color(0xFFFFF9EE);
 const _surface = Color(0xFFFFFFFF);
@@ -22,121 +27,18 @@ const _checkinFg = Color(0xFF5A9E4F);
 const _danger = Color(0xFFE06060);
 const _dangerLight = Color(0xFFFFF0F0);
 
-enum ArchiveCategory { all, birthday, task, countup, star, holiday }
-
-enum ArchiveItemStatus { auto, manual }
-
-class ArchiveItem {
-  final int id;
-  final String name;
-  final ArchiveCategory category;
-  final String categoryLabel;
-  final ArchiveItemStatus status;
-  final String archiveTime;
-  final String completedTime;
-  final int? checkin;
-  final String note;
-
-  ArchiveItem({
-    required this.id,
-    required this.name,
-    required this.category,
-    required this.categoryLabel,
-    required this.status,
-    required this.archiveTime,
-    required this.completedTime,
-    this.checkin,
-    required this.note,
-  });
-}
-
-class ArchiveScreen extends StatefulWidget {
+class ArchiveScreen extends ConsumerStatefulWidget {
   const ArchiveScreen({super.key});
 
   @override
-  State<ArchiveScreen> createState() => _ArchiveScreenState();
+  ConsumerState<ArchiveScreen> createState() => _ArchiveScreenState();
 }
 
-class _ArchiveScreenState extends State<ArchiveScreen> {
-  final List<ArchiveItem> _archiveData = [
-    ArchiveItem(
-      id: 1,
-      name: '妈妈生日',
-      category: ArchiveCategory.birthday,
-      categoryLabel: '生日',
-      status: ArchiveItemStatus.auto,
-      archiveTime: '2025-01-15 08:00',
-      completedTime: '2025-01-14',
-      note: '记得买花',
-    ),
-    ArchiveItem(
-      id: 2,
-      name: '季度OKR复盘',
-      category: ArchiveCategory.task,
-      categoryLabel: '事项',
-      status: ArchiveItemStatus.manual,
-      archiveTime: '2025-01-12 14:30',
-      completedTime: '2025-01-12',
-      note: 'Q4复盘已完成',
-    ),
-    ArchiveItem(
-      id: 3,
-      name: '早起打卡',
-      category: ArchiveCategory.countup,
-      categoryLabel: '正计时',
-      status: ArchiveItemStatus.auto,
-      archiveTime: '2025-01-10 07:00',
-      completedTime: '2025-01-10',
-      checkin: 32,
-      note: '连续早起32天',
-    ),
-    ArchiveItem(
-      id: 4,
-      name: '⭐ 年度目标',
-      category: ArchiveCategory.star,
-      categoryLabel: '星标',
-      status: ArchiveItemStatus.manual,
-      archiveTime: '2025-01-08 22:15',
-      completedTime: '2025-01-08',
-      note: '年度计划已重设',
-    ),
-    ArchiveItem(
-      id: 5,
-      name: '元旦',
-      category: ArchiveCategory.holiday,
-      categoryLabel: '节日',
-      status: ArchiveItemStatus.auto,
-      archiveTime: '2025-01-02 00:00',
-      completedTime: '2025-01-01',
-      note: '新年快乐',
-    ),
-    ArchiveItem(
-      id: 6,
-      name: '小王生日',
-      category: ArchiveCategory.birthday,
-      categoryLabel: '生日',
-      status: ArchiveItemStatus.auto,
-      archiveTime: '2024-12-28 09:00',
-      completedTime: '2024-12-27',
-      note: '礼物已寄出',
-    ),
-    ArchiveItem(
-      id: 7,
-      name: '健身打卡',
-      category: ArchiveCategory.countup,
-      categoryLabel: '正计时',
-      status: ArchiveItemStatus.manual,
-      archiveTime: '2024-12-20 20:00',
-      completedTime: '2024-12-20',
-      checkin: 18,
-      note: '暂停重启中',
-    ),
-  ];
-
-  ArchiveCategory _currentCategory = ArchiveCategory.all;
+class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
+  EventCategory _currentCategory = EventCategory.all;
   String _searchQuery = '';
-  bool _batchMode = false;
-  final Set<int> _selectedIds = {};
+  //bool _batchMode = false;
+  final Set<String> _selectedIds = {};
 
   bool _showToast = false;
   String _toastMessage = '';
@@ -147,10 +49,15 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
   String _modalConfirmText = '';
   VoidCallback? _modalCallback;
 
-  bool _showContextMenu = false;
-  int? _contextTargetId;
-  Offset _contextMenuOffset = Offset.zero;
-
+  // bool _showContextMenu = false;
+  // int? _contextTargetId;
+  // Offset _contextMenuOffset = Offset.zero;
+  final categoryTabs = [
+    (EventType.birthday, '生日'),
+    (EventType.task, '事项'),
+    (EventType.dailySignIn, '连签计时'),
+    (EventType.holiday, '节日'),
+  ];
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -167,11 +74,16 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filteredData = _getFilteredData();
+    final archivedEvents = ref.watch(
+      filteredEventsProvider(filterType: FilterType.archived),
+    );
+    AppLogger().info('archivedEvents: $archivedEvents');
+    final filteredData = _getFilteredData(archivedEvents);
+    AppLogger().info('filteredData: $filteredData');
     final hasData = filteredData.isNotEmpty;
     final now = DateTime.now();
-    final monthCount = _archiveData.where((item) {
-      final d = DateTime.parse(item.archiveTime);
+    final monthCount = filteredData.where((item) {
+      final d = item.nextEffectiveTime;
       return d.month == now.month && d.year == now.year;
     }).length;
 
@@ -189,9 +101,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               ],
             ),
           ),
-          _buildBatchBar(),
+          //_buildBatchBar(),
           if (_isModalVisible) _buildModalOverlay(),
-          if (_showContextMenu) _buildContextMenu(),
+          //if (_showContextMenu) _buildContextMenu(),
           _buildToast(),
         ],
       ),
@@ -202,38 +114,61 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     return Container(
       color: _bg,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Row(
+      // child: Row(
+      //   children: [
+      //     _buildBackButton(),
+      //     const SizedBox(width: 16),
+      //     const Expanded(
+      //       child: Center(
+      //         child: Text(
+      //           '归档记录',
+      //         style: TextStyle(
+      //           fontSize: 17,
+      //           fontWeight: FontWeight.w600,
+      //           color: _fg,
+      //           letterSpacing: 0.3,
+      //         ),
+      //       ),
+      //     )),
+      child: Stack(
         children: [
-          _buildBackButton(),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Text(
-              '归档记录',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: _fg,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          InkWell(
-            onTap: _toggleBatch,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          Align(alignment: Alignment.centerLeft, child: _buildBackButton()),
+          // 居中
+          SizedBox(
+            height: 36,
+            child: Align(
+              alignment: Alignment.center,
               child: Text(
-                _batchMode ? '取消' : '批量管理',
+                '归档记录',
                 style: TextStyle(
-                  fontSize: 13,
-                  color: _batchMode ? _danger : _accentDeep,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: _fg,
+                  letterSpacing: 0.3,
                 ),
               ),
             ),
           ),
         ],
       ),
+
+      // InkWell(
+      //   onTap: _toggleBatch,
+      //   borderRadius: BorderRadius.circular(8),
+      //   child: Container(
+      //     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      //     child: Text(
+      //       _batchMode ? '取消' : '批量管理',
+      //       style: TextStyle(
+      //         fontSize: 13,
+      //         color: _batchMode ? _danger : _accentDeep,
+      //         fontWeight: FontWeight.w500,
+      //       ),
+      //     ),
+      //   ),
+      // ),
+      // ],
+      // ),
     );
   }
 
@@ -244,25 +179,23 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       child: Container(
         width: 36,
         height: 36,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(18)),
         child: const Center(
-          child: Icon(
-            Icons.arrow_back_ios,
-            size: 22,
-            color: _fg,
-          ),
+          child: Icon(Icons.arrow_back_ios, size: 22, color: _fg),
         ),
       ),
     );
   }
 
-  Widget _buildScrollContent(bool hasData, int monthCount, List<ArchiveItem> filteredData) {
+  Widget _buildScrollContent(
+    bool hasData,
+    int monthCount,
+    List<Event> filteredData,
+  ) {
     return ListView(
       padding: const EdgeInsets.only(bottom: 24 + 60),
       children: [
-        if (_searchQuery.isEmpty) _buildStatsCard(monthCount),
+        if (_searchQuery.isEmpty) _buildStatsCard(monthCount, filteredData),
         _buildFilterSection(),
         if (hasData) ...[
           _buildArchiveList(filteredData),
@@ -273,7 +206,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildStatsCard(int monthCount) {
+  Widget _buildStatsCard(int monthCount, List<Event> filteredData) {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
@@ -291,11 +224,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       child: Row(
         children: [
           Expanded(
-            child: _buildStatItem(_archiveData.length.toString(), '累计归档'),
+            child: _buildStatItem(filteredData.length.toString(), '累计归档'),
           ),
-          Expanded(
-            child: _buildStatItem(monthCount.toString(), '本月归档'),
-          ),
+          Expanded(child: _buildStatItem(monthCount.toString(), '本月归档')),
         ],
       ),
     );
@@ -315,13 +246,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           ),
         ),
         const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: _fgTertiary,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: _fgTertiary)),
       ],
     );
   }
@@ -351,11 +276,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          const Icon(
-            Icons.search,
-            size: 18,
-            color: _fgTertiary,
-          ),
+          const Icon(Icons.search, size: 18, color: _fgTertiary),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(
@@ -382,10 +303,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                 child: const Center(
                   child: Text(
                     '✕',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _fgSecondary,
-                    ),
+                    style: TextStyle(fontSize: 11, color: _fgSecondary),
                   ),
                 ),
               ),
@@ -397,12 +315,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
 
   Widget _buildCategoryTabs() {
     final tabs = [
-      (ArchiveCategory.all, '全部'),
-      (ArchiveCategory.birthday, '生日'),
-      (ArchiveCategory.task, '事项'),
-      (ArchiveCategory.countup, '正计时'),
-      (ArchiveCategory.star, '星标'),
-      (ArchiveCategory.holiday, '节日'),
+      (EventCategory.all, '全部'),
+      (EventCategory.birthday, '生日'),
+      (EventCategory.task, '事项'),
+      (EventCategory.dailySignIn, '连签计时'),
+      (EventCategory.star, '星标'),
+      (EventCategory.holiday, '节日'),
     ];
 
     return SingleChildScrollView(
@@ -417,7 +335,10 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
               onTap: () => setState(() => _currentCategory = tab.$1),
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: isActive ? _accentLight : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
@@ -438,7 +359,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildArchiveList(List<ArchiveItem> filteredData) {
+  Widget _buildArchiveList(List<Event> filteredData) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
       child: Column(
@@ -446,16 +367,16 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         children: filteredData.asMap().entries.map((entry) {
           final index = entry.key;
           final item = entry.value;
-          return _buildArchiveItem(item, index);
+          return _buildEvent(item, index);
         }).toList(),
       ),
     );
   }
 
-  Widget _buildArchiveItem(ArchiveItem item, int index) {
+  Widget _buildEvent(Event item, int index) {
     final isSelected = _selectedIds.contains(item.id);
-    final tagColor = _getCategoryColor(item.category);
-    final tagBgColor = _getCategoryBgColor(item.category);
+    final tagColor = _getCategoryColor(item);
+    final tagBgColor = _getCategoryBgColor(item);
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -477,44 +398,51 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: () => _batchMode ? _toggleSelect(item.id) : _openDetail(item.id),
-          onLongPress: () => _startLongPress(item),
+          onTap: () => _openDetail(item.id),
+          //onLongPress: () => _startLongPress(item),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_batchMode)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8, right: 10),
-                    child: _buildCheckbox(isSelected, () => _toggleSelect(item.id)),
-                  ),
+                // if (_batchMode)
+                //   Padding(
+                //     padding: const EdgeInsets.only(top: 8, right: 10),
+                //     child: _buildCheckbox(
+                //       isSelected,
+                //       () => _toggleSelect(item.id),
+                //     ),
+                //   ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Expanded(
-                            child: Text(
-                              item.name,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: _fg,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: _fg,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
+
                           Container(
                             margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: tagBgColor,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
-                              item.categoryLabel,
+                              categoryTabs
+                                  .firstWhere((tab) => tab.$1 == item.type)
+                                  .$2,
                               style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w500,
@@ -525,17 +453,20 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        item.status == ArchiveItemStatus.auto ? '已到期自动归档' : '手动归档',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: _fgTertiary,
-                        ),
-                      ),
-                      if (item.checkin != null) ...[
+                      // Text(
+                      //   item.status == EventStatus.auto ? '已到期自动归档' : '手动归档',
+                      //   style: const TextStyle(
+                      //     fontSize: 11,
+                      //     color: _fgTertiary,
+                      //   ),
+                      // ),
+                      if (item.type == EventType.dailySignIn) ...[
                         const SizedBox(height: 5),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: _checkinBg,
                             borderRadius: BorderRadius.circular(8),
@@ -549,8 +480,9 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                                 color: _checkinFg,
                               ),
                               const SizedBox(width: 3),
+
                               Text(
-                                '累计打卡${item.checkin}天',
+                                '累计打卡${item.checkinStreakCount}天',
                                 style: const TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w500,
@@ -563,7 +495,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                       ],
                       const SizedBox(height: 3),
                       Text(
-                        item.archiveTime,
+                        DateFormat('yyyy-MM-dd').format(item.date).toString(),
                         style: const TextStyle(
                           fontSize: 11,
                           color: _fgTertiary,
@@ -572,25 +504,25 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     ],
                   ),
                 ),
-                if (!_batchMode)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _buildSmallButton(
-                        '恢复',
-                        _accentLight,
-                        _accentDeep,
-                        () => _restoreItem(item.id),
-                      ),
-                      const SizedBox(height: 6),
-                      _buildSmallButton(
-                        '删除',
-                        _dangerLight,
-                        _danger,
-                        () => _deleteItem(item.id),
-                      ),
-                    ],
-                  ),
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    // _buildSmallButton(
+                    //   '恢复',
+                    //   _accentLight,
+                    //   _accentDeep,
+                    //   () => _restoreItem(item.id),
+                    // ),
+                    const SizedBox(height: 6),
+                    _buildSmallButton(
+                      '删除',
+                      _dangerLight,
+                      _danger,
+                      () => _deleteItem(item.id),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -608,10 +540,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
         height: 22,
         decoration: BoxDecoration(
           color: isChecked ? _accent : _surface,
-          border: Border.all(
-            color: isChecked ? _accent : _border,
-            width: 2,
-          ),
+          border: Border.all(color: isChecked ? _accent : _border, width: 2),
           borderRadius: BorderRadius.circular(11),
         ),
         child: isChecked
@@ -630,7 +559,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildSmallButton(String text, Color bgColor, Color textColor, VoidCallback onTap) {
+  Widget _buildSmallButton(
+    String text,
+    Color bgColor,
+    Color textColor,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -682,9 +616,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           SizedBox(
             width: 80,
             height: 80,
-            child: CustomPaint(
-              painter: _EmptyIconPainter(),
-            ),
+            child: CustomPaint(painter: _EmptyIconPainter()),
           ),
           const SizedBox(height: 20),
           Text(
@@ -698,11 +630,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
           const SizedBox(height: 8),
           Text(
             '完结的事件会自动收纳在这里',
-            style: TextStyle(
-              fontSize: 13,
-              color: _fgTertiary,
-              height: 1.6,
-            ),
+            style: TextStyle(fontSize: 13, color: _fgTertiary, height: 1.6),
             textAlign: TextAlign.center,
           ),
         ],
@@ -710,96 +638,106 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildBatchBar() {
-    final filteredData = _getFilteredData();
-    final allSelected = _selectedIds.length == filteredData.length && filteredData.isNotEmpty;
+  // Widget _buildBatchBar() {
+  //   final filteredData = _getFilteredData();
+  //   final allSelected =
+  //       _selectedIds.length == filteredData.length && filteredData.isNotEmpty;
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOutCubic,
-      bottom: _batchMode ? 0 : -100,
-      left: 0,
-      right: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _surface,
-          border: Border(top: BorderSide(color: _border)),
-        ),
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 10,
-          bottom: 10 + MediaQuery.of(context).viewInsets.bottom + 24,
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _toggleSelectAll,
-                    child: Row(
-                      children: [
-                        _buildCheckbox(allSelected, _toggleSelectAll),
-                        const SizedBox(width: 6),
-                        Text(
-                          '全选',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: _fg,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Text(
-                    '已选 ${_selectedIds.length} 项',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: _fgTertiary,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Row(
-                children: [
-                  _buildBatchButton('恢复', _accentLight, _accentDeep, _batchRestore),
-                  const SizedBox(width: 8),
-                  _buildBatchButton('删除', _dangerLight, _danger, _batchDelete),
-                  const SizedBox(width: 8),
-                  _buildBatchButton('取消', _borderLight, _fgSecondary, _toggleBatch),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  //   return AnimatedPositioned(
+  //     duration: const Duration(milliseconds: 300),
+  //     curve: Curves.easeInOutCubic,
+  //     bottom: _batchMode ? 0 : -100,
+  //     left: 0,
+  //     right: 0,
+  //     child: Container(
+  //       decoration: BoxDecoration(
+  //         color: _surface,
+  //         border: Border(top: BorderSide(color: _border)),
+  //       ),
+  //       padding: EdgeInsets.only(
+  //         left: 16,
+  //         right: 16,
+  //         top: 10,
+  //         bottom: 10 + MediaQuery.of(context).viewInsets.bottom + 24,
+  //       ),
+  //       child: SafeArea(
+  //         top: false,
+  //         child: Row(
+  //           children: [
+  //             Row(
+  //               children: [
+  //                 GestureDetector(
+  //                   onTap: _toggleSelectAll,
+  //                   child: Row(
+  //                     children: [
+  //                       _buildCheckbox(allSelected, _toggleSelectAll),
+  //                       const SizedBox(width: 6),
+  //                       Text(
+  //                         '全选',
+  //                         style: const TextStyle(fontSize: 14, color: _fg),
+  //                       ),
+  //                     ],
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 16),
+  //                 Text(
+  //                   '已选 ${_selectedIds.length} 项',
+  //                   style: const TextStyle(fontSize: 13, color: _fgTertiary),
+  //                 ),
+  //               ],
+  //             ),
+  //             const Spacer(),
+  //             Row(
+  //               children: [
+  //                 _buildBatchButton(
+  //                   '恢复',
+  //                   _accentLight,
+  //                   _accentDeep,
+  //                   _batchRestore,
+  //                 ),
+  //                 const SizedBox(width: 8),
+  //                 _buildBatchButton('删除', _dangerLight, _danger, _batchDelete),
+  //                 const SizedBox(width: 8),
+  //                 _buildBatchButton(
+  //                   '取消',
+  //                   _borderLight,
+  //                   _fgSecondary,
+  //                   _toggleBatch,
+  //                 ),
+  //               ],
+  //             ),
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildBatchButton(String text, Color bgColor, Color textColor, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: textColor,
-          ),
-        ),
-      ),
-    );
-  }
+  // Widget _buildBatchButton(
+  //   String text,
+  //   Color bgColor,
+  //   Color textColor,
+  //   VoidCallback onTap,
+  // ) {
+  //   return GestureDetector(
+  //     onTap: onTap,
+  //     child: Container(
+  //       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+  //       decoration: BoxDecoration(
+  //         color: bgColor,
+  //         borderRadius: BorderRadius.circular(8),
+  //       ),
+  //       child: Text(
+  //         text,
+  //         style: TextStyle(
+  //           fontSize: 13,
+  //           fontWeight: FontWeight.w500,
+  //           color: textColor,
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Widget _buildModalOverlay() {
     return GestureDetector(
@@ -854,11 +792,21 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: _buildModalButton('取消', _borderLight, _fgSecondary, _hideModal),
+                          child: _buildModalButton(
+                            '取消',
+                            _borderLight,
+                            _fgSecondary,
+                            _hideModal,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: _buildModalButton(_modalConfirmText, _danger, Colors.white, _confirmModal),
+                          child: _buildModalButton(
+                            _modalConfirmText,
+                            _danger,
+                            Colors.white,
+                            _confirmModal,
+                          ),
                         ),
                       ],
                     ),
@@ -872,7 +820,12 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildModalButton(String text, Color bgColor, Color textColor, VoidCallback onTap) {
+  Widget _buildModalButton(
+    String text,
+    Color bgColor,
+    Color textColor,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -894,71 +847,84 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Widget _buildContextMenu() {
-    return GestureDetector(
-      onTap: _hideContextMenu,
-      child: Container(
-        color: Colors.transparent,
-        child: Stack(
-          children: [
-            Positioned(
-              left: _contextMenuOffset.dx,
-              top: _contextMenuOffset.dy,
-              child: AnimatedScale(
-                scale: _showContextMenu ? 1 : 0.9,
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.elasticOut,
-                alignment: Alignment.topLeft,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _surface,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color.fromRGBO(61, 46, 30, 0.18),
-                        offset: Offset(0, 8),
-                        blurRadius: 40,
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  constraints: const BoxConstraints(minWidth: 140),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildContextMenuItem('恢复', Icons.restore, false, () => _contextAction('restore')),
-                      _buildContextMenuItem('彻底删除', Icons.delete_outline, true, () => _contextAction('delete')),
-                      _buildContextMenuItem('查看详情', Icons.visibility_outlined, false, () => _contextAction('detail')),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  // Widget _buildContextMenu() {
+  //   return GestureDetector(
+  //     onTap: _hideContextMenu,
+  //     child: Container(
+  //       color: Colors.transparent,
+  //       child: Stack(
+  //         children: [
+  //           Positioned(
+  //             left: _contextMenuOffset.dx,
+  //             top: _contextMenuOffset.dy,
+  //             child: AnimatedScale(
+  //               scale: _showContextMenu ? 1 : 0.9,
+  //               duration: const Duration(milliseconds: 200),
+  //               curve: Curves.elasticOut,
+  //               alignment: Alignment.topLeft,
+  //               child: Container(
+  //                 decoration: BoxDecoration(
+  //                   color: _surface,
+  //                   borderRadius: BorderRadius.circular(14),
+  //                   boxShadow: const [
+  //                     BoxShadow(
+  //                       color: Color.fromRGBO(61, 46, 30, 0.18),
+  //                       offset: Offset(0, 8),
+  //                       blurRadius: 40,
+  //                     ),
+  //                   ],
+  //                 ),
+  //                 padding: const EdgeInsets.symmetric(vertical: 6),
+  //                 constraints: const BoxConstraints(minWidth: 140),
+  //                 child: Column(
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     // _buildContextMenuItem(
+  //                     //   '恢复',
+  //                     //   Icons.restore,
+  //                     //   false,
+  //                     //   () => _contextAction('restore'),
+  //                     // ),
+  //                     _buildContextMenuItem(
+  //                       '彻底删除',
+  //                       Icons.delete_outline,
+  //                       true,
+  //                       () => _contextAction('delete'),
+  //                     ),
+  //                     _buildContextMenuItem(
+  //                       '查看详情',
+  //                       Icons.visibility_outlined,
+  //                       false,
+  //                       () => _contextAction('detail'),
+  //                     ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ),
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildContextMenuItem(String label, IconData icon, bool isDanger, VoidCallback onTap) {
+  Widget _buildContextMenuItem(
+    String label,
+    IconData icon,
+    bool isDanger,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
         child: Row(
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isDanger ? _danger : _fg,
-            ),
+            Icon(icon, size: 16, color: isDanger ? _danger : _fg),
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 14,
-                color: isDanger ? _danger : _fg,
-              ),
+              style: TextStyle(fontSize: 14, color: isDanger ? _danger : _fg),
             ),
           ],
         ),
@@ -1002,46 +968,71 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     );
   }
 
-  Color _getCategoryColor(ArchiveCategory category) {
+  Color _getCategoryColor(Event event) {
+    if (event.isStarred) {
+      return _tagStar;
+    }
+    if (event.type == EventType.birthday) {
+      return _tagBirthday;
+    }
+    if (event.type == EventType.task) {
+      return _tagTask;
+    }
+    if (event.type == EventType.dailySignIn) {
+      return _tagCountup;
+    }
+    if (event.type == EventType.holiday) {
+      return _tagHoliday;
+    }
+
+    return _fgTertiary;
+  }
+
+  Color _getCategoryBgColor(Event event) {
+    if (event.isStarred) {
+      return const Color(0xFFFFF8E0);
+      ;
+    }
+    if (event.type == EventType.birthday) {
+      return const Color(0xFFFFF0E8);
+      ;
+    }
+    if (event.type == EventType.task) {
+      return const Color(0xFFE8F2FB);
+    }
+    if (event.type == EventType.dailySignIn) {
+      return _checkinBg;
+    }
+    if (event.type == EventType.holiday) {
+      return const Color(0xFFF5EAF8);
+    }
+
+    return _borderLight;
+  }
+
+  bool checkType(Event item, EventCategory category) {
     switch (category) {
-      case ArchiveCategory.birthday:
-        return _tagBirthday;
-      case ArchiveCategory.task:
-        return _tagTask;
-      case ArchiveCategory.countup:
-        return _tagCountup;
-      case ArchiveCategory.star:
-        return _tagStar;
-      case ArchiveCategory.holiday:
-        return _tagHoliday;
-      default:
-        return _fgTertiary;
+      case EventCategory.birthday:
+        return item.type == EventType.birthday;
+      case EventCategory.task:
+        return item.type == EventType.task;
+      case EventCategory.dailySignIn:
+        return item.type == EventType.dailySignIn;
+      case EventCategory.star:
+        return item.isStarred;
+      case EventCategory.holiday:
+        return item.type == EventType.holiday;
+      case EventCategory.all:
+        return true;
     }
   }
 
-  Color _getCategoryBgColor(ArchiveCategory category) {
-    switch (category) {
-      case ArchiveCategory.birthday:
-        return const Color(0xFFFFF0E8);
-      case ArchiveCategory.task:
-        return const Color(0xFFE8F2FB);
-      case ArchiveCategory.countup:
-        return _checkinBg;
-      case ArchiveCategory.star:
-        return const Color(0xFFFFF8E0);
-      case ArchiveCategory.holiday:
-        return const Color(0xFFF5EAF8);
-      default:
-        return _borderLight;
-    }
-  }
-
-  List<ArchiveItem> _getFilteredData() {
-    return _archiveData.where((item) {
-      final catMatch = _currentCategory == ArchiveCategory.all || item.category == _currentCategory;
-      final searchMatch = _searchQuery.isEmpty ||
-          item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item.note.toLowerCase().contains(_searchQuery.toLowerCase());
+  List<Event> _getFilteredData(List<Event> data) {
+    return data.where((item) {
+      final catMatch = checkType(item, _currentCategory);
+      final searchMatch =
+          _searchQuery.isEmpty ||
+          item.name.toLowerCase().contains(_searchQuery.toLowerCase());
       return catMatch && searchMatch;
     }).toList();
   }
@@ -1059,7 +1050,7 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     });
   }
 
-  void _toggleSelect(int id) {
+  void _toggleSelect(String id) {
     setState(() {
       if (_selectedIds.contains(id)) {
         _selectedIds.remove(id);
@@ -1069,93 +1060,99 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     });
   }
 
-  void _toggleSelectAll() {
-    final filtered = _getFilteredData();
-    if (_selectedIds.length == filtered.length) {
-      setState(() => _selectedIds.clear());
-    } else {
-      setState(() => _selectedIds.addAll(filtered.map((item) => item.id)));
-    }
-  }
+  // void _toggleSelectAll() {
+  //   final filtered = _getFilteredData();
+  //   if (_selectedIds.length == filtered.length) {
+  //     setState(() => _selectedIds.clear());
+  //   } else {
+  //     setState(() => _selectedIds.addAll(filtered.map((item) => item.id)));
+  //   }
+  // }
 
-  void _toggleBatch() {
-    setState(() {
-      _batchMode = !_batchMode;
-      _selectedIds.clear();
-    });
-  }
+  // void _toggleBatch() {
+  //   setState(() {
+  //     _batchMode = !_batchMode;
+  //     _selectedIds.clear();
+  //   });
+  // }
 
-  void _openDetail(int id) {
+  void _openDetail(String id) {
     _showToastMsg('查看事件详情');
   }
 
-  void _restoreItem(int id) {
-    final item = _archiveData.firstWhere((i) => i.id == id);
-    setState(() => _archiveData.removeWhere((i) => i.id == id));
-    _showToastMsg('已恢复「${item.name}」');
-  }
+  // void _restoreItem(String id) {
+  //   final item = _archiveData.firstWhere((i) => i.id == id);
+  //   setState(() => _archiveData.removeWhere((i) => i.id == id));
+  //   _showToastMsg('已恢复「${item.name}」');
+  // }
 
-  void _deleteItem(int id) {
-    final item = _archiveData.firstWhere((i) => i.id == id);
+  void _deleteItem(String id) {
+    //final item = _archiveData.firstWhere((i) => i.id == id);
+    final item = ref
+        .read(filteredEventsProvider(filterType: FilterType.archived))
+        .firstWhere((i) => i.id == id);
     _showModalDialog(
       '确认删除',
       '是否永久删除「${item.name}」的归档记录？删除后数据不可恢复。',
       '确认删除',
-      () {
-        setState(() => _archiveData.removeWhere((i) => i.id == id));
+      () async {
+        await ref.read(eventProvider.notifier).deleteEvent(id);
+
+        // setState(() => _archiveData.removeWhere((i) => i.id == id));
         _showToastMsg('已永久删除');
       },
     );
   }
 
-  void _batchRestore() {
-    if (_selectedIds.isEmpty) {
-      _showToastMsg('请先选择条目');
-      return;
-    }
-    final count = _selectedIds.length;
-    setState(() {
-      _archiveData.removeWhere((item) => _selectedIds.contains(item.id));
-      _selectedIds.clear();
-      _batchMode = false;
-    });
-    _showToastMsg('已恢复 $count 条记录');
-  }
+  // void _batchRestore() {
+  //   if (_selectedIds.isEmpty) {
+  //     _showToastMsg('请先选择条目');
+  //     return;
+  //   }
+  //   final count = _selectedIds.length;
+  //   setState(() {
+  //     _archiveData.removeWhere((item) => _selectedIds.contains(item.id));
+  //     _selectedIds.clear();
+  //     _batchMode = false;
+  //   });
+  //   _showToastMsg('已恢复 $count 条记录');
+  // }
 
-  void _batchDelete() {
-    if (_selectedIds.isEmpty) {
-      _showToastMsg('请先选择条目');
-      return;
-    }
-    final count = _selectedIds.length;
-    _showModalDialog(
-      '批量删除确认',
-      '是否永久删除已选的 $count 条归档记录？删除后数据不可恢复。',
-      '确认删除',
-      () {
-        setState(() {
-          _archiveData.removeWhere((item) => _selectedIds.contains(item.id));
-          _selectedIds.clear();
-          _batchMode = false;
-        });
-        _showToastMsg('已永久删除 $count 条记录');
-      },
-    );
-  }
+  // void _batchDelete() {
+  //   if (_selectedIds.isEmpty) {
+  //     _showToastMsg('请先选择条目');
+  //     return;
+  //   }
+  //   final count = _selectedIds.length;
+  //   _showModalDialog('批量删除确认', '是否永久删除已选的 $count 条归档记录？删除后数据不可恢复。', '确认删除', () {
+  //     setState(() {
+  //       _archiveData.removeWhere((item) => _selectedIds.contains(item.id));
+  //       _selectedIds.clear();
+  //       _batchMode = false;
+  //     });
+  //     _showToastMsg('已永久删除 $count 条记录');
+  //   });
+  // }
 
+  //todo 清空全部归档记录后，需要更新本地存储
   void _showClearAllModal() {
     _showModalDialog(
       '清空全部归档记录',
       '清空后所有归档历史、打卡记录、事件数据将永久删除，无法恢复，是否继续？',
       '全部清空',
-      () {
-        setState(() => _archiveData.clear());
+      () async {
+        await ref.read(eventProvider.notifier).deleteAllArchivedEvent();
         _showToastMsg('已清空全部归档记录');
       },
     );
   }
 
-  void _showModalDialog(String title, String desc, String confirmText, VoidCallback callback) {
+  void _showModalDialog(
+    String title,
+    String desc,
+    String confirmText,
+    VoidCallback callback,
+  ) {
     setState(() {
       _modalTitle = title;
       _modalDesc = desc;
@@ -1176,45 +1173,43 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
     _hideModal();
   }
 
-  void _startLongPress(ArchiveItem item) {
-    if (_batchMode) return;
-    final RenderBox box = context.findRenderObject() as RenderBox;
-    final position = box.localToGlobal(Offset.zero);
-    final screenHeight = MediaQuery.of(context).size.height;
-    
-    double top = position.dy + 150;
-    double left = position.dx + 30;
-    
-    if (top + 150 > screenHeight) top = top - 160;
-    if (left + 160 > MediaQuery.of(context).size.width) {
-      left = MediaQuery.of(context).size.width - 170;
-    }
+  // void _startLongPress(Event item) {
+  //   if (_batchMode) return;
+  //   final RenderBox box = context.findRenderObject() as RenderBox;
+  //   final position = box.localToGlobal(Offset.zero);
+  //   final screenHeight = MediaQuery.of(context).size.height;
 
-    setState(() {
-      _contextTargetId = item.id;
-      _contextMenuOffset = Offset(left, top);
-      _showContextMenu = true;
-    });
-  }
+  //   double top = position.dy + 150;
+  //   double left = position.dx + 30;
 
-  void _hideContextMenu() {
-    setState(() {
-      _showContextMenu = false;
-      _contextTargetId = null;
-    });
-  }
+  //   if (top + 150 > screenHeight) top = top - 160;
+  //   if (left + 160 > MediaQuery.of(context).size.width) {
+  //     left = MediaQuery.of(context).size.width - 170;
+  //   }
 
-  void _contextAction(String action) {
-    _hideContextMenu();
-    if (_contextTargetId == null) return;
-    if (action == 'restore') {
-      _restoreItem(_contextTargetId!);
-    } else if (action == 'delete') {
-      _deleteItem(_contextTargetId!);
-    } else if (action == 'detail') {
-      _openDetail(_contextTargetId!);
-    }
-  }
+  //   setState(() {
+  //     _contextTargetId = item.id;
+  //     _contextMenuOffset = Offset(left, top);
+  //     _showContextMenu = true;
+  //   });
+  // }
+
+  // void _hideContextMenu() {
+  //   setState(() {
+  //     _showContextMenu = false;
+  //     _contextTargetId = null;
+  //   });
+  // }
+
+  // void _contextAction(String action) {
+  //   _hideContextMenu();
+  //   if (_contextTargetId == null) return;
+  //   if (action == 'delete') {
+  //     _deleteItem(_contextTargetId!);
+  //   } else if (action == 'detail') {
+  //     _openDetail(_contextTargetId!);
+  //   }
+  // }
 
   void _showToastMsg(String msg) {
     setState(() {
@@ -1261,7 +1256,7 @@ class _EmptyIconPainter extends CustomPainter {
     paint.color = const Color(0xFFD4C4A8);
     paint.strokeWidth = 2;
     paint.strokeCap = StrokeCap.round;
-    
+
     canvas.drawLine(const Offset(28, 30), const Offset(52, 30), paint);
     canvas.drawLine(const Offset(28, 40), const Offset(46, 40), paint);
     canvas.drawLine(const Offset(28, 50), const Offset(40, 50), paint);

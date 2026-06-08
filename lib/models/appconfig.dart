@@ -12,7 +12,7 @@ abstract class AppConfig with _$AppConfig {
     @Default(0) int notificationEndMinute,
     @Default('evening') String notificationDigestTime,
     @Default([true, true, true, true, true, true, true]) List<bool> notificationDndDays,
-    @Default('/backup/温时记') String backupDirectory,
+    @Default('/温时记') String backupDirectory,
     @Default('') String backupServerUrl,
     @Default('') String backupUsername,
     @Default('') String backupPassword,

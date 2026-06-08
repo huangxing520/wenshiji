@@ -39,6 +39,7 @@ class EventNotifier extends _$EventNotifier {
         //todo
         return Utils().getSampleEvents();
       }
+       //return Utils().getSampleEvents();
     } catch (e) {
       if (kDebugMode) print('加载事件数据失败: $e');
       // 如果加载失败，可以抛出一个自定义异常，让 AsyncNotifier 进入 error 状态
@@ -80,7 +81,20 @@ class EventNotifier extends _$EventNotifier {
     state = AsyncValue.data(updatedEvents);
     await _saveEvents(updatedEvents);
   }
-
+  // 设置事件归档状态
+  Future<void> setArchivedEvent(String id, bool isArchived) async {
+    final updatedEvents = _currentEvents.map((e) => e.id == id ? e.copyWith(isArchived: isArchived) : e).toList();
+    state = AsyncValue.data(updatedEvents);
+    await _saveEvents(updatedEvents);
+  }
+  // 删除所有归档事件
+  Future<void> deleteAllArchivedEvent() async {
+    final today = DateTime.now().toLocal();
+    final lastDay = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 1));
+    final updatedEvents = _currentEvents.where((e) => e.isArchived == false||e.nextEffectiveTime.isAfter(lastDay)).toList();
+    state = AsyncValue.data(updatedEvents);
+    await _saveEvents(updatedEvents);
+  }
   // 切换置顶
   Future<void> togglePin(String id) async {
     final updatedEvents = _currentEvents.map((e) {
@@ -118,6 +132,7 @@ class EventNotifier extends _$EventNotifier {
     state = AsyncValue.data(updatedEvents);
     await _saveEvents(updatedEvents);
   }
+  
 }
 
 // ==================== 2. 分类选择（可修改状态 Notifier） ====================
@@ -174,9 +189,9 @@ List<Event> filteredEvents(Ref ref, {required FilterType filterType}) {
           case FilterType.all:
             return true;
           case FilterType.archived:
-            return e.nextEffectiveTime.isBefore(today);
+            return e.nextEffectiveTime.isBefore(today)||e.isArchived;
           case FilterType.active:
-            return e.nextEffectiveTime.isAfter(today);
+            return e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1)));
         }
       }).toList();
 
@@ -200,6 +215,16 @@ List<Event> filteredEvents(Ref ref, {required FilterType filterType}) {
     error: (_, __) => [],
   );
 }
+@riverpod
+Event? getEvent(Ref ref, String id) {
+  final eventsAsync = ref.watch(eventProvider);
+  return eventsAsync.when(
+    data: (events) => events.firstWhere((e) => e.id == id),
+    loading: () => null,
+    error: (_, __) => null,
+  );
+}
+
 
 // ==================== 4. 派生 Provider：统计信息 ====================
 @riverpod
@@ -214,23 +239,25 @@ Map<String, int> stats(Ref ref) {
       .where(
         (e) =>
             e.type != EventType.dailySignIn &&
-            e.date.year == today.year &&
-            e.date.month == today.month &&
-            e.date.day == today.day,
+            e.nextEffectiveTime.year == today.year &&
+            e.nextEffectiveTime.month == today.month &&
+            e.nextEffectiveTime.day == today.day,
       )
       .length;
 
   final upcomingCount = events
       .where(
         (e) =>
-            e.type != EventType.dailySignIn &&
-            e.date.isAfter(today.subtract(const Duration(days: 1))) &&
-            e.date.isBefore(threeDaysLater.add(const Duration(days: 1))),
+            
+            e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))) &&
+            e.nextEffectiveTime.isBefore(threeDaysLater.add(const Duration(days: 3)))&&
+            (e.priority==EventPriority.special||e.priority==EventPriority.high),
+          
       )
       .length;
 
   final dailySignInCount = events
-      .where((e) => e.type == EventType.dailySignIn)
+      .where((e) => e.type == EventType.dailySignIn&&e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))))
       .length;
 
   return {

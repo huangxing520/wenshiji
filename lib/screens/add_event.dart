@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_datetime_picker_plus/flutter_datetime_picker_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/event.dart';
 import 'package:wenshiji/models/event.dart';
@@ -27,10 +29,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   final _nameController = TextEditingController();
   final _birthdayNameController = TextEditingController();
   final _notesController = TextEditingController();
-  List<CategoryTagType> tags = [
-    (label: '💝 纪念日', value: '纪念日'),
-    (label: '💼 工作', value: '工作'),
-    (label: '🏠 生活', value: '生活'),
+  List<String> tags = [
+   '💝 纪念日',
+   '💼 工作',
+  '🏠 生活',
+  '📚 学习',
+  '🎮 游戏',  
+  '🗓️ 会议',
+  '🔔 提醒',
+  '👨‍👩‍👧 家庭事务',
+  '🤝 社交往来',
   ];
 
   AddEventMode _currentMode = AddEventMode.birthday;
@@ -38,11 +46,10 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
 
   /// 是否是倒计时模式
   bool _isCountdown = true;
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
+  DateTime _selectedDate = DateTime.now();
+  //TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
   String _repeatRule = 'yearly';
-
-  //todo
+  TextEditingController _tagController = TextEditingController();
   // final Set<EventReminder> _selectedReminders = {EventReminder.none};
   final Set<String> _selectedTags = {};
   bool _isAdvancedExpanded = true;
@@ -128,35 +135,41 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
         title: const Text('输入自定义标签名称'),
         content: TextField(
           autofocus: true,
-          onSubmitted: (value) {
-            if (value.trim().isNotEmpty) {
-              setState(() {
-                _selectedTags.add(value.trim());
-              });
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('标签已添加')));
-            }
-          },
+          controller: _tagController,
+        
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
+            onPressed: () => _tagController.text.isNotEmpty
+                ? () {
+                    setState(() {
+                      _selectedTags.add(_tagController.text.trim());
+                    });
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('标签已添加')));
+                  }
+                :  Navigator.of(context).pop(),
+            child: const Text('确定'),
           ),
         ],
       ),
     );
   }
 
-  void _selectDate() async {
-    final date = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
+  void _selectDate(DateTime initialDate) async {
+    final date = await DatePicker.showDatePicker(
+      context,
+      showTitleActions: true,
+      onConfirm: (date) {
+        print('confirm $date');
+      },
+      currentTime: initialDate,
+      locale: LocaleType.zh,
     );
+
+   
     if (date != null) {
       setState(() {
         _selectedDate = date;
@@ -164,22 +177,12 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     }
   }
 
-  void _selectTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-    );
-    if (time != null) {
-      setState(() {
-        _selectedTime = time;
-      });
-    }
-  }
+ 
 
   void _saveEvent() async {
     if (!_isFormValid) return;
-      List<String> imagePaths;
-     try {
+    List<String> imagePaths;
+    try {
       imagePaths = await ref.read(savedImagePathsForIdProvider(_uuid).future);
     } catch (e) {
       // 读取失败时给一个空列表，或者提示用户
@@ -194,15 +197,11 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
-        _selectedTime.hour,
-        _selectedTime.minute,
       ),
       nextEffectiveTime: DateTime(
         _selectedDate.year,
         _selectedDate.month,
         _selectedDate.day,
-        _selectedTime.hour,
-        _selectedTime.minute,
       ),
       type: switch (_currentMode) {
         AddEventMode.birthday => EventType.birthday,
@@ -215,17 +214,17 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
       //reminder: _selectedReminders.toList(),
       description: _notesController.text.trim(),
       picturePaths: imagePaths,
-         );
-
+    );
+    AppLogger().info('添加事件: $event');
     try {
       await ref.read(eventProvider.notifier).addEvent(event);
     } catch (e) {
       // 处理异常，例如显示错误提示
-      print('添加事件失败: $e');
+      AppLogger().error('添加事件: $event');
       // 显示错误提示
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('添加事件失败')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('添加事件失败')));
       return;
     }
 
@@ -241,7 +240,8 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     _nameController.clear();
     _birthdayNameController.clear();
     _notesController.clear();
-    // context.go('/homepage');
+    context.pop();
+    
   }
 
   @override
@@ -714,7 +714,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: _selectDate,
+                  onTap: () => _selectDate(_selectedDate),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -732,27 +732,27 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: _selectTime,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 13,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: borderColor, width: 1.5),
-                      color: surfaceColor,
-                    ),
-                    child: Text(
-                      '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
-                      style: TextStyle(fontSize: 15, color: fgColor),
-                    ),
-                  ),
-                ),
-              ),
+              // const SizedBox(width: 10),
+              // Expanded(
+              //   child: GestureDetector(
+              //     onTap: _selectTime,
+              //     child: Container(
+              //       padding: const EdgeInsets.symmetric(
+              //         horizontal: 16,
+              //         vertical: 13,
+              //       ),
+              //       decoration: BoxDecoration(
+              //         borderRadius: BorderRadius.circular(10),
+              //         border: Border.all(color: borderColor, width: 1.5),
+              //         color: surfaceColor,
+              //       ),
+              //       child: Text(
+              //         '${_selectedTime.hour.toString().padLeft(2, '0')}:${_selectedTime.minute.toString().padLeft(2, '0')}',
+              //         style: TextStyle(fontSize: 15, color: fgColor),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ],
@@ -819,13 +819,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_currentMode == AddEventMode.task)
-                        _buildRepeatField(
-                          surfaceColor,
-                          borderColor,
-                          fgColor,
-                          mutedColor,
-                        ),
+                      // if (_currentMode == AddEventMode.task)
+                      //   _buildRepeatField(
+                      //     surfaceColor,
+                      //     borderColor,
+                      //     fgColor,
+                      //     mutedColor,
+                      //   ),
                       _buildPriorityField(
                         surfaceColor,
                         accentColor,
@@ -842,6 +842,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                           fgColor,
                           mutedColor,
                         ),
+
                       // (!_isCountdown && _currentMode == AddEventMode.task)
                       //     ? const SizedBox.shrink()
                       //     : _buildReminderField(
@@ -852,7 +853,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                       //         fgColor,
                       //         mutedColor,
                       //       ),
-
                       _buildTagField(
                         surfaceColor,
                         accentSoftColor,
@@ -1249,9 +1249,9 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               ...tags.map((tag) {
-                final isSelected = _selectedTags.contains(tag.value);
+                final isSelected = _selectedTags.contains(tag);
                 return GestureDetector(
-                  onTap: () => _toggleTag(tag.value),
+                  onTap: () => _toggleTag(tag),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     padding: const EdgeInsets.symmetric(
@@ -1269,7 +1269,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                       color: isSelected ? accentSoftColor : surfaceColor,
                     ),
                     child: Text(
-                      tag.label,
+                      tag,
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -1279,27 +1279,27 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
                   ),
                 );
               }),
-              GestureDetector(
-                onTap: _addCustomTag,
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: borderColor, width: 2),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '+',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: mutedColor,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // GestureDetector(
+              //   onTap: _addCustomTag,
+              //   child: Container(
+              //     width: 36,
+              //     height: 36,
+              //     decoration: BoxDecoration(
+              //       shape: BoxShape.circle,
+              //       border: Border.all(color: borderColor, width: 2),
+              //     ),
+              //     child: Center(
+              //       child: Text(
+              //         '+',
+              //         style: TextStyle(
+              //           fontSize: 18,
+              //           color: mutedColor,
+              //           fontWeight: FontWeight.w400,
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ],
@@ -1316,7 +1316,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color mutedColor,
   ) {
     final cardItemsAsync = ref.watch(getCardItemsProvider(_uuid));
-    print('ssssssss');
     return Container(
       margin: const EdgeInsets.only(top: 20),
       child: Column(

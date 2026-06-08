@@ -220,7 +220,7 @@ return $default(_that.notificationDndOn,_that.notificationDigestOn,_that.notific
 @JsonSerializable()
 
 class _AppConfig implements AppConfig {
-   _AppConfig({this.notificationDndOn = false, this.notificationDigestOn = false, this.notificationStartHour = 22, this.notificationStartMinute = 0, this.notificationEndHour = 7, this.notificationEndMinute = 0, this.notificationDigestTime = 'evening', final  List<bool> notificationDndDays = const [true, true, true, true, true, true, true], this.backupDirectory = '/backup/温时记', this.backupServerUrl = '', this.backupUsername = '', this.backupPassword = ''}): _notificationDndDays = notificationDndDays;
+   _AppConfig({this.notificationDndOn = false, this.notificationDigestOn = false, this.notificationStartHour = 22, this.notificationStartMinute = 0, this.notificationEndHour = 7, this.notificationEndMinute = 0, this.notificationDigestTime = 'evening', final  List<bool> notificationDndDays = const [true, true, true, true, true, true, true], this.backupDirectory = '/温时记', this.backupServerUrl = '', this.backupUsername = '', this.backupPassword = ''}): _notificationDndDays = notificationDndDays;
   factory _AppConfig.fromJson(Map<String, dynamic> json) => _$AppConfigFromJson(json);
 
 @override@JsonKey() final  bool notificationDndOn;

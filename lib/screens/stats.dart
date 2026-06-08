@@ -1,4 +1,5 @@
 import 'dart:math';
+
 import 'package:contribution_heatmap/contribution_heatmap.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -103,31 +104,24 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   List<Event> getFilteredEvents(List<Event> allEvents) {
     final now = DateTime.now();
     final y = now.year;
-    final m = now.month - 1; // 保留：专门给月份筛选用
 
     switch (currentRange) {
       case StatsTimeType.year:
         return allEvents.where((e) => e.date.year == y).toList();
       case StatsTimeType.quarter:
-        // 🔥 修复点1：季度计算用【原始月份】，不要用减1后的m！
         final currentMonth = now.month;
-        // 计算季度索引 (0-3)
-        final quarterIndex = currentMonth ~/ 3;
-        // 🔥 修复点2：正确计算季度起止日期
+        final quarterIndex = (currentMonth - 1) ~/ 3;
         final qStart = DateTime(y, quarterIndex * 3 + 1, 1);
         final qEnd = DateTime(y, quarterIndex * 3 + 4, 0);
-
-        // 筛选逻辑（本身是正确的，保留）
         return allEvents.where((e) {
           final dt = e.date;
           return dt.isAfter(qStart.subtract(const Duration(days: 1))) &&
               dt.isBefore(qEnd.add(const Duration(days: 1)));
         }).toList();
       case StatsTimeType.month:
-        // 原有逻辑正确，保留
         return allEvents.where((e) {
           final dt = e.date;
-          return dt.year == y && dt.month == m + 1;
+          return dt.year == y && dt.month == now.month;
         }).toList();
       default:
         return allEvents;
@@ -144,35 +138,35 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   }
 
   Map<String, dynamic> calculateStats(List<Event> allEvents) {
-    final filtered = getFilteredEvents(allEvents);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final in7 = today.add(const Duration(days: 7));
 
-    final total = filtered.length;
-    final pending = filtered
-        .where((e) => e.date.isAfter(today.subtract(const Duration(days: 1))))
+    final total = allEvents.length;
+    final pending = allEvents
+        .where((e) => e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))))
         .length;
-    final soon = filtered.where((e) {
-      final dt = e.date;
+    final soon = allEvents.where((e) {
+      final dt = e.nextEffectiveTime;
       return dt.isAfter(today.subtract(const Duration(days: 1))) &&
           dt.isBefore(in7.add(const Duration(days: 1)));
     }).length;
     final done = total - pending;
-    final monthDone = filtered.where((e) {
-      final dt = e.date;
-      return dt.isBefore(today) && dt.month == now.month;
+    final monthDone = allEvents.where((e) {
+      final dt = e.nextEffectiveTime;
+      return dt.isBefore(today) && dt.year == now.year && dt.month == now.month;
     }).length;
-    final birthdays = filtered
+    final birthdays = allEvents
         .where((e) => e.type == EventType.birthday)
         .length;
-    final bdayLeft = filtered
+    final bdayLeft = allEvents
         .where(
           (e) =>
               e.type == EventType.birthday &&
-              e.date.isAfter(today.subtract(const Duration(days: 1))),
+              Utils().isMonthDayBefore( today.subtract(const Duration(days: 1)),e.nextEffectiveTime),
         )
         .length;
+    final starCount = allEvents.where((e) => e.isStarred).length;
 
     return {
       'total': total,
@@ -182,7 +176,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       'monthDone': monthDone,
       'birthdays': birthdays,
       'bdayLeft': bdayLeft,
-      'isPrivate': max(1, (total * 0.15).floor()),
+      'starCount': starCount,
     };
   }
 
@@ -455,9 +449,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         children: [
           _buildStatsGrid(stats),
           const SizedBox(height: 22),
-          _buildHeatmapSection(allEvents),
+          if (currentRange == StatsTimeType.all) _buildHeatmapSection(allEvents),
           const SizedBox(height: 14),
-          _buildLifeSection(),
+          if (currentRange == StatsTimeType.all) _buildLifeSection(),
           const SizedBox(height: 40),
         ],
       ),
@@ -478,7 +472,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
           icon: '📊',
           number: stats['total'],
           label: '全部事件',
-          subLabel: '含标星事件 ${stats['isPrivate']} 项',
+          subLabel: '含标星事件 ${stats['starCount']} 项',
           bgColor: accentSoft,
         ),
         _buildStatCard(
@@ -499,7 +493,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
           icon: '🎂',
           number: stats['birthdays'],
           label: '生日数',
-          subLabel: '本年度已有 ${stats['bdayLeft']} 人过生日',
+          subLabel: '本年度还有 ${stats['bdayLeft']} 人待过生日',
           bgColor: const Color(0xFFFFEBEE),
         ),
       ],
@@ -713,12 +707,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
           cellSize: 18.0,
           minDate: DateTime(DateTime.now().year, 1, 1),
           maxDate: DateTime.now(),
-          entries: [
-            ContributionEntry(DateTime(2026, 1, 15), 5),
-            ContributionEntry(DateTime(2026, 3, 16), 3),
-            ContributionEntry(DateTime(2026, 2, 1), 8),
-            // Add more entries...
-          ], // Only required parameter, other are optional
+          entries: buildDayMap(allEvents).entries
+              .map((e) => ContributionEntry(DateTime.parse(e.key), e.value))
+              .toList(),
           onCellTap: (date, value) {
             _openDateModal(date.toIso8601String(), allEvents);
           },
@@ -1232,6 +1223,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       EventType.birthday: '🎂 生日',
       EventType.task: '📌 事项',
       EventType.holiday: '🎉 节日',
+      EventType.dailySignIn: '✅ 签到',
     };
 
     return GestureDetector(

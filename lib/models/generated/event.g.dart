@@ -23,6 +23,7 @@ _Event _$EventFromJson(Map<String, dynamic> json) => _Event(
           .toList() ??
       const [],
   checkinStreakCount: (json['checkinStreakCount'] as num?)?.toInt() ?? 0,
+  isArchived: json['isArchived'] as bool? ?? false,
   repeatRule:
       $enumDecodeNullable(_$RepeatRuleEnumMap, json['repeatRule']) ??
       RepeatRule.none,
@@ -50,6 +51,7 @@ Map<String, dynamic> _$EventToJson(_Event instance) => <String, dynamic>{
       .map((e) => e.toIso8601String())
       .toList(),
   'checkinStreakCount': instance.checkinStreakCount,
+  'isArchived': instance.isArchived,
   'repeatRule': _$RepeatRuleEnumMap[instance.repeatRule]!,
   'description': instance.description,
   'picturePaths': instance.picturePaths,
