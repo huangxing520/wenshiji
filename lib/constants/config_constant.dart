@@ -17,6 +17,7 @@ class ConfigConstant {
   static const String owner = "huangxing520";
   static const String repo = "wenshiji";
   static const String githubUrl = 'https://github.com/huangxing520/wenshiji/releases';
+  static const String feedbackUrl = 'https://github.com/huangxing520/wenshiji/issues';
 }
 enum Season {
   @JsonValue(0)

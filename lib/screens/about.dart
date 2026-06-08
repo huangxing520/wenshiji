@@ -56,10 +56,9 @@ class _AboutScreenState extends State<AboutScreen>
   void initState() {
     super.initState();
     _scrollAnimationController = AnimationController(
-      vsync: this, 
+      vsync: this,
       duration: const Duration(seconds: 1),
     );
-   
   }
 
   @override
@@ -235,7 +234,7 @@ class _AboutScreenState extends State<AboutScreen>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-           Text(
+          Text(
             '当前版本 ${widget.version}',
             style: TextStyle(
               fontSize: 12,
@@ -497,7 +496,8 @@ class _AboutScreenState extends State<AboutScreen>
           setState(() => _showUpdateModal = false);
           if (!_isLatestVersion) {
             Utils().launchInBrowser(ConfigConstant.githubUrl);
-          };
+          }
+          ;
         },
         onSecondaryTap: _isLatestVersion
             ? null
@@ -587,7 +587,8 @@ github.com/lxgw/LxgwWenKai
         secondaryBtnText: '取消',
         onPrimaryTap: () {
           setState(() => _showFeedbackModal = false);
-          _showToast('已跳转至反馈入口');
+          Utils().launchInBrowser(ConfigConstant.feedbackUrl);
+          //_showToast('已跳转至反馈入口');
         },
         onSecondaryTap: () => setState(() => _showFeedbackModal = false),
       ),
@@ -982,19 +983,22 @@ github.com/lxgw/LxgwWenKai
   void _checkUpdate() async {
     _scrollAnimationController.repeat();
     try {
-      final latestVersion = await httpUtil.getLatestReleaseVersion(ConfigConstant.owner, ConfigConstant.repo);
+      final latestVersion = await httpUtil.getLatestReleaseVersion(
+        ConfigConstant.owner,
+        ConfigConstant.repo,
+      );
       if (latestVersion != null) {
         setState(() {
           _latestVersion = latestVersion;
-          _isLatestVersion = latestVersion.replaceFirst('v', '') == widget.version;
+          _isLatestVersion =
+              latestVersion.replaceFirst('v', '') == widget.version;
           _showUpdateModal = true;
         });
       }
-    }  on DioException catch (e) {
+    } on DioException catch (e) {
       Utils().showErrorToast('检查更新失败', null);
     }
     _scrollAnimationController.stop();
-
   }
 
   void _openAgreementPage(String type) {
