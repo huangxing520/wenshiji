@@ -61,6 +61,27 @@ class Preferences {
     }
   }
 
+  Future<bool> setConfig(AppConfig config) async {
+    final preferences = await sharedPreferencesCompleter.future;
+    return preferences?.setString(
+          ConfigConstant.configKey,
+          json.encode(config),
+        ) ??
+        false;
+  }
+
+  Future<void> setIsSettingWorkManager(bool isSettingWorkManager) async {
+    final appConfig = await getConfig();
+
+    if (appConfig == null) {
+      return;
+    }
+   
+    final newConfig = appConfig.copyWith(isSettingWorkManager: isSettingWorkManager);
+    await setConfig(newConfig);
+    
+  }
+
   Future<List<Event>> getEvents() async {
     try {
       final preferences = await sharedPreferencesCompleter.future;

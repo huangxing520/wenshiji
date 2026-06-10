@@ -73,6 +73,11 @@ class AppConfigNotifier extends _$AppConfigNotifier {
         await _saveToLocal(state.requireValue);
 
   }
+  Future<void> setIsSettingWorkManager(bool value) async{
+    state = AsyncData(state.requireValue.copyWith(isSettingWorkManager: value));
+        await _saveToLocal(state.requireValue);
+  }
+  
 
   Future<void> setNotificationDndDays(List<bool> value) async{
     state = AsyncData(state.requireValue.copyWith(notificationDndDays: List<bool>.from(value)));

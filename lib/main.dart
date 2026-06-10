@@ -109,9 +109,10 @@ Future<void> main() async {
     final isInitBool = await preferences.getInitState();
     final deviceId = await preferences.getDeviceId();
     final appConfig = await preferences.getConfig();
-    if (!isInitBool&&appConfig != null && appConfig.notificationDigestOn) {
+    if (appConfig != null && !appConfig.isSettingWorkManager && appConfig.notificationDigestOn) {
       final debouncer = Debouncer(delay: const Duration(seconds: 1));
       Utils().registerPeriodicTask(debouncer);
+      await preferences.setIsSettingWorkManager(true);
     }
     final version = await Utils().getVersion();
     await httpUtil.ensureInitialized();

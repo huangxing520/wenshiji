@@ -18,6 +18,8 @@ abstract class AppConfig with _$AppConfig {
     @Default('') String backupServerUrl,
     @Default('') String backupUsername,
     @Default('') String backupPassword,
+    // 是否设置android workmanager任务
+    @Default(false) bool isSettingWorkManager,
   }
     
   ) = _AppConfig;

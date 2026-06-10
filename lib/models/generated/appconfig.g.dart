@@ -25,6 +25,7 @@ _AppConfig _$AppConfigFromJson(Map<String, dynamic> json) => _AppConfig(
   backupServerUrl: json['backupServerUrl'] as String? ?? '',
   backupUsername: json['backupUsername'] as String? ?? '',
   backupPassword: json['backupPassword'] as String? ?? '',
+  isSettingWorkManager: json['isSettingWorkManager'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
@@ -41,4 +42,5 @@ Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
       'backupServerUrl': instance.backupServerUrl,
       'backupUsername': instance.backupUsername,
       'backupPassword': instance.backupPassword,
+      'isSettingWorkManager': instance.isSettingWorkManager,
     };

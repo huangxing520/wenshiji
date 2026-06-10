@@ -33,7 +33,7 @@ final class BackupNotifierProvider
   BackupNotifier create() => BackupNotifier();
 }
 
-String _$backupNotifierHash() => r'303a128c8c4900f5e51d404ceaf014d347f4e3d5';
+String _$backupNotifierHash() => r'a6fd7e33ead9eee2e1aa6d8c44923a87690d227d';
 
 abstract class _$BackupNotifier extends $AsyncNotifier<List<BackupRecord>> {
   FutureOr<List<BackupRecord>> build();

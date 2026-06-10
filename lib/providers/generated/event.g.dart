@@ -167,7 +167,7 @@ final class FilteredEventsProvider
   }
 }
 
-String _$filteredEventsHash() => r'ce22e9c413ff5cfa02dc6fd2261f9ff56e3257e2';
+String _$filteredEventsHash() => r'008181e75c8332e6fe6d798aac636a339bd19efc';
 
 final class FilteredEventsFamily extends $Family
     with $FunctionalFamilyOverride<List<Event>, FilterType> {
