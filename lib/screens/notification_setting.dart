@@ -47,7 +47,7 @@ class _NotificationSettingScreenState
     await ref
         .read(appConfigProvider.notifier)
         .setNotificationDndOn(!appConfig.notificationDndOn);
-    _registerPeriodicTask();
+    Utils().registerPeriodicTask(_debouncer);
     //_showToast(appConfig.notificationDndOn ? '免打扰时段已开启' : '免打扰时段已关闭');
   }
 
@@ -65,37 +65,28 @@ class _NotificationSettingScreenState
           .read(appConfigProvider.notifier)
           .setNotificationEndHour((endHour + dir + 24) % 24);
     }
-    _registerPeriodicTask();
+    Utils().registerPeriodicTask(_debouncer);
   }
 
-  void _registerPeriodicTask() {
-    _debouncer.run(() async {
-      await Workmanager().cancelAll(); // 关键：清空所有旧任务
+  Future<void> test() async {
+    final today = DateTime.now();
 
-      await Workmanager().registerOneOffTask(
-        "test-task-1",
-        "daily-reminder-task1",
-        initialDelay: Duration(seconds: 5),
-      );
+    final _baseDate = DateTime(2025, 1, 1);
 
-      try {
-        await Workmanager().cancelByUniqueName("daily-reminder");
-      } catch (e) {
-        AppLogger().error('取消每日提醒任务失败: $e');
-      }
-      try {
-        await Workmanager().registerPeriodicTask(
-          "daily-reminder", // 唯一任务名
-          "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
-          frequency: Duration(hours: 24), // 每24小时执行一次
-          initialDelay: Duration(seconds: 30), // 初始延迟30秒
-        );
-        //Utils().showToast('每日提醒已开启', null);
-      } catch (e) {
-        AppLogger().error('注册每日提醒任务失败: $e');
-      }
-    });
+    final outsideTime = await Utils().getOutsideTime();
+    if (outsideTime == null) {
+      AppLogger().error('outsideTime is null');
+      return Future.value(true);
+    }
+    AppLogger().info('outsideTime: $outsideTime');
+    final tomorrowContent = await Utils().getDailyNotificationContent();
+    AppLogger().info('tomorrowContent: $tomorrowContent');
+    final id = today.difference(_baseDate).inDays;
+
+    print('通知ID: $id');
   }
+
+
 
   /// 切换免打扰时段的天数
   Future<void> _toggleDNDDay(int index, WidgetRef ref) async {
@@ -104,7 +95,7 @@ class _NotificationSettingScreenState
     final newDays = List<bool>.from(dndDays);
     newDays[index] = !newDays[index];
     await ref.read(appConfigProvider.notifier).setNotificationDndDays(newDays);
-    _registerPeriodicTask();
+    Utils().registerPeriodicTask(_debouncer);
   }
 
   /// 切换聚合推送
@@ -116,7 +107,7 @@ class _NotificationSettingScreenState
         .read(appConfigProvider.notifier)
         .setNotificationDigestOn(!_digestOn);
     _showToast(!_digestOn ? '聚合推送已开启' : '聚合推送已关闭');
-    _registerPeriodicTask();
+    Utils().registerPeriodicTask(_debouncer);
   }
 
   /// 选择聚合推送时间
@@ -124,7 +115,7 @@ class _NotificationSettingScreenState
     await ref.read(appConfigProvider.notifier).setNotificationDigestTime(time);
     final label = time == 'morning' ? '早晨八点' : '晚上七点';
     _showToast('推送时间已设为$label');
-    _registerPeriodicTask();
+    Utils().registerPeriodicTask(_debouncer);
   }
 
   Future<void> _openSystemSettings() async {

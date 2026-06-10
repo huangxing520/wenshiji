@@ -1,7 +1,7 @@
 name: wenshiji
 description: 温时记 - 记录每一个重要时刻
 publish_to: 'none'
-version: 0.0.2+1
+version: 0.0.3+1
 
 environment:
   sdk: '>=3.8.0 <4.0.0'

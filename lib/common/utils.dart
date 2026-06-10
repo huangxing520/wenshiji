@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,11 +6,17 @@ import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:location/location.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wenshiji/common/debouncer.dart';
 import 'package:wenshiji/common/http.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/permission.dart';
+import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/constants/config_constant.dart';
+import 'package:wenshiji/models/appconfig.dart';
 import 'package:wenshiji/models/event.dart';
+import 'package:workmanager/workmanager.dart';
 
 class Utils {
   static Utils? _instance;
@@ -360,5 +367,91 @@ class Utils {
   bool isMonthDayBefore(DateTime a, DateTime b) {
     if (a.month != b.month) return a.month < b.month;
     return a.day <= b.day;
+  }
+
+  Future<String> getDailyNotificationContent() async {
+    // 示例：根据日期返回不同内容
+    final now = DateTime.now();
+    final events = await preferences.getEvents();
+    final filteredEvents =
+        events.where((event) => event.nextEffectiveTime.isAfter(now)).toList()
+          ..sort((a, b) => a.nextEffectiveTime.compareTo(b.nextEffectiveTime));
+
+    final body = filteredEvents
+        .map((e) {
+          if (e.nextEffectiveTime.day == now.day + 1) {
+            return '${e.name}今日到期，请及时处理';
+          } else {
+            return '${e.name}还有${e.nextEffectiveTime.difference(now).inDays}天到日期';
+          }
+        })
+        .toList()
+        .join('。');
+    print(filteredEvents);
+    return body.isNotEmpty ? body : '今天没有待办事项哦～';
+  }
+
+  Future<int?> getOutsideTime() async {
+    final today = DateTime.now();
+    final tomorrow = DateTime(today.year, today.month, today.day + 1);
+    final preferences = await SharedPreferences.getInstance();
+    final configString = preferences?.getString(ConfigConstant.configKey);
+    if (configString == null) return null;
+    final config = AppConfig.fromJson(jsonDecode(configString));
+    print('config: $config');
+    if (!config.notificationDigestOn) {
+      return null;
+    }
+    int outsideTime = config.notificationDigestTime == 'morning' ? 8 : 19;
+    if (config.notificationDndOn) {
+      if (config.notificationDndDays[tomorrow.weekday]) {
+        outsideTime = getRealOutsideTime(
+          config.notificationDigestTime == 'morning' ? 8 : 19,
+          config.notificationStartHour,
+          config.notificationEndHour,
+        );
+      }
+    }
+    return outsideTime;
+  }
+
+  int getRealOutsideTime(int target, int left, int right) {
+    if (left <= right) {
+      if (target <= left || target >= right) {
+        return target;
+      } else {
+        return right;
+      }
+    } else {
+      if (target <= left && target >= right) {
+        return target;
+      } else {
+        return right;
+      }
+    }
+  }
+
+  void registerPeriodicTask(Debouncer debouncer) {
+    //test();
+    debouncer.run(() async {
+      await Workmanager().cancelAll(); // 关键：清空所有旧任务
+
+      // await Workmanager().registerOneOffTask(
+      //   "test-task-1",
+      //   "daily-reminder-task1",
+      //   initialDelay: Duration(seconds: 5),
+      // );
+
+      try {
+        await Workmanager().registerPeriodicTask(
+          "daily-reminder", // 唯一任务名
+          "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
+          frequency: Duration(hours: 24), // 每24小时执行一次
+        );
+        AppLogger().info('注册每日提醒任务成功');
+      } catch (e) {
+        AppLogger().error('注册每日提醒任务失败: $e');
+      }
+    });
   }
 }

@@ -33,13 +33,13 @@ class EventNotifier extends _$EventNotifier {
   Future<List<Event>> _loadEvents() async {
     try {
       final events = await preferences.getEvents();
-      // if (events.isNotEmpty) {
-      //   return events;
-      // } else {
-      //   //todo
-      //   return Utils().getSampleEvents();
-      // }
-       return Utils().getSampleEvents();
+      if (events.isNotEmpty) {
+        return events;
+      } else {
+        //todo
+        return Utils().getSampleEvents();
+      }
+       //return Utils().getSampleEvents();
     } catch (e) {
       if (kDebugMode) print('加载事件数据失败: $e');
       // 如果加载失败，可以抛出一个自定义异常，让 AsyncNotifier 进入 error 状态

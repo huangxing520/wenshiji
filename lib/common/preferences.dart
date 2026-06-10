@@ -65,7 +65,7 @@ class Preferences {
     try {
       final preferences = await sharedPreferencesCompleter.future;
       final eventsString = preferences?.getString('events');
-      AppLogger().info('eventsString: $eventsString');
+      //AppLogger().info('eventsString: $eventsString');
       if (eventsString == null) return [];
 
       final List<dynamic> jsonList = json.decode(eventsString);

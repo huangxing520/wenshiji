@@ -389,9 +389,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   // 构建用户信息
   Widget _buildProfileTop(Color accentSoftColor, Color accentDeepColor) {
-    AppLogger().info(
-      'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$_deviceId',
-    );
+    // AppLogger().info(
+    //   'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$_deviceId',
+    // );
     return Row(
       children: [
         Stack(

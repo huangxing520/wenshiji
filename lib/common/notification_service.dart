@@ -1,6 +1,7 @@
 import 'dart:ffi';
 
 import 'package:app_settings/app_settings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -65,6 +66,8 @@ class NotificationService {
 // 只在workmanager中初始化后台通知服务调用这个函数
 Future<void> initForBackground() async {
   try {
+        WidgetsFlutterBinding.ensureInitialized();
+
     // 时区初始化（必须在 isolate 中重新执行）
     tz.initializeTimeZones();
     final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
@@ -82,8 +85,9 @@ Future<void> initForBackground() async {
     );
 
     await _notificationsPlugin.initialize(settings: initializationSettings);
-    // 注意：不调用 _checkAndRequestNotificationPermissions()
-    // 假设权限已经在主应用中授予过
+
+
+
     hasNotificationPermission = true; // 直接标记为 true
 
     if (kDebugMode) {
@@ -164,8 +168,7 @@ Future<void> initForBackground() async {
         body: body,
         scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
         notificationDetails: platformChannelSpecifics,
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle, 
         payload: payload,
       );
 

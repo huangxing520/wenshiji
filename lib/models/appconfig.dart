@@ -4,7 +4,9 @@ part 'generated/appconfig.g.dart';
 @freezed
 abstract class AppConfig with _$AppConfig {
   factory AppConfig({
+    // 免打扰
     @Default(false) bool notificationDndOn,
+    // 每日聚合推送
     @Default(false) bool notificationDigestOn,
     @Default(22) int notificationStartHour,
     @Default(0) int notificationStartMinute,
