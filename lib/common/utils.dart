@@ -121,11 +121,10 @@ class Utils {
 
   int getRemainingTime(DateTime nextCheckinTime) {
     final today = DateTime.now().toLocal();
-   final todayZero = DateTime(today.year, today.month, today.day);
+    final todayZero = DateTime(today.year, today.month, today.day);
     return nextCheckinTime.difference(todayZero).inDays;
-
- 
   }
+
   List<Event> getSampleEvents() {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
@@ -245,6 +244,7 @@ class Utils {
         type: EventType.dailySignIn,
         priority: EventPriority.low,
         checkinStreakCount: 12,
+        isArchived: true,
         checkinTimes: [
           today.subtract(const Duration(days: 20)),
           today.subtract(const Duration(days: 19)),
@@ -260,6 +260,54 @@ class Utils {
           today.subtract(const Duration(days: 5)),
         ],
         description: '每天阅读1小时',
+      ),
+      Event(
+        id: '13',
+        name: '每日冥想',
+        date: today.subtract(const Duration(days: 35)),
+        nextEffectiveTime: today.add(const Duration(days: 5)),
+        repeatRule: RepeatRule.none,
+        type: EventType.dailySignIn,
+        priority: EventPriority.mid,
+        checkinStreakCount: 31,
+        checkinTimes: List.generate(
+          31,
+          (index) => today.subtract(Duration(days: 31 - index)),
+        ),
+        description: '每天冥想15分钟',
+      ),
+      Event(
+        id: '14',
+        name: '每日写作',
+        date: today.subtract(const Duration(days: 105)),
+        nextEffectiveTime: today.add(const Duration(days: 5)),
+        repeatRule: RepeatRule.none,
+        type: EventType.dailySignIn,
+        priority: EventPriority.high,
+        checkinStreakCount: 100,
+        isStarred: true,
+        checkinTimes: List.generate(
+          100,
+          (index) => today.subtract(Duration(days: 100 - index)),
+        ),
+        description: '每天写作500字',
+      ),
+      Event(
+        id: '15',
+        name: '每日早起',
+        date: today.subtract(const Duration(days: 370)),
+        nextEffectiveTime: today.add(const Duration(days: 5)),
+        repeatRule: RepeatRule.none,
+        type: EventType.dailySignIn,
+        priority: EventPriority.special,
+        checkinStreakCount: 365,
+        isStarred: true,
+        isPinned: true,
+        checkinTimes: List.generate(
+          365,
+          (index) => today.subtract(Duration(days: 365 - index)),
+        ),
+        description: '每天6点起床',
       ),
 
       // ========== holiday 节日类型 ==========
@@ -308,8 +356,9 @@ class Utils {
       }
     }
   }
-bool isMonthDayBefore(DateTime a, DateTime b) {
-  if (a.month != b.month) return a.month < b.month;
-  return a.day <= b.day;
-}
+
+  bool isMonthDayBefore(DateTime a, DateTime b) {
+    if (a.month != b.month) return a.month < b.month;
+    return a.day <= b.day;
+  }
 }

@@ -461,7 +461,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   icon: Icons.info ,
                   label: '详情',
                   onTap: () {                
-                    AppLogger().info('点击详情 $_selectedEventId');
+                
                     context.push('/event-detail/${_selectedEventId!}');
                     setState(() => _showContextMenu = false);
                   },

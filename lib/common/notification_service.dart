@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -60,6 +62,42 @@ class NotificationService {
       }
     }
   }
+// 只在workmanager中初始化后台通知服务调用这个函数
+Future<void> initForBackground() async {
+  try {
+    // 时区初始化（必须在 isolate 中重新执行）
+    tz.initializeTimeZones();
+    final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
+    final String timeZoneName = timezoneInfo.identifier ?? 'Asia/Shanghai';
+    tz.setLocalLocation(tz.getLocation(timeZoneName));
+
+    // 通知插件初始化（不需要请求权限）
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings();
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+    );
+
+    await _notificationsPlugin.initialize(settings: initializationSettings);
+    // 注意：不调用 _checkAndRequestNotificationPermissions()
+    // 假设权限已经在主应用中授予过
+    hasNotificationPermission = true; // 直接标记为 true
+
+    if (kDebugMode) {
+      print('后台通知服务初始化成功, 时区: $timeZoneName');
+    }
+  } catch (e) {
+    if (kDebugMode) {
+      print('后台通知服务初始化失败: $e');
+    }
+    rethrow;
+  }
+}
+
+
 
   // 新增：检查并请求通知权限
   Future<bool> _checkAndRequestNotificationPermissions() async {
@@ -95,7 +133,7 @@ class NotificationService {
   }
 
   Future<void> scheduleEventNotification({
-    required String id,
+    required int id,
     required String title,
     required String body,
     required DateTime scheduledDate,
@@ -121,7 +159,7 @@ class NotificationService {
       );
 
       await _notificationsPlugin.zonedSchedule(
-        id: id.hashCode,
+        id: id,
         title: title,
         body: body,
         scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
@@ -167,6 +205,15 @@ class NotificationService {
     }
   }
 
+/// 检查指定 id 的通知是否已经安排（尚未触发）
+Future<bool> isNotificationScheduled(int id) async {
+  final List<PendingNotificationRequest> pendingList =
+      await _notificationsPlugin.pendingNotificationRequests();
+  return pendingList.any((request) => request.id == id);
+}
+
+
+
   Future<void> showInstantNotification({
     required String title,
     required String body,
@@ -205,17 +252,17 @@ class NotificationService {
     }
   }
 
-  Future<void> scheduleEventReminders(Event event) async {
-    if (event.nextEffectiveTime.isAfter(DateTime.now())) {
-      await scheduleEventNotification(
-        id: event.id,
-        title: event.name,
-        body: event.description.isNotEmpty ? event.description : '',
-        scheduledDate: event.nextEffectiveTime,
-        payload: event.id,
-      );
-    }
-  }
+  // Future<void> scheduleEventReminders(Event event) async {
+  //   if (event.nextEffectiveTime.isAfter(DateTime.now())) {
+  //     await scheduleEventNotification(
+  //       id: event.id,
+  //       title: event.name,
+  //       body: event.description.isNotEmpty ? event.description : '',
+  //       scheduledDate: event.nextEffectiveTime,
+  //       payload: event.id,
+  //     );
+  //   }
+  // }
 
   Future<void> cancelEventNotifications(String eventId) async {
     await cancelNotification(eventId);

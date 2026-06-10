@@ -1077,7 +1077,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   // }
 
   void _openDetail(String id) {
-    _showToastMsg('查看事件详情');
+    context.push('/event-detail/$id');
   }
 
   // void _restoreItem(String id) {

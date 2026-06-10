@@ -270,13 +270,20 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
         color: surfaceColor,
         border: Border(bottom: BorderSide(color: borderColor, width: 0.5)),
       ),
-      child: Row(
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back_ios, color: fgColor, size: 20),
-            onPressed: () => context.pop(),
+          // 图标在最左边
+          Align(
+            alignment: Alignment.centerLeft,
+            child: IconButton(
+              icon: Icon(Icons.arrow_back_ios, color: fgColor, size: 20),
+              onPressed: () => context.pop(),
+            ),
           ),
-          Expanded(
+          // 文本在整个容器中居中，但左右留有相同空间防止重叠
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32), // 数值≥图标宽度
             child: Text(
               '事件详情',
               style: TextStyle(
@@ -284,15 +291,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
-              textAlign: TextAlign.center,
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.more_horiz, color: fgColor, size: 24),
-            onPressed: () => _showToast(context, '更多选项'),
-          ),
         ],
-      ),
+      ),   
     );
   }
 
@@ -944,13 +946,12 @@ class InteractiveMultiImageGrid extends StatefulWidget {
 class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
   @override
   Widget build(BuildContext context) {
-    return  Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: widget.imageUrls
-            .map((url) => _buildThumbnail(context, url))
-            .toList(),
-      
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: widget.imageUrls
+          .map((url) => _buildThumbnail(context, url))
+          .toList(),
     );
   }
 
@@ -982,9 +983,7 @@ class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
   void _showFullImage(BuildContext context, String url) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => _FullScreenImagePage(url: url),
-      ),
+      MaterialPageRoute(builder: (context) => _FullScreenImagePage(url: url)),
     );
   }
 }
@@ -1009,14 +1008,10 @@ class _FullScreenImagePage extends StatelessWidget {
           child: InteractiveViewer(
             minScale: 0.5,
             maxScale: 5.0,
-            child:  Image.file(
-              File(url),
-              fit: BoxFit.contain,
-            ),
+            child: Image.file(File(url), fit: BoxFit.contain),
           ),
         ),
       ),
     );
   }
-
 }

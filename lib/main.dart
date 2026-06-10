@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
@@ -19,6 +21,7 @@ import 'package:wenshiji/screens/archive.dart';
 import 'package:wenshiji/screens/backup.dart';
 import 'package:wenshiji/screens/notification_setting.dart';
 import 'package:wenshiji/screens/stats.dart';
+import 'package:workmanager/workmanager.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/add_event.dart';
@@ -26,9 +29,123 @@ import 'screens/profile.dart';
 import 'screens/event_detail.dart';
 import 'screens/main_shell.dart';
 
+// 必须在全局定义，添加 @pragma 注解防止代码混淆时出现问题
+@pragma('vm:entry-point')
+void callbackDispatcher() {
+  Workmanager().executeTask((task, inputData) async {
+    // 注意：executeTask 是异步的，需要使用 await
+     WidgetsFlutterBinding.ensureInitialized(); // 初始化Flutter引擎
+    await SharedPreferences.getInstance(); // 初始化SharedPreferences（你代码里用到了）
+    try {
+      print('执行后台任务: $task');
+    
+      // 🔴 关键步骤：由于 Workmanager 运行在独立的 isolate 中，
+      // 必须在这个回调内部重新初始化通知插件！
+
+      final notificationService = NotificationService();
+      final today = DateTime.now();
+      // 2. 初始化后台专用配置（不弹权限框）
+      final tomorrow = DateTime(today.year, today.month, today.day + 1);
+      await notificationService.initForBackground();
+      final config = await preferences.getConfig();
+      if (config == null) {
+        return Future.value(true);
+      }
+
+      if (!config.notificationDndOn) {
+        return Future.value(true);
+      }
+      int outsideTime = config.notificationDigestTime == 'morning' ? 8 : 19;
+      if (config.notificationDigestOn) {
+        if (config.notificationDndDays[tomorrow.weekday]) {
+          outsideTime = getOutsideTime(
+            config.notificationDigestTime == 'morning' ? 8 : 19,
+            config.notificationStartHour,
+            config.notificationEndHour,
+          );
+        }
+      }
+      print('outsideTime: $outsideTime');
+      // 动态获取今日提醒内容
+      final tomorrowContent = await getDailyNotificationContent();
+      final id = DateTime(
+        today.year,
+        today.month,
+        today.day,
+      ).millisecondsSinceEpoch;
+      final isScheduled = await notificationService.isNotificationScheduled(id);
+      if (isScheduled) {
+        print('通知已存在');
+        return Future.value(true);
+      }
+      print('通知ID: $id');
+      // 3. 发送通知
+      await notificationService.scheduleEventNotification(
+        id: id,
+        title: "每日聚合推送",
+        body: tomorrowContent,
+        scheduledDate: DateTime(
+          today.year,
+          today.month,
+          today.day + 1,
+          outsideTime,
+        ),
+      );
+      print('通知发送成功');
+      return Future.value(true);
+    } catch (e) {
+      print('后台任务执行失败: $e');
+      return Future.value(false);
+    }
+  });
+}
+
+int getOutsideTime(int target, int left, int right) {
+  if (left <= right) {
+    if (target <= left || target >= right) {
+      return target;
+    } else {
+      return right;
+    }
+  } else {
+    if (target <= left && target >= right) {
+      return target;
+    } else {
+      return right;
+    }
+  }
+}
+
+// 模拟动态获取每日内容（可替换为从网络/数据库获取）
+Future<String> getDailyNotificationContent() async {
+  // 示例：根据日期返回不同内容
+  final now = DateTime.now();
+  final events = await preferences.getEvents();
+  final filteredEvents = events
+      .where((event) => event.nextEffectiveTime.isAfter(now))
+      .toList();
+  final body = filteredEvents
+      .map((e) {
+        if (e.nextEffectiveTime.day == now.day + 1) {
+          return '${e.name}今日到期，请及时处理';
+        } else {
+          return '${e.name}还有${e.nextEffectiveTime.difference(now).inDays}天到日期';
+        }
+      })
+      .toList()
+      .join('、');
+  return body.isNotEmpty ? body : '今天没有待办事项哦～';
+}
+
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    await Workmanager().initialize(callbackDispatcher);
+    // Workmanager().registerPeriodicTask(
+    //   "daily-reminder", // 唯一任务名
+    //   "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
+    //   frequency: Duration(hours: 24), // 每24小时执行一次
+    // );
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -107,7 +224,7 @@ class Application extends StatelessWidget {
             return AddEventScreen(event: event);
           },
         ),
-       
+
         GoRoute(
           path: '/about',
           builder: (context, state) => AboutScreen(version: version),

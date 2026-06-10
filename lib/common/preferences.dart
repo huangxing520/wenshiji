@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/models/appconfig.dart';
 import 'package:wenshiji/models/event.dart';
 
 import '../constants/config_constant.dart';
@@ -18,7 +19,9 @@ class Preferences {
   Preferences._internal() {
     SharedPreferences.getInstance()
         .then((value) => sharedPreferencesCompleter.complete(value))
-        .onError((error, stackTrace) => sharedPreferencesCompleter.complete(null));
+        .onError(
+          (error, stackTrace) => sharedPreferencesCompleter.complete(null),
+        );
   }
 
   factory Preferences() {
@@ -40,44 +43,44 @@ class Preferences {
     final preferences = await sharedPreferencesCompleter.future;
     await preferences?.setBool(ConfigConstant.isInitKey, isInit);
   }
-    Future<bool> getInitState() async {
+
+  Future<bool> getInitState() async {
     final preferences = await sharedPreferencesCompleter.future;
     return preferences?.getBool(ConfigConstant.isInitKey) ?? false;
   }
 
-  Future<Map<String, Object?>?> getConfigMap() async {
+  Future<AppConfig?> getConfig() async {
     try {
       final preferences = await sharedPreferencesCompleter.future;
       final configString = preferences?.getString(ConfigConstant.configKey);
       if (configString == null) return null;
-      final Map<String, Object?>? configMap = json.decode(configString);
-      return configMap;
+      final config = AppConfig.fromJson(jsonDecode(configString));
+      return config;
     } catch (_) {
       return null;
     }
   }
+
   Future<List<Event>> getEvents() async {
     try {
       final preferences = await sharedPreferencesCompleter.future;
       final eventsString = preferences?.getString('events');
       AppLogger().info('eventsString: $eventsString');
       if (eventsString == null) return [];
-      
-        final List<dynamic> jsonList = json.decode(eventsString);
-        return jsonList.map((json) => Event.fromJson(json as Map<String, dynamic>))
-            .toList();
-      
+
+      final List<dynamic> jsonList = json.decode(eventsString);
+      return jsonList
+          .map((json) => Event.fromJson(json as Map<String, dynamic>))
+          .toList();
     } catch (_) {
       return [];
     }
   }
-  
+
   Future<void> setEvents(String eventsString) async {
     final preferences = await sharedPreferencesCompleter.future;
     await preferences?.setString('events', eventsString);
   }
-
-
 
   // Future<Config?> getConfig() async {
   //   final configMap = await getConfigMap();
@@ -99,9 +102,11 @@ class Preferences {
 
   // 获取设备唯一ID（首次生成，之后复用）
   Future<String> getDeviceId() async {
-   final sharedPreferencesIns  = await sharedPreferencesCompleter.future;
-     final storedId = sharedPreferencesIns?.getString(ConfigConstant.deviceIdKey);
-    
+    final sharedPreferencesIns = await sharedPreferencesCompleter.future;
+    final storedId = sharedPreferencesIns?.getString(
+      ConfigConstant.deviceIdKey,
+    );
+
     if (storedId == null || storedId.isEmpty) {
       final uuid = Uuid();
       // 生成新UUID并存储
@@ -109,7 +114,7 @@ class Preferences {
       await sharedPreferencesIns?.setString(ConfigConstant.deviceIdKey, newId);
       return newId;
     }
-    
+
     return storedId;
   }
 }

@@ -1,8 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wenshiji/common/debouncer.dart';
+import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
+import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/app_config.dart';
+import 'package:workmanager/workmanager.dart';
 
 const _kBg = Color(0xFFFFFDF7);
 const _kSurface = Color(0xFFFFFFFF);
@@ -28,74 +34,97 @@ class _NotificationSettingScreenState
     with SingleTickerProviderStateMixin {
   bool _toastVisible = false;
   String _toastMessage = '';
+  final Debouncer _debouncer = Debouncer(delay: Duration(seconds: 3));
 
   void _showToast(String message) {
-    setState(() {
-      _toastMessage = message;
-      _toastVisible = true;
-    });
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        setState(() {
-          _toastVisible = false;
-        });
+    Utils().showToast(message, null);
+  }
+
+  /// 切换免打扰时段
+  Future<void> _toggleDND(WidgetRef ref) async {
+    final appConfig = await ref.read(appConfigProvider.future);
+
+    await ref
+        .read(appConfigProvider.notifier)
+        .setNotificationDndOn(!appConfig.notificationDndOn);
+    _registerPeriodicTask();
+    //_showToast(appConfig.notificationDndOn ? '免打扰时段已开启' : '免打扰时段已关闭');
+  }
+
+  /// 调整免打扰时段时间
+  Future<void> _adjustTime(String which, int dir, WidgetRef ref) async {
+    final appConfig = await ref.read(appConfigProvider.future);
+    final startHour = appConfig.notificationStartHour;
+    final endHour = appConfig.notificationEndHour;
+    if (which == 'start') {
+      await ref
+          .read(appConfigProvider.notifier)
+          .setNotificationStartHour((startHour + dir + 24) % 24);
+    } else {
+      await ref
+          .read(appConfigProvider.notifier)
+          .setNotificationEndHour((endHour + dir + 24) % 24);
+    }
+    _registerPeriodicTask();
+  }
+
+  void _registerPeriodicTask() {
+    _debouncer.run(() async {
+      await Workmanager().cancelAll(); // 关键：清空所有旧任务
+
+      await Workmanager().registerOneOffTask(
+        "test-task-1",
+        "daily-reminder-task1",
+        initialDelay: Duration(seconds: 5),
+      );
+
+      try {
+        await Workmanager().cancelByUniqueName("daily-reminder");
+      } catch (e) {
+        AppLogger().error('取消每日提醒任务失败: $e');
+      }
+      try {
+        await Workmanager().registerPeriodicTask(
+          "daily-reminder", // 唯一任务名
+          "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
+          frequency: Duration(hours: 24), // 每24小时执行一次
+          initialDelay: Duration(seconds: 30), // 初始延迟30秒
+        );
+        //Utils().showToast('每日提醒已开启', null);
+      } catch (e) {
+        AppLogger().error('注册每日提醒任务失败: $e');
       }
     });
   }
 
-  void _toggleDND(WidgetRef ref) {
-    final appConfig = ref
-        .read(appConfigProvider)
-        .requireValue
-        .notificationDndOn;
-    ref.read(appConfigProvider.notifier).setNotificationDndOn(!appConfig);
-
-    //_showToast(appConfig.notificationDndOn ? '免打扰时段已开启' : '免打扰时段已关闭');
-  }
-
-  void _adjustTime(String which, int dir, WidgetRef ref) {
-    final startHour = ref
-        .read(appConfigProvider)
-        .requireValue
-        .notificationStartHour;
-    final endHour = ref
-        .read(appConfigProvider)
-        .requireValue
-        .notificationEndHour;
-    if (which == 'start') {
-      ref
-          .read(appConfigProvider.notifier)
-          .setNotificationStartHour((startHour + dir + 24) % 24);
-    } else {
-      ref
-          .read(appConfigProvider.notifier)
-          .setNotificationEndHour((endHour + dir + 24) % 24);
-    }
-  }
-
-  void _toggleDNDDay(int index, WidgetRef ref) {
-    final dndDays = ref
-        .read(appConfigProvider)
-        .requireValue
-        .notificationDndDays;
+  /// 切换免打扰时段的天数
+  Future<void> _toggleDNDDay(int index, WidgetRef ref) async {
+    final appConfig = await ref.read(appConfigProvider.future);
+    final dndDays = appConfig.notificationDndDays;
     final newDays = List<bool>.from(dndDays);
     newDays[index] = !newDays[index];
-    ref.read(appConfigProvider.notifier).setNotificationDndDays(newDays);
+    await ref.read(appConfigProvider.notifier).setNotificationDndDays(newDays);
+    _registerPeriodicTask();
   }
 
-  void _toggleDigest(WidgetRef ref) {
-    final _digestOn = ref
-        .read(appConfigProvider)
-        .requireValue
-        .notificationDigestOn;
-    ref.read(appConfigProvider.notifier).setNotificationDigestOn(!_digestOn);
+  /// 切换聚合推送
+  Future<void> _toggleDigest(WidgetRef ref) async {
+    final appConfig = await ref.read(appConfigProvider.future);
+
+    final _digestOn = appConfig.notificationDigestOn;
+    await ref
+        .read(appConfigProvider.notifier)
+        .setNotificationDigestOn(!_digestOn);
     _showToast(!_digestOn ? '聚合推送已开启' : '聚合推送已关闭');
+    _registerPeriodicTask();
   }
 
-  void _selectDigestTime(String time, WidgetRef ref) {
-    ref.read(appConfigProvider.notifier).setNotificationDigestTime(time);
-    final label = time == 'morning' ? '早晨' : '傍晚';
+  /// 选择聚合推送时间
+  Future<void> _selectDigestTime(String time, WidgetRef ref) async {
+    await ref.read(appConfigProvider.notifier).setNotificationDigestTime(time);
+    final label = time == 'morning' ? '早晨八点' : '晚上七点';
     _showToast('推送时间已设为$label');
+    _registerPeriodicTask();
   }
 
   Future<void> _openSystemSettings() async {
@@ -200,112 +229,105 @@ class _NotificationSettingScreenState
   }
 
   Widget _buildDNDCard(WidgetRef ref) {
-    final _dndOn = ref.watch(appConfigProvider).requireValue.notificationDndOn;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        children: [
-          _buildDNDRow(ref),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            height: _dndOn ? 180 : 0,
-            child: ClipRect(
-              child: OverflowBox(
-                minHeight: 0,
-                maxHeight: _dndOn ? double.infinity : 0,
-                alignment: Alignment.topCenter,
-                child: AnimatedOpacity(
-                  opacity: _dndOn ? 1 : 0,
-                  duration: const Duration(milliseconds: 300),
-                  child: _buildDNDSchedule(ref),
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          children: [
+            _buildDNDRow(ref),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              height: config.notificationDndOn ? 180 : 0,
+              child: ClipRect(
+                child: OverflowBox(
+                  minHeight: 0,
+                  maxHeight: config.notificationDndOn ? double.infinity : 0,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedOpacity(
+                    opacity: config.notificationDndOn ? 1 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    child: _buildDNDSchedule(ref),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDNDRow(WidgetRef ref) {
-    final _dndOn = ref.watch(appConfigProvider).requireValue.notificationDndOn;
-    final _startHour = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationStartHour;
-    final _startMinute = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationStartMinute;
-    final _endHour = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationEndHour;
-    final _endMinute = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationEndMinute;
-    final _dndDays = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDndDays;
-
-    return InkWell(
-      onTap: () => _toggleDND(ref),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: const Color(0xFFFEF0D2),
-                borderRadius: BorderRadius.circular(10),
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => InkWell(
+        onTap: () async => await _toggleDND(ref),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF0D2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Text('🌙', style: TextStyle(fontSize: 18)),
+                ),
               ),
-              child: const Center(
-                child: Text('🌙', style: TextStyle(fontSize: 18)),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '免打扰时段',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: _kFg,
-                      height: 1.35,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '免打扰时段',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _kFg,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _dndOn
-                        ? '${_formatTime(_startHour, _startMinute)} – ${_formatTime(_endHour, _endMinute)} 期间静音'
-                        : '已关闭',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _dndOn ? _kAccentDeep : _kMuted,
-                      height: 1.4,
+                    const SizedBox(height: 2),
+                    Text(
+                      config.notificationDndOn
+                          ? '${_formatTime(config.notificationStartHour, config.notificationStartMinute)} – ${_formatTime(config.notificationEndHour, config.notificationEndMinute)} 期间静音'
+                          : '已关闭',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: config.notificationDndOn
+                            ? _kAccentDeep
+                            : _kMuted,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            _buildStatusDot(_dndOn),
-            const SizedBox(width: 14),
-            _buildToggle(_dndOn, () => _toggleDND(ref), ref),
-          ],
+              const SizedBox(width: 14),
+              _buildStatusDot(config.notificationDndOn),
+              const SizedBox(width: 14),
+              _buildToggle(
+                config.notificationDndOn,
+                () async => await _toggleDND(ref),
+                ref,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -325,39 +347,40 @@ class _NotificationSettingScreenState
   }
 
   Widget _buildTimeRangePicker(WidgetRef ref) {
-    final _startHour = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationStartHour;
-    final _startMinute = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationStartMinute;
-    final _endHour = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationEndHour;
-    final _endMinute = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationEndMinute;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildTimeColumn('start', _startHour, _startMinute, '开始', ref),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Text(
-            '→',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w300,
-              color: _kMutedLight,
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildTimeColumn(
+            'start',
+            config.notificationStartHour,
+            config.notificationStartMinute,
+            '开始',
+            ref,
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              '→',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w300,
+                color: _kMutedLight,
+              ),
             ),
           ),
-        ),
-        _buildTimeColumn('end', _endHour, _endMinute, '结束', ref),
-      ],
+          _buildTimeColumn(
+            'end',
+            config.notificationEndHour,
+            config.notificationEndMinute,
+            '结束',
+            ref,
+          ),
+        ],
+      ),
     );
   }
 
@@ -370,7 +393,7 @@ class _NotificationSettingScreenState
   ) {
     return Column(
       children: [
-        _buildTimeAdjBtn(() => _adjustTime(which, 1, ref), '▲'),
+        _buildTimeAdjBtn(() async => await _adjustTime(which, 1, ref), '▲'),
         const SizedBox(height: 4),
         Text(
           _formatTime(hour, minute),
@@ -382,7 +405,7 @@ class _NotificationSettingScreenState
           ),
         ),
         const SizedBox(height: 4),
-        _buildTimeAdjBtn(() => _adjustTime(which, -1, ref), '▼'),
+        _buildTimeAdjBtn(() async => await _adjustTime(which, -1, ref), '▼'),
         const SizedBox(height: 4),
         Text(
           label,
@@ -415,25 +438,31 @@ class _NotificationSettingScreenState
   }
 
   Widget _buildDNDDays(WidgetRef ref) {
-    final _dndDays = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDndDays;
+    final appConfig = ref.watch(appConfigProvider);
     const days = ['日', '一', '二', '三', '四', '五', '六'];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(7, (index) {
-        return Padding(
-          padding: EdgeInsets.only(right: index < 6 ? 6 : 0),
-          child: _buildDNDDay(days[index], index, _dndDays[index], ref),
-        );
-      }),
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: List.generate(7, (index) {
+          return Padding(
+            padding: EdgeInsets.only(right: index < 6 ? 6 : 0),
+            child: _buildDNDDay(
+              days[index],
+              index,
+              config.notificationDndDays[index],
+              ref,
+            ),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildDNDDay(String label, int index, bool active, WidgetRef ref) {
     return InkWell(
-      onTap: () => _toggleDNDDay(index, ref),
+      onTap: () async => await _toggleDNDDay(index, ref),
       child: Container(
         width: 34,
         height: 34,
@@ -466,101 +495,105 @@ class _NotificationSettingScreenState
   }
 
   Widget _buildDigestCard(WidgetRef ref) {
-    final _digestOn = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDigestOn;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        children: [
-          _buildDigestRow(ref),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-            height: _digestOn ? 280 : 0,
-            child: ClipRect(
-              child: OverflowBox(
-                minHeight: 0,
-                maxHeight: _digestOn ? double.infinity : 0,
-                alignment: Alignment.topCenter,
-                child: AnimatedOpacity(
-                  opacity: _digestOn ? 1 : 0,
-                  duration: const Duration(milliseconds: 300),
-                  child: _buildDigestPreview(ref),
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: _kSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: _kBorder),
+        ),
+        child: Column(
+          children: [
+            _buildDigestRow(ref),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOut,
+              height: config.notificationDigestOn ? 280 : 0,
+              child: ClipRect(
+                child: OverflowBox(
+                  minHeight: 0,
+                  maxHeight: config.notificationDigestOn ? double.infinity : 0,
+                  alignment: Alignment.topCenter,
+                  child: AnimatedOpacity(
+                    opacity: config.notificationDigestOn ? 1 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    child: _buildDigestPreview(ref),
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildDigestRow(WidgetRef ref) {
-    final _digestOn = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDigestOn;
-    final _digestTime = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDigestTime;
-    return InkWell(
-      onTap: () => _toggleDigest(ref),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
-                borderRadius: BorderRadius.circular(10),
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('加载失败: $e')),
+      data: (config) => InkWell(
+        onTap: () async => await _toggleDigest(ref),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Text('📬', style: TextStyle(fontSize: 18)),
+                ),
               ),
-              child: const Center(
-                child: Text('📬', style: TextStyle(fontSize: 18)),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '每日聚合推送',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: _kFg,
-                      height: 1.35,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '每日聚合推送',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _kFg,
+                        height: 1.35,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _digestOn
-                        ? '每日${_digestTime == 'morning' ? '早晨' : '傍晚'}推送一条聚合通知'
-                        : '将当天多条提醒合并为一条推送',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _digestOn ? _kAccentDeep : _kMuted,
-                      height: 1.4,
+                    const SizedBox(height: 2),
+                    Text(
+                      config.notificationDigestOn
+                          ? '每日${config.notificationDigestTime == 'morning' ? '早晨' : '傍晚'}推送一条聚合通知'
+                          : '将当天多条提醒合并为一条推送',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: config.notificationDigestOn
+                            ? _kAccentDeep
+                            : _kMuted,
+                        height: 1.4,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 14),
-            _buildStatusDot(_digestOn),
-            const SizedBox(width: 14),
-            _buildToggle(_digestOn, () => _toggleDigest(ref), ref),
-          ],
+              const SizedBox(width: 14),
+              _buildStatusDot(config.notificationDigestOn),
+              const SizedBox(width: 14),
+              _buildToggle(
+                config.notificationDigestOn,
+                () async => await _toggleDigest(ref),
+                ref,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -664,17 +697,28 @@ class _NotificationSettingScreenState
   }
 
   Widget _buildDigestTimeButtons(WidgetRef ref) {
-    final _digestTime = ref
-        .watch(appConfigProvider)
-        .requireValue
-        .notificationDigestTime;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildDigestTimeBtn('🕖 早晨', 'morning', _digestTime == 'morning', ref),
-        const SizedBox(width: 10),
-        _buildDigestTimeBtn('🌆 傍晚', 'evening', _digestTime == 'evening', ref),
-      ],
+    final appConfig = ref.watch(appConfigProvider);
+    return appConfig.when(
+      data: (config) => Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildDigestTimeBtn(
+            '🕖 早晨',
+            'morning',
+            config.notificationDigestTime == 'morning',
+            ref,
+          ),
+          const SizedBox(width: 10),
+          _buildDigestTimeBtn(
+            '🌆 傍晚',
+            'evening',
+            config.notificationDigestTime == 'evening',
+            ref,
+          ),
+        ],
+      ),
+      error: (error, stackTrace) => const Center(),
+      loading: () => const Center(child: CircularProgressIndicator()),
     );
   }
 
@@ -685,7 +729,7 @@ class _NotificationSettingScreenState
     WidgetRef ref,
   ) {
     return InkWell(
-      onTap: () => _selectDigestTime(time, ref),
+      onTap: () async => await _selectDigestTime(time, ref),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
@@ -751,10 +795,10 @@ class _NotificationSettingScreenState
     Color bgColor,
     String title,
     String subtitle,
-    VoidCallback onTap,
+    FutureOr<void> Function() onTap,
   ) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => onTap(),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         child: Row(
@@ -873,7 +917,7 @@ class _NotificationSettingScreenState
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: InkWell(
-        onTap: _openSystemSettings,
+        onTap: () async => await _openSystemSettings(),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(14),

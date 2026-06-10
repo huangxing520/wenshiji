@@ -6,7 +6,7 @@ class ConfigConstant {
   static const String isInitKey = 'isInit';
   static const String versionKey = 'version';
   static const int defaultVersion = 1;
-  static const String configKey = 'config';
+  static const String configKey = 'app_config_data';
   static const String appName = '温时记';
   static const List<Color> springColor = [Color(0xFFFFB7B2), Color(0xFFA8E6CF)];
   static const List<Color> summerColor = [Color(0xFFFFD93D), Color(0xFF6BCB77)];

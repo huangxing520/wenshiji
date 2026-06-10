@@ -75,12 +75,13 @@ class BackupNotifier extends _$BackupNotifier {
 
   Future<void> deleteBackupRecord(String id) async {
     final records = state.requireValue;
-    final index = records.indexWhere((element) => element.id == id);
+    final newRecords = List<BackupRecord>.from(records);
+    final index = newRecords.indexWhere((element) => element.id == id);
     if (index != -1) {
-      records.removeAt(index);
+      newRecords.removeAt(index);
     }
-    state = AsyncData(records);
-    await _saveToLocal(state.requireValue);
+    state = AsyncData(newRecords);
+    await _saveToLocal(newRecords);
   }
 
   Future<void> setBackupRecords(List<BackupRecord> records) async {
