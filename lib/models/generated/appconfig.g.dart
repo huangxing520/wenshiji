@@ -22,9 +22,7 @@ _AppConfig _$AppConfigFromJson(Map<String, dynamic> json) => _AppConfig(
           .toList() ??
       const [true, true, true, true, true, true, true],
   backupDirectory: json['backupDirectory'] as String? ?? '/温时记',
-  backupServerUrl: json['backupServerUrl'] as String? ?? '',
-  backupUsername: json['backupUsername'] as String? ?? '',
-  backupPassword: json['backupPassword'] as String? ?? '',
+  birthday: json['birthday'] as String? ?? '',
   isSettingWorkManager: json['isSettingWorkManager'] as bool? ?? false,
 );
 
@@ -39,8 +37,6 @@ Map<String, dynamic> _$AppConfigToJson(_AppConfig instance) =>
       'notificationDigestTime': instance.notificationDigestTime,
       'notificationDndDays': instance.notificationDndDays,
       'backupDirectory': instance.backupDirectory,
-      'backupServerUrl': instance.backupServerUrl,
-      'backupUsername': instance.backupUsername,
-      'backupPassword': instance.backupPassword,
+      'birthday': instance.birthday,
       'isSettingWorkManager': instance.isSettingWorkManager,
     };

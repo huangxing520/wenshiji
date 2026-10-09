@@ -3,9 +3,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:wenshiji/common/logger.dart';
 import 'package:wenshiji/models/appconfig.dart';
-import 'package:wenshiji/models/event.dart';
 
 import '../constants/config_constant.dart';
 
@@ -81,40 +79,6 @@ class Preferences {
     await setConfig(newConfig);
     
   }
-
-  Future<List<Event>> getEvents() async {
-    try {
-      final preferences = await sharedPreferencesCompleter.future;
-      final eventsString = preferences?.getString('events');
-      //AppLogger().info('eventsString: $eventsString');
-      if (eventsString == null) return [];
-
-      final List<dynamic> jsonList = json.decode(eventsString);
-      return jsonList
-          .map((json) => Event.fromJson(json as Map<String, dynamic>))
-          .toList();
-    } catch (_) {
-      return [];
-    }
-  }
-
-  Future<void> setEvents(String eventsString) async {
-    final preferences = await sharedPreferencesCompleter.future;
-    await preferences?.setString('events', eventsString);
-  }
-
-  // Future<Config?> getConfig() async {
-  //   final configMap = await getConfigMap();
-  //   if (configMap == null) {
-  //     return null;
-  //   }
-  //   return Config.fromJson(configMap);
-  // }
-
-  // Future<bool> saveConfig(Config config) async {
-  //   final preferences = await sharedPreferencesCompleter.future;
-  //   return preferences?.setString(configKey, json.encode(config)) ?? false;
-  // }
 
   Future<void> clearPreferences() async {
     final sharedPreferencesIns = await sharedPreferencesCompleter.future;

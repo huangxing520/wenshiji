@@ -15,13 +15,12 @@ abstract class AppConfig with _$AppConfig {
     @Default('evening') String notificationDigestTime,
     @Default([true, true, true, true, true, true, true]) List<bool> notificationDndDays,
     @Default('/温时记') String backupDirectory,
-    @Default('') String backupServerUrl,
-    @Default('') String backupUsername,
-    @Default('') String backupPassword,
+    // WebDAV 凭据已迁移至 flutter_secure_storage，不再序列化到 SharedPreferences
+    @Default('') String birthday,
     // 是否设置android workmanager任务
     @Default(false) bool isSettingWorkManager,
   }
-    
+
   ) = _AppConfig;
   factory AppConfig.fromJson(Map<String, Object?> json) =>
       _$AppConfigFromJson(json);

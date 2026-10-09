@@ -3,12 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:wenshiji/common/debouncer.dart';
-import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/app_config.dart';
-import 'package:workmanager/workmanager.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 
 const _kBg = Color(0xFFFFFDF7);
 const _kSurface = Color(0xFFFFFFFF);
@@ -34,10 +33,28 @@ class _NotificationSettingScreenState
     with SingleTickerProviderStateMixin {
   bool _toastVisible = false;
   String _toastMessage = '';
-  final Debouncer _debouncer = Debouncer(delay: Duration(seconds: 3));
 
   void _showToast(String message) {
     Utils().showToast(message, null);
+  }
+
+  /// 后台聚合推送任务与「聚合推送」开关保持一致：
+  ///  - 开启：幂等注册（keep 策略，不重置 24h 计时），成功才回写标记；
+  ///  - 关闭：精确取消并回写标记，避免关闭后仍每 24h 唤醒。
+  /// 其余设置（免打扰时段 / 天数 / 推送时间）由后台任务运行时读取配置生效，
+  /// 无需重新注册。此方法不防抖：关闭动作必须可靠执行，不能被页面 dispose 吞掉。
+  Future<void> _syncDigestTask({required bool enabled}) async {
+    if (enabled) {
+      final ok = await Utils().registerDailyReminderTask();
+      if (!mounted) return;
+      await ref.read(appConfigProvider.notifier).setIsSettingWorkManager(ok);
+    } else {
+      await Utils().cancelDailyReminderTask();
+      if (!mounted) return;
+      await ref
+          .read(appConfigProvider.notifier)
+          .setIsSettingWorkManager(false);
+    }
   }
 
   /// 切换免打扰时段
@@ -47,7 +64,6 @@ class _NotificationSettingScreenState
     await ref
         .read(appConfigProvider.notifier)
         .setNotificationDndOn(!appConfig.notificationDndOn);
-    registerPeriodicTask(_debouncer);
     //_showToast(appConfig.notificationDndOn ? '免打扰时段已开启' : '免打扰时段已关闭');
   }
 
@@ -65,7 +81,6 @@ class _NotificationSettingScreenState
           .read(appConfigProvider.notifier)
           .setNotificationEndHour((endHour + dir + 24) % 24);
     }
-    registerPeriodicTask(_debouncer);
   }
 
   Future<void> test() async {
@@ -80,35 +95,11 @@ class _NotificationSettingScreenState
     }
     AppLogger().info('outsideTime: $outsideTime');
     final tomorrowContent = await Utils().getDailyNotificationContent();
-    AppLogger().info('tomorrowContent: $tomorrowContent');
+    // 不打印正文：含用户事件名称。
+    AppLogger().info('tomorrowContent length: ${tomorrowContent.length}');
     final id = today.difference(_baseDate).inDays;
 
-    print('通知ID: $id');
-  }
-
-  void registerPeriodicTask(Debouncer debouncer) {
-    //test();
-    debouncer.run(() async {
-      await Workmanager().cancelAll(); // 关键：清空所有旧任务
-
-      // await Workmanager().registerOneOffTask(
-      //   "test-task-1",
-      //   "daily-reminder-task1",
-      //   initialDelay: Duration(seconds: 5),
-      // );
-
-      try {
-        await Workmanager().registerPeriodicTask(
-          "daily-reminder", // 唯一任务名
-          "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
-          frequency: Duration(hours: 24), // 每24小时执行一次
-        );
-        AppLogger().info('注册每日提醒任务成功');
-       await ref.read(appConfigProvider.notifier).setIsSettingWorkManager(true);
-      } catch (e) {
-        AppLogger().error('注册每日提醒任务失败: $e');
-      }
-    });
+    AppLogger().debug('通知ID: $id');
   }
 
   /// 切换免打扰时段的天数
@@ -118,19 +109,18 @@ class _NotificationSettingScreenState
     final newDays = List<bool>.from(dndDays);
     newDays[index] = !newDays[index];
     await ref.read(appConfigProvider.notifier).setNotificationDndDays(newDays);
-    registerPeriodicTask(_debouncer);
   }
 
   /// 切换聚合推送
   Future<void> _toggleDigest(WidgetRef ref) async {
     final appConfig = await ref.read(appConfigProvider.future);
 
-    final _digestOn = appConfig.notificationDigestOn;
+    final digestOn = !appConfig.notificationDigestOn;
     await ref
         .read(appConfigProvider.notifier)
-        .setNotificationDigestOn(!_digestOn);
-    _showToast(!_digestOn ? '聚合推送已开启' : '聚合推送已关闭');
-    registerPeriodicTask(_debouncer);
+        .setNotificationDigestOn(digestOn);
+    _showToast(digestOn ? '聚合推送已开启' : '聚合推送已关闭');
+    await _syncDigestTask(enabled: digestOn);
   }
 
   /// 选择聚合推送时间
@@ -138,7 +128,6 @@ class _NotificationSettingScreenState
     await ref.read(appConfigProvider.notifier).setNotificationDigestTime(time);
     final label = time == 'morning' ? '早晨八点' : '晚上七点';
     _showToast('推送时间已设为$label');
-    registerPeriodicTask(_debouncer);
   }
 
   Future<void> _openSystemSettings() async {
@@ -792,7 +781,7 @@ class _NotificationSettingScreenState
           _buildDivider(),
           _buildSystemRow(
             '🔔',
-            const Color(0xFFFFF3E0),
+            AppColors.splashBgMid,
             '通知预览',
             '在应用内预览推送样式',
             () {

@@ -1,22 +1,26 @@
 // image_service.dart
+// 图片存储服务：为每个事件 id 管理本地图片路径列表。
+// 由 lib/common/picture_service.dart 迁入 services 层。
+// 图片元数据仍用 SharedPreferences 存储（事件耦合度低，是否迁 Drift 留作后续）。
 import 'dart:io';
 import 'dart:convert';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:wenshiji/common/app_logger.dart';
 
 class ImageService {
   // 为每个 id 生成独立的存储 key
-   String _getKey(String id) => 'saved_images_$id';
+  String _getKey(String id) => 'saved_images_$id';
 
   // 获取应用文档目录
-   Future<Directory> _getAppDirectory() async {
+  Future<Directory> _getAppDirectory() async {
     return await getApplicationDocumentsDirectory();
   }
 
   // 为指定 id 选择多张图片并保存到本地，返回新增的路径列表
-   Future<List<String>> pickAndSaveMultipleImagesForId(String id) async {
+  Future<List<String>> pickAndSaveMultipleImagesForId(String id) async {
     final ImagePicker picker = ImagePicker();
     final List<XFile>? pickedFiles = await picker.pickMultiImage();
     if (pickedFiles == null || pickedFiles.isEmpty) return [];
@@ -34,7 +38,7 @@ class ImageService {
         final File savedImage = await originalFile.copy(newPath);
         savedPaths.add(savedImage.path);
       } catch (e) {
-        print('保存图片失败: $e');
+        AppLogger().error('保存图片失败', error: e);
       }
     }
 
@@ -46,14 +50,14 @@ class ImageService {
   }
 
   // 保存指定 id 的图片路径列表
-   Future<void> saveImagePathsForId(String id, List<String> paths) async {
+  Future<void> saveImagePathsForId(String id, List<String> paths) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = jsonEncode(paths);
     await prefs.setString(_getKey(id), jsonString);
   }
 
   // 获取指定 id 的图片路径列表
-   Future<List<String>> getSavedImagePathsForId(String id) async {
+  Future<List<String>> getSavedImagePathsForId(String id) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_getKey(id));
     if (jsonString == null) return [];
@@ -66,7 +70,7 @@ class ImageService {
   }
 
   // 加载指定 id 的图片文件列表（仅返回存在的文件）
-   Future<List<File>> loadImageFilesForId(String id) async {
+  Future<List<File>> loadImageFilesForId(String id) async {
     final paths = await getSavedImagePathsForId(id);
     final List<File> files = [];
     for (String p in paths) {
@@ -79,7 +83,7 @@ class ImageService {
   }
 
   // 删除指定 id 中的某张图片（同时删除物理文件）
-   Future<void> deleteImageAtIndexForId(String id, int index) async {
+  Future<void> deleteImageAtIndexForId(String id, int index) async {
     final paths = await getSavedImagePathsForId(id);
     if (index >= 0 && index < paths.length) {
       final pathToDelete = paths[index];
@@ -93,7 +97,7 @@ class ImageService {
   }
 
   // 删除指定 id 的所有图片（物理文件 + 记录）
-   Future<void> deleteAllImagesForId(String id) async {
+  Future<void> deleteAllImagesForId(String id) async {
     final paths = await getSavedImagePathsForId(id);
     for (String p in paths) {
       final file = File(p);
