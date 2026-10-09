@@ -5,15 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:intl/intl.dart';
-import 'package:location/location.dart';
 import 'package:uuid/uuid.dart';
 import 'package:wenshiji/common/http.dart';
-import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
-import 'package:wenshiji/common/permission.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 import 'package:wenshiji/providers/event.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 import '../common/preferences.dart';
 import '../models/event.dart';
 
@@ -25,9 +24,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  Timer? _timer;
-  bool _showContextMenu = false;
-  String? _selectedEventId;
   final GlobalKey _listViewKey = GlobalKey();
   final ScrollController _tabScrollController = ScrollController();
 
@@ -35,17 +31,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     preferences.saveInitState(true);
-    //_loadWeatherData();
-    _timer = Timer.periodic(const Duration(seconds: 60), (timer) async {
-      if (mounted) {
-        setState(() {});
-      }
-    });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
     _tabScrollController.dispose();
     super.dispose();
   }
@@ -73,7 +62,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   child: eventsAsync.when(
                     loading: () => const Center(
                       child: CircularProgressIndicator(
-                        color: Color(0xFFD4A853),
+                        color: AppColors.primary,
                       ),
                     ),
                     error: (error, stackTrace) =>
@@ -85,7 +74,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ),
           ),
           _buildFAB(),
-          _buildContextMenu(),
         ],
       ),
     );
@@ -273,26 +261,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final currentCategory = ref.watch(selectedCategoryProvider);
     final season = Utils.getSeason(today);
     final seasonColors = switch (season) {
-      Season.spring => ConfigConstant.springColor,
-      Season.summer => ConfigConstant.summerColor,
-      Season.autumn => ConfigConstant.autumnColor,
-      Season.winter => ConfigConstant.winterColor,
-      _ => ConfigConstant.defaultColor,
+      Season.spring => AppColors.springColor,
+      Season.summer => AppColors.summerColor,
+      Season.autumn => AppColors.autumnColor,
+      Season.winter => AppColors.winterColor,
+      _ => AppColors.defaultColor,
     };
     return CardSpring(
       trigger: currentCategory,
       child: Column(
         children: events.map((event) {
+          // 传 ValueKey(event.id)：列表排序含置顶、打卡/归档后整体重排，
+          // 没有 key 时 State 会与事件错位（动画重放、打卡状态串位）。
           if (event.isPinned) {
             return _PinnedCard(
+              key: ValueKey(event.id),
               event: event,
               onLongPress: () => _showContextMenuFor(event.id),
               seasonColors: seasonColors,
+              // 置顶的连签事件同样要能打卡。
+              onQuickCheckin: () => _quickCheckin(event.id),
             );
           } else {
             return _EventCard(
+              key: ValueKey(event.id),
               event: event,
-              today: today,
               onLongPress: () => _showContextMenuFor(event.id),
               onQuickCheckin: () => _quickCheckin(event.id),
             );
@@ -317,7 +310,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Icon(
               Icons.notifications_none,
               size: 36,
-              color: const Color(0xFFD4A853),
+              color: AppColors.primary,
             ),
           ),
           const SizedBox(height: 16),
@@ -339,7 +332,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ElevatedButton(
             onPressed: () => context.push('/add-event'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD4A853),
+              backgroundColor: AppColors.primary,
               foregroundColor: const Color(0xFF383428),
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
               shape: RoundedRectangleBorder(
@@ -366,11 +359,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           width: 56,
           height: 56,
           decoration: BoxDecoration(
-            color: const Color(0xFFD4A853),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFFD4A853).withValues(alpha: 0.45),
+                color: AppColors.primary.withValues(alpha: 0.45),
                 blurRadius: 24,
                 offset: const Offset(0, 6),
               ),
@@ -382,127 +375,138 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildContextMenu() {
-    if (!_showContextMenu) return const SizedBox.shrink();
 
-    return GestureDetector(
-      onTap: () => setState(() {
-        _showContextMenu = false;
-        _selectedEventId = null;
-      }),
+  void _showContextMenuFor(String eventId) {
+    // 用真正的模态路由承载菜单：此前菜单是 HomeScreen Stack 的子节点，
+    // 会被 MainShell 的底部导航盖住且不被遮挡拦截，切 tab 后遮罩仍留在保活的 Home 上。
+    final event = ref
+        .read(eventProvider)
+        .value
+        ?.where((e) => e.id == eventId);
+    if (event == null || event.isEmpty) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _buildEventActionSheet(sheetContext, eventId),
+    );
+  }
+
+  Widget _buildEventActionSheet(BuildContext sheetContext, String eventId) {
+    Future<void> run(ActionItem action) async {
+      try {
+        await action.run();
+        if (!sheetContext.mounted) return;
+        Navigator.of(sheetContext).pop();
+        if (action.toast != null) _showToast(action.toast!);
+      } catch (e, s) {
+        AppLogger().error('事件操作失败: ${action.label}', error: e, stack: s);
+        if (sheetContext.mounted) {
+          Navigator.of(sheetContext).pop();
+          _showToast('操作失败，请重试');
+        }
+      }
+    }
+
+    final actions = <ActionItem>[
+      ActionItem(
+        icon: Icons.push_pin,
+        label: '置顶 / 取消置顶',
+        toast: '操作成功',
+        run: () => ref.read(eventProvider.notifier).togglePin(eventId),
+      ),
+      ActionItem(
+        icon: Icons.star,
+        label: '星标 / 取消星标',
+        toast: '操作成功',
+        run: () => ref.read(eventProvider.notifier).toggleStar(eventId),
+      ),
+      ActionItem(
+        icon: Icons.edit,
+        label: '编辑',
+        run: () async {
+          final matches = ref
+              .read(eventProvider)
+              .value
+              ?.where((e) => e.id == eventId);
+          if (matches != null && matches.isNotEmpty) {
+            context.push('/add-event', extra: matches.first);
+          }
+        },
+      ),
+      ActionItem(
+        icon: Icons.archive,
+        label: '归档',
+        toast: '已归档',
+        run: () => ref
+            .read(eventProvider.notifier)
+            .setArchivedEvent(eventId, true),
+      ),
+      ActionItem(
+        icon: Icons.info,
+        label: '详情',
+        run: () async => context.push('/event-detail/$eventId'),
+      ),
+      ActionItem(
+        icon: Icons.delete,
+        label: '删除',
+        isDanger: true,
+        toast: '已删除',
+        run: () => ref.read(eventProvider.notifier).deleteEvent(eventId),
+      ),
+    ];
+
+    return SafeArea(
       child: Container(
-        color: const Color(0xFF383428).withValues(alpha: 0.4),
-        child: Center(
-          child: Container(
-            width: 272,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.2),
-                  blurRadius: 48,
-                  offset: const Offset(0, 16),
-                ),
-              ],
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 48,
+              offset: const Offset(0, 16),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _ContextMenuItem(
-                  icon: Icons.push_pin,
-                  label: '置顶 / 取消置顶',
-                  onTap: () {
-                    if (_selectedEventId != null) {
-                      ref
-                          .read(eventProvider.notifier)
-                          .togglePin(_selectedEventId!);
-                      _showToast('操作成功');
-                    }
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
-                _ContextMenuItem(
-                  icon: Icons.star,
-                  label: '星标 / 取消星标',
-                  onTap: () {
-                    if (_selectedEventId != null) {
-                      ref
-                          .read(eventProvider.notifier)
-                          .toggleStar(_selectedEventId!);
-                      _showToast('操作成功');
-                    }
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
-                _ContextMenuItem(
-                  icon: Icons.edit,
-                  label: '编辑',
-                  onTap: () {
-                    _showToast('编辑功能开发中');
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
-                _ContextMenuItem(
-                  icon: Icons.archive,
-                  label: '归档',
-                  onTap: () async {
-                    if (_selectedEventId != null) {
-                     await ref
-                          .read(eventProvider.notifier)
-                          .setArchivedEvent(_selectedEventId!, true);
-                      _showToast('已归档');
-                    }
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
-                 _ContextMenuItem(
-                  icon: Icons.info ,
-                  label: '详情',
-                  onTap: () {                
-                
-                    context.push('/event-detail/${_selectedEventId!}');
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < actions.length; i++) ...[
+              if (actions[i].label == '删除')
                 Container(
                   height: 1,
                   margin: const EdgeInsets.symmetric(vertical: 4),
                   color: const Color(0xFFE8E4DC),
                 ),
-                _ContextMenuItem(
-                  icon: Icons.delete,
-                  label: '删除',
-                  isDanger: true,
-                  onTap: () async {
-                    if (_selectedEventId != null) {
-                      await ref
-                          .read(eventProvider.notifier)
-                          .deleteEvent(_selectedEventId!);
-                      _showToast('已删除');
-                    }
-                    setState(() => _showContextMenu = false);
-                  },
-                ),
-              ],
-            ),
-          ),
+              _ContextMenuItem(
+                icon: actions[i].icon,
+                label: actions[i].label,
+                isDanger: actions[i].isDanger,
+                // 统一走 run()：即使 action 是同步逻辑也包在 await 里，
+                // 写库抛错不会变成未捕获异步异常。
+                onTap: () => run(actions[i]),
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  void _showContextMenuFor(String eventId) {
-    setState(() {
-      _showContextMenu = true;
-      _selectedEventId = eventId;
-    });
-  }
-
-  void _quickCheckin(String eventId) {
-    ref.read(eventProvider.notifier).quickCheckin(eventId);
-    _showToast('✓ 打卡成功！');
+  Future<void> _quickCheckin(String eventId) async {
+    // await 后按结果提示：原来未 await 就固定弹「打卡成功」，
+    // 写库失败时仍提示成功。
+    try {
+      await ref.read(eventProvider.notifier).quickCheckin(eventId);
+      if (!mounted) return;
+      _showToast('✓ 打卡成功！');
+    } catch (e, s) {
+      AppLogger().error('打卡失败', error: e, stack: s);
+      if (mounted) _showToast('打卡失败，请重试');
+    }
   }
 
 
@@ -510,6 +514,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _showToast(String message) {
     Utils().showToast(message, null);
   }
+}
+
+/// 事件长按菜单中的单个操作项（供 _buildEventActionSheet 使用）。
+class ActionItem {
+  final IconData icon;
+  final String label;
+  final bool isDanger;
+  final String? toast;
+  final Future<void> Function() run;
+
+  ActionItem({
+    required this.icon,
+    required this.label,
+    required this.run,
+    this.isDanger = false,
+    this.toast,
+  });
 }
 
 class _StatPill extends StatelessWidget {
@@ -564,11 +585,15 @@ class _PinnedCard extends StatefulWidget {
   final Event event;
   final VoidCallback onLongPress;
   final List<Color> seasonColors;
+  /// 每日打卡入口。置顶的 dailySignIn 事件此前没有打卡入口，必须先取消置顶才能打卡。
+  final VoidCallback? onQuickCheckin;
 
   const _PinnedCard({
+    super.key,
     required this.event,
     required this.onLongPress,
     required this.seasonColors,
+    this.onQuickCheckin,
   });
 
   @override
@@ -576,12 +601,13 @@ class _PinnedCard extends StatefulWidget {
 }
 
 class _PinnedCardState extends State<_PinnedCard>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _particleController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _particleController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -589,18 +615,25 @@ class _PinnedCardState extends State<_PinnedCard>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 粒子动画是 60fps 常驻重绘：App 切到后台/未激活时暂停，避免无谓耗电。
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      if (!_particleController.isAnimating) _particleController.repeat();
+    } else {
+      _particleController.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _particleController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final today = DateTime.now().toLocal();
-
-    final days = widget.event.nextEffectiveTime.difference(today).inDays;
-    //print(widget.event.nextEffectiveTime);
-    //print(days);
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
       duration: const Duration(milliseconds: 550),
@@ -627,7 +660,7 @@ class _PinnedCardState extends State<_PinnedCard>
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFD4A853).withValues(alpha: 0.35),
+                  color: AppColors.primary.withValues(alpha: 0.35),
                   blurRadius: 32,
                   offset: const Offset(0, 8),
                 ),
@@ -712,55 +745,65 @@ class _PinnedCardState extends State<_PinnedCard>
                         ),
                       ),
                       const SizedBox(height: 10),
-                      TweenAnimationBuilder<int>(
-                        tween: IntTween(begin: 0, end: days),
-                        duration: const Duration(milliseconds: 800),
-                        curve: Curves.easeOutBack,
-                        builder: (context, value, child) {
-                          return TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0.1, end: 1.0),
-                            duration: const Duration(milliseconds: 600),
-                            curve: Curves.easeOutBack,
-                            builder: (context, animValue, child) {
-                              return Transform.translate(
-                                offset: Offset(0, 10 * (1 - animValue)),
-                                child: Transform.scale(
-                                  scale: 0.5 + (0.5 * animValue),
-                                  child: Opacity(
-                                    opacity: animValue.clamp(0.0, 1.0),
-                                    child: child,
+                      _LiveDays(
+                        targetDate: widget.event.nextEffectiveTime,
+                        builder: (context, days) =>
+                            widget.event.type == EventType.dailySignIn
+                            // 打卡类事件显示正计时天数（距开始日），
+                            // 避免与普通卡片「距下次生效」口径矛盾。
+                            ? _buildPinnedCheckinRow(context)
+                            : TweenAnimationBuilder<int>(
+                          key: ValueKey<int>(days),
+                          // 过期事件 days 为负，若直接作为 tween 终点会反向动画，这里收敛到 0。
+                          tween: IntTween(begin: 0, end: days < 0 ? 0 : days),
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutBack,
+                          builder: (context, value, child) {
+                            return TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0.1, end: 1.0),
+                              duration: const Duration(milliseconds: 600),
+                              curve: Curves.easeOutBack,
+                              builder: (context, animValue, child) {
+                                return Transform.translate(
+                                  offset: Offset(0, 10 * (1 - animValue)),
+                                  child: Transform.scale(
+                                    scale: 0.5 + (0.5 * animValue),
+                                    child: Opacity(
+                                      opacity: animValue.clamp(0.0, 1.0),
+                                      child: child,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  value.toString(),
-                                  style: const TextStyle(
-                                    fontSize: 52,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF302D26),
-                                    fontFamily: 'KaiTi',
-                                    height: 1,
+                                );
+                              },
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    value.toString(),
+                                    style: const TextStyle(
+                                      fontSize: 52,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF302D26),
+                                      fontFamily: 'KaiTi',
+                                      height: 1,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '天',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(
-                                      0xFF302D26,
-                                    ).withValues(alpha: 0.7),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '天',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(
+                                        0xFF302D26,
+                                      ).withValues(alpha: 0.7),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -806,6 +849,71 @@ class _PinnedCardState extends State<_PinnedCard>
       case EventType.holiday:
         return '🎉 节日';
     }
+  }
+
+  /// 置顶的连签计时卡：显示已进行天数 + 打卡按钮。
+  Widget _buildPinnedCheckinRow(BuildContext context) {
+    final event = widget.event;
+    final checkedToday = Utils().hasToday(event.checkinTimes);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final start = DateTime(event.date.year, event.date.month, event.date.day);
+    final elapsed = today.difference(start).inDays;
+    final canCheckin = !checkedToday && widget.onQuickCheckin != null;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '${elapsed < 0 ? 0 : elapsed}',
+          style: const TextStyle(
+            fontSize: 52,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF302D26),
+            fontFamily: 'KaiTi',
+            height: 1,
+          ),
+        ),
+        const SizedBox(width: 4),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 6),
+          child: Text(
+            '天',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF302D26),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: GestureDetector(
+            onTap: canCheckin ? widget.onQuickCheckin : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              decoration: BoxDecoration(
+                color: checkedToday
+                    ? const Color(0xFFE8F5E8)
+                    : const Color(0xFFFFF3E8),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                checkedToday ? '今日已打卡' : '打卡',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: checkedToday
+                      ? const Color(0xFF5A8A4A)
+                      : AppColors.amberOrange,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -906,29 +1014,18 @@ class _ParticlePainter extends CustomPainter {
 
 class _EventCard extends StatelessWidget {
   final Event event;
-  final DateTime today;
   final VoidCallback onLongPress;
   final VoidCallback onQuickCheckin;
 
   const _EventCard({
+    super.key,
     required this.event,
-    required this.today,
     required this.onLongPress,
     required this.onQuickCheckin,
   });
 
   @override
   Widget build(BuildContext context) {
-    final days = Utils().getRemainingTime(event.nextEffectiveTime);
-
-    final isToday =  days == 0;
-    final daysText = isToday
-        ? '今天'
-        : (event.type == EventType.dailySignIn
-              ? days.toString()
-              : days.toString());
-    final daysLabel = isToday ? '' : '天';
-
     return GestureDetector(
       onLongPress: onLongPress,
       child: Container(
@@ -1040,7 +1137,7 @@ class _EventCard extends StatelessWidget {
                                   decoration: BoxDecoration(
                                     color: Utils().hasToday(event.checkinTimes)
                                         ? const Color(0xFF4CAF50)
-                                        : const Color(0xFFFF9800),
+                                        : AppColors.amberOrange,
                                     borderRadius: BorderRadius.circular(2.5),
                                   ),
                                 ),
@@ -1060,7 +1157,7 @@ class _EventCard extends StatelessWidget {
                                     fontWeight: FontWeight.w700,
                                     color: Utils().hasToday(event.checkinTimes)
                                         ? const Color(0xFF5A8A4A)
-                                        : const Color(0xFFFF9800),
+                                        : AppColors.amberOrange,
                                   ),
                                 ),
                               ],
@@ -1073,28 +1170,39 @@ class _EventCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 14),
-            Column(
-              children: [
-                Text(
-                  daysText,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: event.type == EventType.dailySignIn
-                        ? const Color(0xFF5A8A4A)
-                        : const Color(0xFF8B6F3A),
-                    fontFamily: 'KaiTi',
-                  ),
-                ),
-                if (daysLabel.isNotEmpty)
-                  Text(
-                    daysLabel,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF8B8066),
+            _LiveDays(
+              targetDate: event.nextEffectiveTime,
+              builder: (context, days) {
+                final isExpired = days < 0;
+                final isToday = days == 0;
+                final daysText = isExpired
+                    ? '已过期'
+                    : (isToday ? '今天' : days.toString());
+                final daysLabel = (isExpired || isToday) ? '' : '天';
+                return Column(
+                  children: [
+                    Text(
+                      daysText,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: event.type == EventType.dailySignIn
+                            ? const Color(0xFF5A8A4A)
+                            : const Color(0xFF8B6F3A),
+                        fontFamily: 'KaiTi',
+                      ),
                     ),
-                  ),
-              ],
+                    if (daysLabel.isNotEmpty)
+                      Text(
+                        daysLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF8B8066),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -1120,7 +1228,7 @@ class _EventCard extends StatelessWidget {
       case EventPriority.high:
         return const Color(0xFFFF6B6B);
       case EventPriority.mid:
-        return const Color(0xFFD4A853);
+        return AppColors.primary;
       case EventPriority.low:
         return const Color(0xFF4CAF50);
       case EventPriority.special:
@@ -1202,6 +1310,7 @@ class _CardSpringState extends State<CardSpring>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
+  Timer? _playTimer;
 
   @override
   void initState() {
@@ -1222,12 +1331,15 @@ class _CardSpringState extends State<CardSpring>
 
   void _playAnimation() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        Future.delayed(const Duration(milliseconds: 100), () {
-          _controller.reset(); // 重置到初始状态
-          _controller.forward(); // 重新播放
-        });
-      }
+      if (!mounted) return;
+      // 用可取消的 Timer 替代 Future.delayed：否则 dispose 后延迟回调仍会
+      // 触碰已释放的 controller，触发 "Ticker used after being disposed"。
+      _playTimer?.cancel();
+      _playTimer = Timer(const Duration(milliseconds: 100), () {
+        if (!mounted) return;
+        _controller.reset(); // 重置到初始状态
+        _controller.forward(); // 重新播放
+      });
     });
   }
 
@@ -1242,6 +1354,7 @@ class _CardSpringState extends State<CardSpring>
 
   @override
   void dispose() {
+    _playTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -1313,12 +1426,12 @@ class CategoryTabItem extends StatelessWidget {
           // 未选中时添加边框
           // border: isSelected
           //     ? null
-          //     : Border.all(color: const Color.fromARGB(255, 115, 114, 114).withOpacity(0.3), width:2),
+          //     : Border.all(color: const Color.fromARGB(255, 115, 114, 114).withValues(alpha:0.3), width:2),
           // 选中时的柔和外发光（匹配你截图里的暖黄高亮）
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFFFFE8B2).withOpacity(0.6), // 暖黄色发光
+                    color: const Color(0xFFFFE8B2).withValues(alpha:0.6), // 暖黄色发光
                     blurRadius: 16, // 模糊半径，控制发光柔和度
                     spreadRadius: 2, // 扩散半径，控制发光范围
                     offset: const Offset(0, 2), // 轻微向下偏移，更自然
@@ -1355,4 +1468,60 @@ class CategoryTabItem extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LiveDays extends StatefulWidget {
+  final DateTime targetDate;
+  final Widget Function(BuildContext context, int days) builder;
+
+  const _LiveDays({required this.targetDate, required this.builder});
+
+  @override
+  State<_LiveDays> createState() => _LiveDaysState();
+}
+
+class _LiveDaysState extends State<_LiveDays> {
+  late int _days;
+  StreamSubscription<void>? _sub;
+
+  static int _computeDays(DateTime target) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // target 也必须归一到零点，否则 Duration.inDays 向零截断会出现
+    // 「昨天显示今天」或「剩余 -1 天」的偏差。
+    final targetDay = DateTime(target.year, target.month, target.day);
+    return targetDay.difference(today).inDays;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _days = _computeDays(widget.targetDate);
+    _sub = Stream.periodic(const Duration(seconds: 60)).listen((_) {
+      final newDays = _computeDays(widget.targetDate);
+      if (mounted && newDays != _days) {
+        setState(() => _days = newDays);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _LiveDays oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.targetDate != widget.targetDate) {
+      final newDays = _computeDays(widget.targetDate);
+      if (newDays != _days) {
+        _days = newDays;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _days);
 }

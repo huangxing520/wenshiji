@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -163,14 +164,33 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
   }
 
   void checkin(Event event) async {
+    final oldStreak = event.checkinStreakCount;
     await ref.read(eventProvider.notifier).quickCheckin(event.id);
-    final hitMilestone = milestoneDefs.firstWhereOrNull(
-      (m) => m.days == event.checkinStreakCount,
-    );
-    if (hitMilestone != null) {
-      showCelebration(event, hitMilestone);
-    } else {
+    if (!mounted) return;
+
+    // 必须取打卡「之后」的新值：event 是 await 之前捕获的旧快照，
+    // 用它判定会让里程碑整体迟一天（第 7 次打卡时旧值仍是 6）。
+    final updated = ref
+        .read(eventProvider)
+        .value
+        ?.where((e) => e.id == event.id);
+    final newStreak = (updated != null && updated.isNotEmpty)
+        ? updated.first.checkinStreakCount
+        : oldStreak;
+
+    if (newStreak <= oldStreak) {
+      // 未成功推进（如今日已打卡）。
       showToast('✓ 今日已签到');
+      return;
+    }
+    // 覆盖本次跨过的所有档位（一次打卡可能跨过多个里程碑）。
+    final crossed = milestoneDefs.firstWhereOrNull(
+      (m) => m.days <= newStreak && m.days > oldStreak,
+    );
+    if (crossed != null) {
+      showCelebration(event, crossed);
+    } else {
+      showToast('✓ 打卡成功，已连续 $newStreak 天');
     }
   }
 
@@ -200,7 +220,7 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
               children: [
                 Column(
                   children: [
-                    commonNavigationBar(
+                    CommonNavigationBar(
                       title: '正计时打卡成就',
                       surfaceColor: _kSurface,
                       borderColor: _kAccentSoft,
@@ -287,12 +307,13 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
       0,
       (sum, ev) => sum + getEarnedMilestones(ev.checkinStreakCount).length,
     );
-    final longest = events.isEmpty
-        ? 0
-        : events
-              .where((e) => e.type == EventType.dailySignIn)
-              .map((e) => e.checkinStreakCount)
-              .reduce(max);
+    // 注意：守卫必须针对「过滤后的子集」判空，而非 events 全量；
+    // 否则存在非打卡事件但无打卡事件时 reduce 会抛 StateError。
+    final signInCounts = events
+        .where((e) => e.type == EventType.dailySignIn)
+        .map((e) => e.checkinStreakCount)
+        .toList();
+    final longest = signInCounts.isEmpty ? 0 : signInCounts.reduce(max);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -424,7 +445,11 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
           final ev = eventList[index];
           final lapsedTime = daysSince(ev.date);
           final alldays = ev.nextEffectiveTime.difference(ev.date).inDays;
-          final progressPct = (lapsedTime / alldays * 100).clamp(0.0, 100.0);
+          // 分母 <=0 时（当前 add_event 写入的 nextEffectiveTime 恒等于 date）
+          // lapsedTime/alldays 会得到 NaN/Inf，导致 FractionallySizedBox 断言崩溃或进度恒 100%。
+          final progressPct = alldays <= 0
+              ? 0.0
+              : (lapsedTime / alldays * 100).clamp(0.0, 100.0);
           final accentColors = [
             _kDanger,
             _kAccent,
@@ -585,17 +610,26 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
   }
 
   Widget _buildBadgeGrid(List<Event> events) {
+    final signInEvents = events
+        .where((e) => e.type == EventType.dailySignIn)
+        .toList();
+
+    // 固定渲染「打卡事件 × 全部档位」，已解锁/未解锁都显示。
+    // 此前只 add(earned) 徽章，导致 allBadges 恒为全 true、未解锁分支成死代码，
+    // 且一个章都没解锁时整块空白。
     final allBadges = <Map<String, dynamic>>[];
-    for (final ev in events.where((e) => e.type == EventType.dailySignIn)) {
+    for (final ev in signInEvents) {
       final days = ev.checkinStreakCount;
       for (final m in milestoneDefs) {
-        final earned = days >= m.days;
-        if (earned) {
-          allBadges.add({'event': ev.name, 'milestone': m, 'earned': earned});
-        }
+        allBadges.add({
+          'event': ev.name,
+          'milestone': m,
+          'earned': days >= m.days,
+        });
       }
     }
 
+    // 已解锁优先，其次按档位天数升序。
     allBadges.sort((a, b) {
       if (a['earned'] != b['earned']) {
         return a['earned'] ? -1 : 1;
@@ -604,7 +638,22 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
         (b['milestone'] as MilestoneDef).days,
       );
     });
-    print(allBadges);
+
+    if (allBadges.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Center(
+            child: Text(
+              '暂无打卡事件，添加一个「连签计时」即可解锁徽章',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: _kMuted),
+            ),
+          ),
+        ),
+      );
+    }
+
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       sliver: SliverGrid(
@@ -860,16 +909,5 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
         ),
       ),
     );
-  }
-}
-
-extension FirstWhereOrNull<T> on Iterable<T> {
-  T? firstWhereOrNull(bool Function(T) test) {
-    for (final element in this) {
-      if (test(element)) {
-        return element;
-      }
-    }
-    return null;
   }
 }

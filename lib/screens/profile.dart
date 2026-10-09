@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:wenshiji/common/http.dart';
-import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
@@ -11,6 +11,8 @@ import 'package:dio/dio.dart';
 import 'package:wenshiji/common/preferences.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/providers/event.dart';
+import 'package:wenshiji/theme/app_colors.dart';
+import 'package:wenshiji/constants/api_constants.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key, required this.version});
@@ -50,8 +52,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   }
 
   Future<void> _fetchAvatar(String seed) async {
-    final url =
-        'https://api.dicebear.com/10.x/notionists/png?size=256&borderRadius=50&backgroundColor=D4A75F&seed=$seed';
+    final url = ApiConstants.dicebearApiUrl(seed);
     try {
       final response = await HttpUtil().get<List<int>>(
         url,
@@ -69,8 +70,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           _avatarBytes = Uint8List.fromList(response);
         });
       }
-    } catch (e) {
-      AppLogger().error('Avatar fetch error: $e, loading local avatar');
+    } catch (_) {
+      // 不打异常全文：DioException.toString() 含完整 URL，其中 seed=<设备ID>。
+      AppLogger().error('Avatar fetch failed, using local avatar');
       try {
         final byteData = await rootBundle.load('assets/icon/avatar.png');
         if (mounted) {
@@ -116,7 +118,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Widget build(BuildContext context) {
     final bgColor = const Color(0xFFFAF7F0);
     final surfaceColor = Colors.white;
-    final accentColor = const Color(0xFFD4A853);
+    final accentColor = AppColors.primary;
     final accentDeepColor = const Color(0xFF8B6F3A);
     final accentSoftColor = const Color(0xFFF3E6C1);
     final borderColor = const Color(0xFFE5E0D2);
@@ -476,7 +478,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             .where((e) => e.type == EventType.holiday).toList()
             .length;
         final archivedCount = events
-            .where((e) => e.nextEffectiveTime.isBefore(DateTime(now.year, now.month, now.day))||e.isArchived).toList()
+            .where((e) => e.isArchived)
+            .toList()
             .length;
         return Container(
           decoration: BoxDecoration(
@@ -740,7 +743,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
         onTap: () {
           switch (type) {
             case 'ic-achievement':
-              context.push('/archivement');
+              context.push('/achievement');
               break;
             case 'ic-notification':
               context.push('/notification_setting');

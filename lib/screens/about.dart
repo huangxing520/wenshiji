@@ -1,29 +1,10 @@
 import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/constants/config_constant.dart';
-
-const _kPrimaryDark = Color(0xFF5D4037);
-const _kPrimary = Color(0xFF795548);
-const _kSecondary = Color(0xFF8D6E63);
-const _kTertiary = Color(0xFFA1887F);
-const _kQuaternary = Color(0xFFBCAAA4);
-const _kAmber = Color(0xFFFFC107);
-const _kOrange = Color(0xFFFFA726);
-const _kAmberDark = Color(0xFFFF8F00);
-const _kAmberOrange = Color(0xFFFF9800);
-const _kGreen = Color(0xFF81C784);
-const _kBlue = Color(0xFF64B5F6);
-const _kPurple = Color(0xFFBA68C8);
-const _kRed = Color(0xFFFF5722);
-const _kSuccess = Color(0xFF66BB6A);
-const _kWarning = Color(0xFFFFB300);
-const _kSplashBgTop = Color(0xFFFFF8E1);
-const _kSplashBgMid = Color(0xFFFFF3E0);
-const _kSplashBgBottom = Color(0xFFFFE0B2);
-const _kDividerColor = Color(0x1FFFA000);
+import 'package:wenshiji/services/github_service.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 
 class AboutScreen extends StatefulWidget {
   const AboutScreen({super.key, required this.version});
@@ -71,7 +52,7 @@ class _AboutScreenState extends State<AboutScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _kSplashBgTop,
+      backgroundColor: AppColors.splashBgTop,
       body: Stack(
         children: [
           Container(
@@ -79,7 +60,7 @@ class _AboutScreenState extends State<AboutScreen>
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [_kSplashBgTop, _kSplashBgMid, _kSplashBgBottom],
+                colors: [AppColors.splashBgTop, AppColors.splashBgMid, AppColors.splashBgBottom],
                 stops: [0, 0.4, 1],
               ),
             ),
@@ -118,7 +99,7 @@ class _AboutScreenState extends State<AboutScreen>
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: _kPrimaryDark,
+                color: AppColors.textPrimary,
               ),
             ),
           ),
@@ -135,10 +116,10 @@ class _AboutScreenState extends State<AboutScreen>
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: _kAmber.withValues(alpha: 0.06),
+          color: AppColors.amber.withValues(alpha: 0.06),
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.arrow_back_ios, color: _kPrimaryDark, size: 20),
+        child: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 20),
       ),
     );
   }
@@ -167,7 +148,7 @@ class _AboutScreenState extends State<AboutScreen>
             style: TextStyle(
               fontFamily: 'LXGW WenKai',
               fontSize: 32,
-              color: _kPrimaryDark,
+              color: AppColors.textPrimary,
               letterSpacing: 8,
             ),
           ),
@@ -176,7 +157,7 @@ class _AboutScreenState extends State<AboutScreen>
             '记录每一段温柔时光',
             style: TextStyle(
               fontSize: 13,
-              color: _kTertiary,
+              color: AppColors.textQuaternary,
               letterSpacing: 2,
               fontWeight: FontWeight.w300,
             ),
@@ -205,11 +186,11 @@ class _AboutScreenState extends State<AboutScreen>
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [_kAmber, _kOrange],
+                colors: [AppColors.amber, AppColors.orange],
               ),
               boxShadow: [
                 BoxShadow(
-                  color: _kAmberDark.withValues(alpha: 0.25),
+                  color: AppColors.amberDark.withValues(alpha: 0.25),
                   blurRadius: 24,
                   offset: const Offset(0, 6),
                 ),
@@ -228,7 +209,7 @@ class _AboutScreenState extends State<AboutScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
-        color: _kAmber.withValues(alpha: 0.06),
+        color: AppColors.amber.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -238,7 +219,7 @@ class _AboutScreenState extends State<AboutScreen>
             '当前版本 ${widget.version}',
             style: TextStyle(
               fontSize: 12,
-              color: _kSecondary,
+              color: AppColors.textTertiary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -252,7 +233,7 @@ class _AboutScreenState extends State<AboutScreen>
                   child: const Icon(
                     Icons.refresh,
                     size: 12,
-                    color: _kAmberDark,
+                    color: AppColors.amberDark,
                   ),
                 ),
                 const SizedBox(width: 3),
@@ -260,7 +241,7 @@ class _AboutScreenState extends State<AboutScreen>
                   '点击检测更新',
                   style: TextStyle(
                     fontSize: 12,
-                    color: _kAmberDark,
+                    color: AppColors.amberDark,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -280,7 +261,7 @@ class _AboutScreenState extends State<AboutScreen>
         gradient: LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [Colors.transparent, _kDividerColor, Colors.transparent],
+          colors: [Colors.transparent, AppColors.divider, Colors.transparent],
         ),
       ),
     );
@@ -293,7 +274,7 @@ class _AboutScreenState extends State<AboutScreen>
         children: [
           _buildMenuItem(
             icon: '✨',
-            iconBg: _kAmberOrange.withValues(alpha: 0.1),
+            iconBg: AppColors.amberOrange.withValues(alpha: 0.1),
             title: '产品介绍',
             desc: '倒计时 · 生日记录 · 正计时打卡 · 时光热力复盘 · WebDAV备份',
             onTap: () => setState(() => _showIntroModal = true),
@@ -301,7 +282,7 @@ class _AboutScreenState extends State<AboutScreen>
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '📖',
-            iconBg: _kGreen.withValues(alpha: 0.15),
+            iconBg: AppColors.green.withValues(alpha: 0.15),
             title: '开源声明',
             desc: '本应用使用霞鹜文楷开源免费商用字体',
             onTap: () => setState(() => _showOpenSrcModal = true),
@@ -309,7 +290,7 @@ class _AboutScreenState extends State<AboutScreen>
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '☁️',
-            iconBg: _kBlue.withValues(alpha: 0.12),
+            iconBg: AppColors.blue.withValues(alpha: 0.12),
             title: '云端服务说明',
             desc: 'WebDAV私有云备份，数据仅用户私有',
             onTap: () => setState(() => _showCloudModal = true),
@@ -317,7 +298,7 @@ class _AboutScreenState extends State<AboutScreen>
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '📋',
-            iconBg: _kTertiary.withValues(alpha: 0.1),
+            iconBg: AppColors.textQuaternary.withValues(alpha: 0.1),
             title: '用户协议',
             desc: '查看完整用户服务协议',
             onTap: () => _openAgreementPage('agreement'),
@@ -325,7 +306,7 @@ class _AboutScreenState extends State<AboutScreen>
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '🔒',
-            iconBg: _kPurple.withValues(alpha: 0.1),
+            iconBg: AppColors.purple.withValues(alpha: 0.1),
             title: '隐私政策',
             desc: '了解数据收集、存储与使用规则',
             onTap: () => _openAgreementPage('privacy'),
@@ -333,7 +314,7 @@ class _AboutScreenState extends State<AboutScreen>
           _buildMenuSeparator(),
           _buildMenuItem(
             icon: '💌',
-            iconBg: _kRed.withValues(alpha: 0.1),
+            iconBg: AppColors.red.withValues(alpha: 0.1),
             title: '反馈与求助',
             desc: '提交问题、建议或功能需求',
             onTap: () => setState(() => _showFeedbackModal = true),
@@ -378,7 +359,7 @@ class _AboutScreenState extends State<AboutScreen>
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: _kPrimaryDark,
+                        color: AppColors.textPrimary,
                         height: 1.3,
                       ),
                     ),
@@ -387,7 +368,7 @@ class _AboutScreenState extends State<AboutScreen>
                       desc,
                       style: const TextStyle(
                         fontSize: 11,
-                        color: _kTertiary,
+                        color: AppColors.textQuaternary,
                         height: 1.4,
                       ),
                     ),
@@ -395,7 +376,7 @@ class _AboutScreenState extends State<AboutScreen>
                 ),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.chevron_right, color: _kQuaternary, size: 16),
+              const Icon(Icons.chevron_right, color: AppColors.textFaint, size: 16),
             ],
           ),
         ),
@@ -420,7 +401,7 @@ class _AboutScreenState extends State<AboutScreen>
             '©2026 温时记 All Rights Reserved',
             style: TextStyle(
               fontSize: 11,
-              color: _kQuaternary,
+              color: AppColors.textFaint,
               height: 1.8,
               letterSpacing: 0.5,
             ),
@@ -431,7 +412,7 @@ class _AboutScreenState extends State<AboutScreen>
             '本应用仅作个人时光记录工具\n数据由用户自主保管',
             style: TextStyle(
               fontSize: 10,
-              color: _kTertiary.withValues(alpha: 0.45),
+              color: AppColors.textQuaternary.withValues(alpha: 0.45),
               height: 1.6,
             ),
             textAlign: TextAlign.center,
@@ -462,7 +443,7 @@ class _AboutScreenState extends State<AboutScreen>
                     vertical: 10,
                   ),
                   decoration: BoxDecoration(
-                    color: _kPrimaryDark.withValues(alpha: 0.92),
+                    color: AppColors.textPrimary.withValues(alpha: 0.92),
                     borderRadius: BorderRadius.circular(22),
                   ),
                   child: Text(
@@ -483,8 +464,8 @@ class _AboutScreenState extends State<AboutScreen>
       child: _buildModalDialog(
         icon: _isLatestVersion ? '✅' : '🆕',
         iconBg: _isLatestVersion
-            ? _kSuccess.withValues(alpha: 0.12)
-            : _kWarning.withValues(alpha: 0.12),
+            ? AppColors.success.withValues(alpha: 0.12)
+            : AppColors.warning.withValues(alpha: 0.12),
         title: _isLatestVersion ? '已是最新版本' : '发现新版本',
         body: _isLatestVersion
             ? '当前版本 V${widget.version} 已为最新，无需更新。'
@@ -511,7 +492,7 @@ class _AboutScreenState extends State<AboutScreen>
     return _buildModalOverlay(
       child: _buildModalDialog(
         icon: '✨',
-        iconBg: _kWarning.withValues(alpha: 0.12),
+        iconBg: AppColors.warning.withValues(alpha: 0.12),
         title: '产品介绍',
         body: '''⏳ 倒计时　为每一个重要日子设置倒计时，时刻铭记即将到来的温暖时刻
 🎂 生日记录　记录家人朋友的生日，自动提醒永不遗忘
@@ -530,7 +511,7 @@ class _AboutScreenState extends State<AboutScreen>
     return _buildModalOverlay(
       child: _buildModalDialog(
         icon: '📖',
-        iconBg: _kGreen.withValues(alpha: 0.15),
+        iconBg: AppColors.green.withValues(alpha: 0.15),
         title: '开源声明',
         body: '''本应用在界面渲染中使用以下开源字体：
 
@@ -555,7 +536,7 @@ github.com/lxgw/LxgwWenKai
     return _buildModalOverlay(
       child: _buildModalDialog(
         icon: '☁️',
-        iconBg: _kBlue.withValues(alpha: 0.12),
+        iconBg: AppColors.blue.withValues(alpha: 0.12),
         title: '云端服务说明',
         body: '''备份方式：WebDAV 协议
 温时记采用 WebDAV 国际标准协议实现云端数据同步，不依赖任何第三方云存储服务。
@@ -580,7 +561,7 @@ github.com/lxgw/LxgwWenKai
     return _buildModalOverlay(
       child: _buildModalDialog(
         icon: '💌',
-        iconBg: _kRed.withValues(alpha: 0.1),
+        iconBg: AppColors.red.withValues(alpha: 0.1),
         title: '反馈与求助',
         body: '我们将跳转至个人中心的反馈入口，\n你可以在那里提交问题或建议。',
         primaryBtnText: '前往反馈',
@@ -679,7 +660,7 @@ github.com/lxgw/LxgwWenKai
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: _kPrimaryDark,
+                color: AppColors.textPrimary,
               ),
               textAlign: TextAlign.center,
             ),
@@ -690,7 +671,7 @@ github.com/lxgw/LxgwWenKai
                     body,
                     style: const TextStyle(
                       fontSize: 13,
-                      color: _kSecondary,
+                      color: AppColors.textTertiary,
                       height: 1.6,
                     ),
                     textAlign: TextAlign.center,
@@ -755,7 +736,7 @@ github.com/lxgw/LxgwWenKai
               text: '${parts[0]}　',
               style: const TextStyle(
                 fontSize: 13,
-                color: _kPrimaryDark,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -764,7 +745,7 @@ github.com/lxgw/LxgwWenKai
             spans.add(
               TextSpan(
                 text: parts.sublist(1).join('　'),
-                style: const TextStyle(fontSize: 13, color: _kSecondary),
+                style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
               ),
             );
           }
@@ -774,7 +755,7 @@ github.com/lxgw/LxgwWenKai
               text: line,
               style: const TextStyle(
                 fontSize: 13,
-                color: _kPrimaryDark,
+                color: AppColors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -784,7 +765,7 @@ github.com/lxgw/LxgwWenKai
         spans.add(
           TextSpan(
             text: line,
-            style: const TextStyle(fontSize: 13, color: _kSecondary),
+            style: const TextStyle(fontSize: 13, color: AppColors.textTertiary),
           ),
         );
       }
@@ -815,14 +796,14 @@ github.com/lxgw/LxgwWenKai
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [_kAmber, _kOrange],
+                  colors: [AppColors.amber, AppColors.orange],
                 )
               : null,
-          color: isPrimary ? null : _kAmber.withValues(alpha: 0.06),
+          color: isPrimary ? null : AppColors.amber.withValues(alpha: 0.06),
           boxShadow: isPrimary
               ? [
                   BoxShadow(
-                    color: _kAmberDark.withValues(alpha: 0.25),
+                    color: AppColors.amberDark.withValues(alpha: 0.25),
                     blurRadius: 12,
                     offset: const Offset(0, 3),
                   ),
@@ -835,7 +816,7 @@ github.com/lxgw/LxgwWenKai
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: isPrimary ? Colors.white : _kPrimary,
+              color: isPrimary ? Colors.white : AppColors.textSecondary,
             ),
           ),
         ),
@@ -849,7 +830,7 @@ github.com/lxgw/LxgwWenKai
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [_kSplashBgTop, _kSplashBgBottom],
+          colors: [AppColors.splashBgTop, AppColors.splashBgBottom],
         ),
       ),
       child: SafeArea(
@@ -870,7 +851,7 @@ github.com/lxgw/LxgwWenKai
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: _kPrimaryDark,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ),
@@ -897,10 +878,10 @@ github.com/lxgw/LxgwWenKai
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: _kAmber.withValues(alpha: 0.06),
+          color: AppColors.amber.withValues(alpha: 0.06),
           shape: BoxShape.circle,
         ),
-        child: const Icon(Icons.arrow_back_ios, color: _kPrimaryDark, size: 20),
+        child: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 20),
       ),
     );
   }
@@ -926,7 +907,7 @@ github.com/lxgw/LxgwWenKai
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: _kPrimaryDark,
+                  color: AppColors.textPrimary,
                 ),
               ),
               if (body.isNotEmpty) ...[
@@ -935,7 +916,7 @@ github.com/lxgw/LxgwWenKai
                   body,
                   style: const TextStyle(
                     fontSize: 13,
-                    color: _kPrimary,
+                    color: AppColors.textSecondary,
                     height: 1.8,
                   ),
                 ),
@@ -955,7 +936,7 @@ github.com/lxgw/LxgwWenKai
               '生效日期：2026年1月1日',
               style: TextStyle(
                 fontSize: 12,
-                color: _kTertiary.withValues(alpha: 0.45),
+                color: AppColors.textQuaternary.withValues(alpha: 0.45),
               ),
             ),
           ),
@@ -983,22 +964,41 @@ github.com/lxgw/LxgwWenKai
   void _checkUpdate() async {
     _scrollAnimationController.repeat();
     try {
-      final latestVersion = await httpUtil.getLatestReleaseVersion(
+      final latestVersion = await GithubService().getLatestReleaseVersion(
         ConfigConstant.owner,
         ConfigConstant.repo,
       );
-      if (latestVersion != null) {
-        setState(() {
-          _latestVersion = latestVersion;
-          _isLatestVersion =
-              latestVersion.replaceFirst('v', '') == widget.version;
-          _showUpdateModal = true;
-        });
-      }
-    } on DioException catch (e) {
-      Utils().showErrorToast('检查更新失败', null);
+      if (latestVersion == null) return;
+      if (!mounted) return;
+      setState(() {
+        _latestVersion = latestVersion;
+        _isLatestVersion = _compareVersion(
+          latestVersion.replaceFirst('v', ''),
+          widget.version,
+        ) <= 0;
+        _showUpdateModal = true;
+      });
+    } on DioException {
+      if (mounted) Utils().showErrorToast('检查更新失败', null);
+    } catch (_) {
+      if (mounted) Utils().showErrorToast('检查更新失败', null);
+    } finally {
+      // 放在 finally，异常路径下也停止，避免刷新图标永久旋转。
+      _scrollAnimationController.stop();
     }
-    _scrollAnimationController.stop();
+  }
+
+  /// 语义化版本比较：返回 a 相对 b 的大小（>0 表示 a 更新）。
+  int _compareVersion(String a, String b) {
+    final pa = a.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final pb = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final len = pa.length > pb.length ? pa.length : pb.length;
+    for (var i = 0; i < len; i++) {
+      final va = i < pa.length ? pa[i] : 0;
+      final vb = i < pb.length ? pb[i] : 0;
+      if (va != vb) return va.compareTo(vb);
+    }
+    return 0;
   }
 
   void _openAgreementPage(String type) {
@@ -1034,33 +1034,54 @@ github.com/lxgw/LxgwWenKai
 「温时记」高度重视用户隐私保护。本政策说明本应用对用户数据的收集、存储、使用与保护方式。
 
 ##二、数据收集
-本应用不主动收集任何用户个人身份信息。
-用户自行录入的数据（生日、纪念日、备注等）仅存储在用户本地设备中，开发者无法访问。
-本应用不含任何第三方统计分析 SDK，不收集设备信息、位置信息或使用行为数据。
+本应用不会主动收集你的姓名、手机号、身份证号等个人身份信息。
+你自行录入的数据（生日、纪念日、备注、图片等）默认仅存储在本地设备的应用沙盒目录中，开发者无法访问；只有在你主动启用 WebDAV 备份后，这些数据才会同步至你自己的云端空间。
 
-##三、数据存储
+为保障应用稳定性，本应用启用了崩溃诊断服务（详见「三、第三方服务」）。除此之外，本应用不收集你的位置信息，也不包含任何使用行为统计、广告或用户画像 SDK。
+
+##三、第三方服务
+本应用接入以下第三方服务，请在了解后决定是否继续使用：
+
+1. **崩溃诊断（Google Firebase Crashlytics）**
+   用途：在应用发生崩溃或异常时收集诊断信息，帮助开发者定位并修复问题。
+   收集内容：崩溃堆栈、异常信息、应用版本与运行环境（设备型号、操作系统版本）等诊断数据。
+   该服务默认开启，用于持续改进应用稳定性。如你希望停止这类数据的上报，可通过卸载应用实现。
+
+2. **在线头像（DiceBear）**
+   用途：在「我的」页面生成一个可选的形象头像。
+   收集内容：应用会在请求中携带一个本地生成的匿名设备标识（仅用于生成稳定的头像图案，不含你的任何个人信息）。
+   该请求仅在加载头像时发起，头像加载失败时会自动回退到本地内置图片。
+
+3. **版本更新检查（GitHub Releases）**
+   用途：检查是否有新版本可供更新。
+   收集内容：仅发起一次公开版本信息查询，不上传任何本地数据。
+
+除上述服务外，本应用不包含任何广告或统计分析 SDK，也不会将你的数据共享、出售或转让给任何第三方。
+
+##四、数据存储
 所有用户数据默认存储在用户本地设备的应用沙盒目录中。
 用户可自主选择通过 WebDAV 协议将数据备份至个人拥有的云端空间。备份数据的存储安全和访问权限完全由用户自行掌控，开发者无能力也无权限访问。
+应用运行日志仅在开发调试版本中写入本地文件，正式发布版本不写入任何本地日志文件。
 
-##四、数据使用
+##五、数据使用
 用户数据仅用于本应用内的功能呈现（倒计时显示、提醒推送、热力图展示等），不会用于任何其他目的。
 本应用不会将用户数据共享、出售或转让给任何第三方。
 
-##五、数据删除
+##六、数据删除
 用户可随时在应用内删除单条记录或全部数据。
 卸载本应用后，本地所有数据将被系统自动清除。若已启用 WebDAV 备份，云端备份数据需用户自行至云端服务管理界面删除。
 
-##六、数据安全
-本应用采用本地加密存储机制保护用户数据安全。WebDAV 传输过程采用 HTTPS 加密协议。
+##七、数据安全
+本应用采用本地加密存储机制保护用户数据安全（WebDAV 凭据使用系统级加密存储）。WebDAV 传输过程采用 HTTPS 加密协议。
 尽管我们尽力保护用户数据，但互联网传输并非绝对安全，建议你使用可靠的 WebDAV 服务提供商并定期检查备份完整性。
 
-##七、儿童隐私
+##八、儿童隐私
 本应用不面向 14 周岁以下儿童提供服务，也不会 knowingly 收集儿童的个人信息。
 
-##八、政策更新
+##九、政策更新
 本隐私政策可能不时修订，重大变更将在应用内推送通知。继续使用本应用即视为同意修订后的政策。
 
-##九、联系我们
+##十、联系我们
 如对本隐私政策有任何疑问或建议，请通过应用内「反馈与求助」与我们取得联系。''';
     }
     setState(() => _showAgreementPage = true);

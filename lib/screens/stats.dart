@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:contribution_heatmap/contribution_heatmap.dart';
@@ -8,9 +9,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
+import 'package:wenshiji/providers/app_config.dart';
 import 'package:wenshiji/providers/event.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 
-const _accentDeep = Color(0xFFD4A853);
+const _accentDeep = AppColors.primary;
 
 enum StatsTimeType { all, month, year, quarter }
 
@@ -50,6 +53,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   bool lifeVisible = true;
   String birthDate = '1990-03-15';
   int lifeExpect = 80;
+  // 首次 build 时从 AppConfig 同步 birthDate（仅一次，避免覆盖用户在 DatePicker 中的选择）
+  bool _birthDateInitialized = false;
 
   late AnimationController _toastController;
   late Animation<double> _toastScaleAnimation;
@@ -101,37 +106,43 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     });
   }
 
+  /// 事件在统计口径下的「生效日」：
+  /// - 未归档：按重复规则前滚到当前之后（周期性事件的 date 可能是多年前）；
+  /// - 已归档：沿用库中记录的生效日（归档项不再作为「待发生」参与前滚）。
+  DateTime _effectiveDate(Event e) {
+    return e.isArchived ? e.nextEffectiveTime : Utils.nextEffectiveOf(e, DateTime.now());
+  }
+
   List<Event> getFilteredEvents(List<Event> allEvents) {
     final now = DateTime.now();
     final y = now.year;
 
-    switch (currentRange) {
-      case StatsTimeType.year:
-        return allEvents.where((e) => e.date.year == y).toList();
-      case StatsTimeType.quarter:
-        final currentMonth = now.month;
-        final quarterIndex = (currentMonth - 1) ~/ 3;
-        final qStart = DateTime(y, quarterIndex * 3 + 1, 1);
-        final qEnd = DateTime(y, quarterIndex * 3 + 4, 0);
-        return allEvents.where((e) {
-          final dt = e.date;
-          return dt.isAfter(qStart.subtract(const Duration(days: 1))) &&
-              dt.isBefore(qEnd.add(const Duration(days: 1)));
-        }).toList();
-      case StatsTimeType.month:
-        return allEvents.where((e) {
-          final dt = e.date;
+    // 按「生效日」而非创建日筛选：生日/节日等周期事件的 date 常是多年前，
+    // 用 e.date 会让「本年度」把长期事件全部排除，整页变空。
+    bool inRange(DateTime dt) {
+      switch (currentRange) {
+        case StatsTimeType.year:
+          return dt.year == y;
+        case StatsTimeType.quarter:
+          final quarterIndex = (now.month - 1) ~/ 3;
+          final qStart = DateTime(y, quarterIndex * 3 + 1, 1);
+          final qEnd = DateTime(y, quarterIndex * 3 + 4, 0);
+          return !dt.isBefore(qStart) && !dt.isAfter(qEnd);
+        case StatsTimeType.month:
           return dt.year == y && dt.month == now.month;
-        }).toList();
-      default:
-        return allEvents;
+        case StatsTimeType.all:
+          return true;
+      }
     }
+
+    return allEvents.where((e) => inRange(_effectiveDate(e))).toList();
   }
 
   Map<String, int> buildDayMap(List<Event> allEvents) {
     final map = <String, int>{};
     for (final e in getFilteredEvents(allEvents)) {
-      final key = DateFormat('yyyy-MM-dd').format(e.date);
+      // 用生效日：周年事件应点亮今年的纪念日，而不是多年前的创建日。
+      final key = DateFormat('yyyy-MM-dd').format(_effectiveDate(e));
       map[key] = (map[key] ?? 0) + 1;
     }
     return map;
@@ -143,18 +154,22 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     final in7 = today.add(const Duration(days: 7));
 
     final total = allEvents.length;
+    // 「待完成」= 未归档且生效日未过；不能再把「到期日已过但未归档」算作已完成。
     final pending = allEvents
-        .where((e) => e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))))
+        .where((e) => !e.isArchived && !_effectiveDate(e).isBefore(today))
         .length;
     final soon = allEvents.where((e) {
-      final dt = e.nextEffectiveTime;
-      return dt.isAfter(today.subtract(const Duration(days: 1))) &&
-          dt.isBefore(in7.add(const Duration(days: 1)));
+      if (e.isArchived) return false;
+      final dt = _effectiveDate(e);
+      return !dt.isBefore(today) && !dt.isAfter(in7);
     }).length;
-    final done = total - pending;
+    // 已完成 / 归档：只看归档标志（此前用 total - pending，把「已过期」误算为完成）。
+    final done = allEvents.where((e) => e.isArchived).length;
+    // 本月完成：按归档时间统计（archivedAt 为 v2 新增列，历史数据可能为 null 而不计入）。
     final monthDone = allEvents.where((e) {
-      final dt = e.nextEffectiveTime;
-      return dt.isBefore(today) && dt.year == now.year && dt.month == now.month;
+      if (!e.isArchived) return false;
+      final d = e.archivedAt;
+      return d != null && d.year == now.year && d.month == now.month;
     }).length;
     final birthdays = allEvents
         .where((e) => e.type == EventType.birthday)
@@ -163,7 +178,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         .where(
           (e) =>
               e.type == EventType.birthday &&
-              Utils().isMonthDayBefore( today.subtract(const Duration(days: 1)),e.nextEffectiveTime),
+              // 传 today（而非 today-1day），否则会把昨天的生日也算作「本年度待过」。
+              Utils().isMonthDayNotAfter(today, _effectiveDate(e)),
         )
         .length;
     final starCount = allEvents.where((e) => e.isStarred).length;
@@ -218,8 +234,10 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         : 100.0;
 
     // 5. ✅ 修复：移除多余的 .ceil()，inDays 本身就是int
+    final today0 = DateTime(now.year, now.month, now.day);
     final yearEnd = DateTime(now.year, 12, 31);
-    final yearLeft = max(0, yearEnd.difference(now).inDays);
+    // 两端零点化，否则 inDays 截断会让全年任意一天都少 1 天。
+    final yearLeft = max(0, yearEnd.difference(today0).inDays);
 
     // 6. ✅ 修复：精准年龄 + 边界处理（未来生日年龄=0）
     int age = 0;
@@ -251,6 +269,18 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   @override
   Widget build(BuildContext context) {
     final events = ref.watch(eventProvider);
+
+    // 首次加载时从 AppConfig 同步 birthDate（保留默认 fallback '1990-03-15'）。
+    // 用 watch：config 异步加载完成后会触发一次 rebuild 完成同步；flag 之后阻断重复同步。
+    if (!_birthDateInitialized) {
+      final config = ref.watch(appConfigProvider).value;
+      if (config != null) {
+        if (config.birthday.isNotEmpty) {
+          birthDate = config.birthday;
+        }
+        _birthDateInitialized = true;
+      }
+    }
 
     return Scaffold(
       backgroundColor: bg,
@@ -449,7 +479,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         children: [
           _buildStatsGrid(stats),
           const SizedBox(height: 22),
-          if (currentRange == StatsTimeType.all) _buildHeatmapSection(allEvents),
+          if (currentRange == StatsTimeType.all)
+            _buildHeatmapSection(allEvents),
           const SizedBox(height: 14),
           if (currentRange == StatsTimeType.all) _buildLifeSection(),
           const SizedBox(height: 40),
@@ -466,7 +497,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 1.0 / 0.8,
+      childAspectRatio: 1.0,
       children: [
         _buildStatCard(
           icon: '📊',
@@ -486,7 +517,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
           icon: '✅',
           number: stats['done'],
           label: '已完成/归档',
-          subLabel: '本月完成 ${stats['monthDone']} 项',
+          subLabel: '本月归档 ${stats['monthDone']} 项',
           bgColor: const Color(0xFFE3F2FD),
         ),
         _buildStatCard(
@@ -795,9 +826,10 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     DateTime today,
     List<Event> allEvents,
   ) {
+    // 表头为周一开头，weekday 亦为 1=周一..7=周日，直接使用即可。
+    // 之前把周日(7)折成 1 会让「1 号是周日」的月份整月左移 6 格。
     final first = DateTime(viewYear, viewMonth + 1, 1);
-    var startDay = first.weekday;
-    if (startDay == 7) startDay = 1;
+    final startDay = first.weekday;
 
     final daysInMonth = DateTime(viewYear, viewMonth + 2, 0).day;
     const headers = ['一', '二', '三', '四', '五', '六', '日'];
@@ -987,7 +1019,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
             child: Container(
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [accent, Color(0xFFD4A853)],
+                  colors: [accent, AppColors.primary],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ),
@@ -1007,7 +1039,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 1.0 / 0.5,
+      childAspectRatio: 1.0 / 0.65,
 
       children: [
         _buildLifeStat(lifeStats['livedDays'], '已度过天数'),
@@ -1026,13 +1058,17 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            value is int ? value.toString() : value.toStringAsFixed(0),
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: fg,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value is int ? value.toString() : value.toStringAsFixed(0),
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: fg,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -1077,9 +1113,18 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
                     },
                   );
                   if (picked != null) {
+                    if (!mounted) return;
+                    final formatted = DateFormat('yyyy-MM-dd').format(picked);
                     setState(() {
-                      birthDate = DateFormat('yyyy-MM-dd').format(picked);
+                      birthDate = formatted;
                     });
+                    // 持久化到 AppConfig，下次进入页面自动恢复
+                    // fire-and-forget：UI 已通过 setState 更新，无需阻塞等待磁盘写入
+                    unawaited(
+                      ref
+                          .read(appConfigProvider.notifier)
+                          .setBirthday(formatted),
+                    );
                   }
                 },
                 child: Container(
@@ -1188,8 +1233,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
 
   void _openDateModal(String dateStr, List<Event> allEvents) {
     final targetDate = DateFormat('yyyy-MM-dd').parse(dateStr);
+    // 与 buildDayMap 保持同一日期口径（生效日），否则点开格子看到的不是该格的事件。
     final dayEvents = allEvents.where((e) {
-      final d = e.date;
+      final d = _effectiveDate(e);
       return d.year == targetDate.year &&
           d.month == targetDate.month &&
           d.day == targetDate.day;

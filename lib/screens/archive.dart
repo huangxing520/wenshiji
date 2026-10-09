@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:wenshiji/common/logger.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/providers/event.dart';
 
@@ -77,13 +77,12 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     final archivedEvents = ref.watch(
       filteredEventsProvider(filterType: FilterType.archived),
     );
-    AppLogger().info('archivedEvents: $archivedEvents');
     final filteredData = _getFilteredData(archivedEvents);
-    AppLogger().info('filteredData: $filteredData');
     final hasData = filteredData.isNotEmpty;
     final now = DateTime.now();
     final monthCount = filteredData.where((item) {
-      final d = item.nextEffectiveTime;
+      // 用归档时间统计「本月归档」；历史数据缺 archivedAt 时退回生效时间。
+      final d = item.archivedAt ?? item.nextEffectiveTime;
       return d.month == now.month && d.year == now.year;
     }).length;
 
@@ -508,12 +507,12 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    // _buildSmallButton(
-                    //   '恢复',
-                    //   _accentLight,
-                    //   _accentDeep,
-                    //   () => _restoreItem(item.id),
-                    // ),
+                    _buildSmallButton(
+                      '恢复',
+                      _accentLight,
+                      _accentDeep,
+                      () => _restoreItem(item.id),
+                    ),
                     const SizedBox(height: 6),
                     _buildSmallButton(
                       '删除',
@@ -1032,7 +1031,8 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       final catMatch = checkType(item, _currentCategory);
       final searchMatch =
           _searchQuery.isEmpty ||
-          item.name.toLowerCase().contains(_searchQuery.toLowerCase());
+          item.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          item.description.toLowerCase().contains(_searchQuery.toLowerCase());
       return catMatch && searchMatch;
     }).toList();
   }
@@ -1080,25 +1080,38 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     context.push('/event-detail/$id');
   }
 
-  // void _restoreItem(String id) {
-  //   final item = _archiveData.firstWhere((i) => i.id == id);
-  //   setState(() => _archiveData.removeWhere((i) => i.id == id));
-  //   _showToastMsg('已恢复「${item.name}」');
-  // }
+  /// 解除归档：把事件从归档页移回首页（setArchivedEvent(id, false) 会清空 archivedAt）。
+  Future<void> _restoreItem(String id) async {
+    final candidates = ref
+        .read(filteredEventsProvider(filterType: FilterType.archived))
+        .where((i) => i.id == id);
+    if (candidates.isEmpty) return;
+    final item = candidates.first;
+    try {
+      await ref.read(eventProvider.notifier).setArchivedEvent(id, false);
+      if (!mounted) return;
+      _showToastMsg('已恢复「${item.name}」');
+    } catch (e, s) {
+      AppLogger().error('解除归档失败', error: e, stack: s);
+      if (!mounted) return;
+      _showToastMsg('恢复失败，请重试');
+    }
+  }
 
   void _deleteItem(String id) {
     //final item = _archiveData.firstWhere((i) => i.id == id);
-    final item = ref
+    final candidates = ref
         .read(filteredEventsProvider(filterType: FilterType.archived))
-        .firstWhere((i) => i.id == id);
+        .where((i) => i.id == id);
+    if (candidates.isEmpty) return;
+    final item = candidates.first;
     _showModalDialog(
       '确认删除',
       '是否永久删除「${item.name}」的归档记录？删除后数据不可恢复。',
       '确认删除',
       () async {
         await ref.read(eventProvider.notifier).deleteEvent(id);
-
-        // setState(() => _archiveData.removeWhere((i) => i.id == id));
+        if (!mounted) return;
         _showToastMsg('已永久删除');
       },
     );
@@ -1142,6 +1155,7 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
       '全部清空',
       () async {
         await ref.read(eventProvider.notifier).deleteAllArchivedEvent();
+        if (!mounted) return;
         _showToastMsg('已清空全部归档记录');
       },
     );

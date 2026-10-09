@@ -46,12 +46,19 @@ class _ImageCardWidgetState extends State<ImageCardWidget>
     super.dispose();
   }
 
-  void _startDelete() {
+  void _startDelete() async {
     if (_isDeleting) return;
     setState(() => _isDeleting = true);
-    _deleteController.forward().then((_) async {
+    try {
+      // 先执行删除回调再播动画：此前挂在 controller.forward().then(...) 上，
+      // 若 420ms 动画期间离开页面，dispose 会让该 Future 永不完成，回调被静默丢弃。
       await widget.onDelete();
-    });
+      if (!mounted) return;
+      await _deleteController.forward();
+    } catch (e) {
+      // 失败时复位，避免卡片永久透明且无提示。
+      if (mounted) setState(() => _isDeleting = false);
+    }
   }
 
   @override
@@ -78,12 +85,12 @@ class _ImageCardWidgetState extends State<ImageCardWidget>
           color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: const Color(0xFFE0E0E0).withOpacity(0.6),
+            color: const Color(0xFFE0E0E0).withValues(alpha:0.6),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF808080).withOpacity(0.18),
+              color: const Color(0xFF808080).withValues(alpha:0.18),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -122,7 +129,7 @@ class _ImageCardWidgetState extends State<ImageCardWidget>
               if (widget.card.isUploading)
                 Positioned.fill(
                   child: Container(
-                    color: const Color(0xFFF0F0E8).withOpacity(0.85),
+                    color: const Color(0xFFF0F0E8).withValues(alpha:0.85),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: const [
@@ -156,17 +163,27 @@ class _ImageCardWidgetState extends State<ImageCardWidget>
                   right: 6,
                   child: GestureDetector(
                     onTap: _startDelete,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF333333).withOpacity(0.5),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 12,
+                    // 视觉仍为 24×24，但把热区扩到 48dp（Material 最小可点区域）。
+                    behavior: HitTestBehavior.opaque,
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Center(
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF333333,
+                            ).withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                        ),
                       ),
                     ),
                   ),

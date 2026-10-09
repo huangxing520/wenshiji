@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,8 +15,8 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _logoController;
   late AnimationController _textController;
   late AnimationController _ringController;
-  late AnimationController _particleController;
   late AnimationController _progressController;
+  final List<Timer> _timers = [];
 
   late Animation<double> _logoScale;
   late Animation<double> _logoTranslateY;
@@ -48,11 +49,6 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(seconds: 20),
       vsync: this,
     )..repeat(reverse: true);
-
-    _particleController = AnimationController(
-      duration: const Duration(seconds: 40),
-      vsync: this,
-    )..repeat();
 
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 2000),
@@ -114,32 +110,43 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startTimeline() {
-    Future.delayed(const Duration(milliseconds: 200), () {
-      _logoController.forward();
-    });
+    // 统一保存 Timer，dispose 时取消，避免页面销毁后回调触碰已释放的 controller。
+    _timers.add(
+      Timer(const Duration(milliseconds: 200), () {
+        if (mounted) _logoController.forward();
+      }),
+    );
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _textController.forward();
-    });
+    _timers.add(
+      Timer(const Duration(milliseconds: 500), () {
+        if (mounted) _textController.forward();
+      }),
+    );
 
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _progressController.forward();
-    });
+    _timers.add(
+      Timer(const Duration(milliseconds: 300), () {
+        if (mounted) _progressController.forward();
+      }),
+    );
 
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        context.go('/homepage');
-        
-      }
-    });
+    _timers.add(
+      Timer(const Duration(milliseconds: 3000), () {
+        if (mounted) {
+          context.go('/homepage');
+        }
+      }),
+    );
   }
 
   @override
   void dispose() {
+    for (final t in _timers) {
+      t.cancel();
+    }
+    _timers.clear();
     _logoController.dispose();
     _textController.dispose();
     _ringController.dispose();
-    _particleController.dispose();
     _progressController.dispose();
     super.dispose();
   }
@@ -446,21 +453,21 @@ class _LogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFD4A853)
+      ..color = AppColors.primary
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final center = Offset(size.width / 2, size.height / 2);
 
     paint.strokeWidth = 2.5;
-    paint.color = const Color(0xFFD4A853).withOpacity(0.85);
+    paint.color = AppColors.primary.withValues(alpha:0.85);
     canvas.drawCircle(center, 16, paint);
 
     paint.strokeWidth = 2.8;
-    paint.color = const Color(0xFFD4A853).withOpacity(0.7);
+    paint.color = AppColors.primary.withValues(alpha:0.7);
     canvas.drawLine(Offset(center.dx, 6), Offset(center.dx, 11), paint);
 
-    paint.color = const Color(0xFFD4A853).withOpacity(0.55);
+    paint.color = AppColors.primary.withValues(alpha:0.55);
     canvas.drawLine(
       Offset(center.dx + 16.5, 15),
       Offset(center.dx + 12.8, 18.2),
@@ -473,7 +480,7 @@ class _LogoPainter extends CustomPainter {
     );
 
     paint.strokeWidth = 2.5;
-    paint.color = const Color(0xFFD4A853);
+    paint.color = AppColors.primary;
     canvas.drawLine(center, Offset(center.dx, 18), paint);
 
     paint.strokeWidth = 2;
@@ -484,9 +491,9 @@ class _LogoPainter extends CustomPainter {
 
     paint.style = PaintingStyle.stroke;
     paint.strokeWidth = 1;
-    paint.color = const Color(0xFFD4A853).withOpacity(0.2);
+    paint.color = AppColors.primary.withValues(alpha:0.2);
     final dashPaint = Paint()
-      ..color = const Color(0xFFD4A853).withOpacity(0.2)
+      ..color = AppColors.primary.withValues(alpha:0.2)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
     _drawDashedCircle(canvas, center, 22, dashPaint, 4, 6);

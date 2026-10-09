@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -6,8 +7,10 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/providers/event.dart';
+import 'package:wenshiji/theme/app_colors.dart';
 
 class EventDetailScreen extends ConsumerStatefulWidget {
   const EventDetailScreen({super.key, required this.eventId});
@@ -19,7 +22,7 @@ class EventDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _particleController;
   late AnimationController _countdownController;
   late Animation<double> _countdownAnimation;
@@ -28,7 +31,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   final Map<EventPriority, Color> priorityColors = {
     EventPriority.special: const Color(0xFFDE7855),
     EventPriority.high: const Color(0xFFE09D62),
-    EventPriority.mid: const Color(0xFFD4A853),
+    EventPriority.mid: AppColors.primary,
     EventPriority.low: const Color(0xFF7DB87D),
   };
 
@@ -37,7 +40,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   final Color fgColor = const Color(0xFF383A42);
   final Color mutedColor = const Color(0xFF858894);
   final Color borderColor = const Color(0xFFE6E4DF);
-  final Color accentColor = const Color(0xFFD4A853);
+  final Color accentColor = AppColors.primary;
   final Color accentSoftColor = const Color(0xFFECE6D9);
   final Color accentDeepColor = const Color(0xFFA17E38);
   List<Particle> _particles = [];
@@ -45,10 +48,12 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   int _hoursRemaining = 0;
   int _minutesRemaining = 0;
   int _secondsRemaining = 0;
+  Timer? _dayTick;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initParticles();
     // _calculateCountdown();
     _particleController = AnimationController(
@@ -65,6 +70,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     );
     _countdownController.forward();
     //_startCountdownTimer();
+    // 页面停留期间跨天时刷新天数显示（此前 _startCountdownTimer 被注释导致永不更新）。
+    _dayTick = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _initParticles() {
@@ -109,7 +118,20 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   // }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 粒子动画以 60fps 重绘整块 hero：切后台/未激活时暂停，避免无谓耗电。
+    if (!mounted) return;
+    if (state == AppLifecycleState.resumed) {
+      if (!_particleController.isAnimating) _particleController.repeat();
+    } else {
+      _particleController.stop();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _dayTick?.cancel();
     _particleController.dispose();
     _countdownController.dispose();
     super.dispose();
@@ -314,13 +336,13 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               end: Alignment.bottomRight,
               colors: [
                 accentSoftColor,
-                accentColor.withOpacity(0.3),
+                accentColor.withValues(alpha:0.3),
                 accentSoftColor,
               ],
             ),
             boxShadow: [
               BoxShadow(
-                color: accentColor.withOpacity(0.2),
+                color: accentColor.withValues(alpha:0.2),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -377,7 +399,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                     _buildCountdownDisplay(),
                     //const SizedBox(height: 5),
                     Text(
-                      (event?.isArchived ?? false) ? '已过去' : '还剩',
+                      // 用日期实际符号判断，而非 isArchived：
+                      // 未归档但已过期的事件此前被错误标为「还剩」。
+                      ((_dayDiff(event) ?? 0) < 0) ? '已过去' : '还剩',
                       style: TextStyle(
                         color: const Color.fromARGB(110, 63, 67, 63),
                         fontSize: 24,
@@ -415,7 +439,10 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
                               const SizedBox(width: 6),
                               if (event?.date != null)
                                 Text(
-                                  DateFormat('yyyy-MM-dd').format(event!.date),
+                                  // 农历事件同时展示公历与农历，避免用户困惑。
+                                  (event!.isLunar)
+                                      ? '${DateFormat('yyyy-MM-dd').format(event.date)}（农历 ${Utils.lunarLabel(event.date)}）'
+                                      : DateFormat('yyyy-MM-dd').format(event.date),
                                   style: TextStyle(
                                     color: mutedColor,
                                     fontSize: 13,
@@ -439,11 +466,27 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     );
   }
 
+  /// 目标日与今天的整天差（两端零点化）：>0 还剩，0 今天，<0 已过去。
+  int? _dayDiff(Event? event) {
+    if (event == null) return null;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(
+      event.nextEffectiveTime.year,
+      event.nextEffectiveTime.month,
+      event.nextEffectiveTime.day,
+    );
+    return target.difference(today).inDays;
+  }
+
   Widget _buildCountdownDisplay() {
+        final event = ref.watch(getEventProvider(widget.eventId));
+        if (event == null) return const SizedBox.shrink();
+        final diff = _dayDiff(event) ?? 0;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        _buildCountdownUnit('10', '天'),
+        _buildCountdownUnit(diff.abs().toString(), '天'),
         // //const SizedBox(width: 8),
         // _buildCountdownUnit(_hoursRemaining.toString().padLeft(2, '0'), '时'),
         // const SizedBox(width: 8),
@@ -468,7 +511,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: accentColor.withOpacity(0.1),
+                  color: accentColor.withValues(alpha:0.1),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -511,9 +554,9 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha:0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha:0.3)),
       ),
       child: Text(
         '${labels[priority]}优先级',
@@ -558,6 +601,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   Widget _buildInfoCards() {
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final hasImages = (event?.picturePaths ?? const []).isNotEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -565,8 +610,43 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           //_buildReminderRulesCard(),
           const SizedBox(height: 12),
           _buildNotesCard(),
+          // 图片区独立渲染：即使没有备注，有照片也要显示。
+          if (hasImages) ...[
+            const SizedBox(height: 12),
+            _buildImagesCard(),
+          ],
           const SizedBox(height: 12),
           //_buildTagsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagesCard() {
+    final event = ref.watch(getEventProvider(widget.eventId));
+    final images = event?.picturePaths ?? const <String>[];
+    if (images.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '照片',
+            style: TextStyle(
+              color: fgColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          InteractiveMultiImageGrid(imageUrls: images),
         ],
       ),
     );
@@ -707,32 +787,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
             notes,
             style: TextStyle(color: fgColor, fontSize: 14, height: 1.6),
           ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            height: 100,
-            // decoration: BoxDecoration(
-            //   //color: bgColor,
-            //   borderRadius: BorderRadius.circular(12),
-            //   border: Border.all(color: borderColor),
-            // ),
-            // child: Center(
-            //   child: Column(
-            //     mainAxisAlignment: MainAxisAlignment.center,
-            //     children: [
-            //       Icon(Icons.image, color: mutedColor, size: 32),
-            //       const SizedBox(height: 4),
-            //       Text(
-            //         '图片占位符',
-            //         style: TextStyle(color: mutedColor, fontSize: 12),
-            //       ),
-            //     ],
-            //   ),
-            // ),
-            child: InteractiveMultiImageGrid(
-              imageUrls: event?.picturePaths ?? [],
-            ),
-          ),
         ],
       ),
     );
@@ -800,7 +854,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   //       color: surfaceColor,
   //       boxShadow: [
   //         BoxShadow(
-  //           color: fgColor.withOpacity(0.05),
+  //           color: fgColor.withValues(alpha:0.05),
   //           blurRadius: 10,
   //           offset: const Offset(0, -5),
   //         ),
@@ -856,7 +910,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? accentColor.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? accentColor.withValues(alpha:0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -910,7 +964,7 @@ class ParticlePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (var particle in particles) {
       final paint = Paint()
-        ..color = color.withOpacity(
+        ..color = color.withValues(alpha:
           particle.opacity *
               (0.5 + 0.5 * math.sin(animation * 2 * math.pi + particle.x * 10)),
         )
@@ -957,13 +1011,13 @@ class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
 
   // 构建单个缩略图（支持点击放大）
   Widget _buildThumbnail(BuildContext context, String url) {
-    final String cleanPath = url.startsWith('file://')
-        ? url.replaceFirst('file://', '')
-        : url;
+    final String cleanPath = _cleanPath(url);
     return GestureDetector(
       onTap: () => _showFullImage(context, cleanPath),
       child: Hero(
-        tag: url, // 用于动画过渡，确保唯一
+        // tag 统一用 cleanPath：此前缩略图用原始 url、全屏页用 cleanPath，
+        // 带 file:// 前缀时两者不匹配导致 Hero 动画失效。
+        tag: cleanPath,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.file(
@@ -971,10 +1025,28 @@ class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
             width: 80,
             height: 80,
             fit: BoxFit.cover,
-
-            // 可选：加载占位图/错误图
+            // 缩略图按显示尺寸解码，避免按原图解码占用大量内存。
+            cacheWidth: 160,
+            errorBuilder: (context, error, stack) => _buildImageError(80, 80),
           ),
         ),
+      ),
+    );
+  }
+
+  /// 去掉 file:// 前缀，得到可交给 File 的本地路径。
+  String _cleanPath(String url) =>
+      url.startsWith('file://') ? url.replaceFirst('file://', '') : url;
+
+  Widget _buildImageError(double width, double height) {
+    return Container(
+      width: width,
+      height: height,
+      color: const Color(0xFFF0ECE4),
+      child: const Icon(
+        Icons.broken_image_outlined,
+        color: Color(0xFF858894),
+        size: 24,
       ),
     );
   }
@@ -988,15 +1060,19 @@ class _InteractiveMultiImageGridState extends State<InteractiveMultiImageGrid> {
   }
 }
 
-// 全屏大图页面（内部用 InteractiveViewer 或 PhotoView 实现缩放）
+// 全屏大图页面（内部用 InteractiveViewer 实现缩放）
 class _FullScreenImagePage extends StatelessWidget {
   final String url;
   const _FullScreenImagePage({required this.url});
 
   @override
   Widget build(BuildContext context) {
+    // 按屏幕物理像素解码，避免高分辨率照片按原图解码导致 OOM。
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final cacheWidth = (width * dpr).round();
+
     return Scaffold(
-      //backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -1008,7 +1084,19 @@ class _FullScreenImagePage extends StatelessWidget {
           child: InteractiveViewer(
             minScale: 0.5,
             maxScale: 5.0,
-            child: Image.file(File(url), fit: BoxFit.contain),
+            child: Image.file(
+              File(url),
+              fit: BoxFit.contain,
+              cacheWidth: cacheWidth,
+              errorBuilder: (context, error, stack) => const Padding(
+                padding: EdgeInsets.all(32),
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
           ),
         ),
       ),

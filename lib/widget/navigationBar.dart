@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-class commonNavigationBar extends StatelessWidget {
-  const commonNavigationBar({
+class CommonNavigationBar extends StatelessWidget {
+  const CommonNavigationBar({
     super.key,
     required this.title,
     required this.surfaceColor,
@@ -33,6 +33,7 @@ class commonNavigationBar extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: IconButton(
               icon: Icon(icon, color: fgColor, size: 20),
+              tooltip: '返回',
               onPressed: () => context.pop(),
             ),
           ),
@@ -41,6 +42,8 @@ class commonNavigationBar extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 32), // 数值≥图标宽度
             child: Text(
               title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: fgColor,
                 fontSize: 17,
