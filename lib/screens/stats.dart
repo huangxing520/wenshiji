@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:contribution_heatmap/contribution_heatmap.dart';
 import 'package:flutter/material.dart';
+import 'package:wenshiji/widget/stats/stats_grid.dart';
+import 'package:wenshiji/widget/stats/life_section.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -473,142 +475,13 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
 
   // 统计卡片
   Widget _buildStatsGrid(Map<String, dynamic> stats) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.0,
-      children: [
-        _buildStatCard(
-          icon: '📊',
-          number: stats['total'],
-          label: '全部事件',
-          subLabel: '含标星事件 ${stats['starCount']} 项',
-          bgColor: accentSoft,
-        ),
-        _buildStatCard(
-          icon: '⏳',
-          number: stats['pending'],
-          label: '待完成事件',
-          subLabel: '近7天到期 ${stats['soon']} 项',
-          bgColor: const Color(0xFFE8F5E8),
-        ),
-        _buildStatCard(
-          icon: '✅',
-          number: stats['done'],
-          label: '已完成/归档',
-          subLabel: '本月归档 ${stats['monthDone']} 项',
-          bgColor: const Color(0xFFE3F2FD),
-        ),
-        _buildStatCard(
-          icon: '🎂',
-          number: stats['birthdays'],
-          label: '生日数',
-          subLabel: '本年度还有 ${stats['bdayLeft']} 人待过生日',
-          bgColor: const Color(0xFFFFEBEE),
-        ),
-      ],
-    );
-  }
-
-  // 统计卡片
-  Widget _buildStatCard({
-    required String icon,
-    required int number,
-    required String label,
-    required String subLabel,
-    required Color bgColor,
-  }) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 500),
-      curve: const Cubic(0.34, 1.56, 0.64, 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 18 * (1 - value)),
-          child: Opacity(opacity: value.clamp(0, 1), child: child),
-        );
-      },
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: border),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min, // ← 新增这一行
-
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: bgColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Center(
-                      child: Text(icon, style: const TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TweenAnimationBuilder<int>(
-                    tween: IntTween(begin: 0, end: number),
-                    duration: const Duration(milliseconds: 600),
-                    curve: const Cubic(0.34, 1.56, 0.64, 1.0),
-                    builder: (context, value, child) {
-                      return Text(
-                        value.toString(),
-                        style: const TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w900,
-                          color: fg,
-                          height: 1,
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: fg,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subLabel,
-                    style: const TextStyle(fontSize: 11, color: muted),
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              right: -40,
-              top: -40,
-
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return StatsGrid(
+      stats: stats,
+      accentSoft: accentSoft,
+      cardColor: card,
+      borderColor: border,
+      fgColor: fg,
+      mutedColor: muted,
     );
   }
 
@@ -944,119 +817,13 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
   }
 
   Widget _buildLifeBody(Map<String, dynamic> lifeStats) {
-    return Column(
-      children: [
-        const SizedBox(height: 16),
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: lifeStats['pct'] as double),
-          duration: const Duration(milliseconds: 700),
-          curve: const Cubic(0.34, 1.56, 0.64, 1.0),
-          builder: (context, value, child) {
-            return Text(
-              '${value.toStringAsFixed(1)}%',
-              style: const TextStyle(
-                fontSize: 56,
-                fontWeight: FontWeight.w900,
-                color: accentDeep,
-                height: 1,
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          '今日人生进度',
-          style: TextStyle(
-            fontSize: 14,
-            color: muted,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 18),
-        _buildLifeBar(lifeStats['pct'] as double),
-        const SizedBox(height: 18),
-        _buildLifeStatsGrid(lifeStats),
-        const SizedBox(height: 14),
-        _buildLifeConfig(),
-      ],
-    );
-  }
-
-  Widget _buildLifeBar(double pct) {
-    return Container(
-      height: 14,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8E4DC),
-        borderRadius: BorderRadius.circular(7),
-      ),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: pct / 100),
-        duration: const Duration(milliseconds: 1200),
-        curve: const Cubic(0.34, 1.56, 0.64, 1.0),
-        builder: (context, value, child) {
-          return FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: value,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [accent, AppColors.primary],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                borderRadius: BorderRadius.circular(7),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildLifeStatsGrid(Map<String, dynamic> lifeStats) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 2,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.0 / 0.65,
-
-      children: [
-        _buildLifeStat(lifeStats['livedDays'], '已度过天数'),
-        _buildLifeStat(lifeStats['remainDays'], '剩余天数'),
-        _buildLifeStat(lifeStats['yearLeft'], '本年剩余天'),
-        _buildLifeStat(lifeStats['age'], '当前年龄'),
-      ],
-    );
-  }
-
-  Widget _buildLifeStat(dynamic value, String label) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F0E6),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value is int ? value.toString() : (value as num).toStringAsFixed(0),
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: fg,
-              ),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 11, color: muted)),
-        ],
-      ),
+    return LifeBody(
+      lifeStats: lifeStats,
+      config: _buildLifeConfig(),
+      accentColor: accent,
+      accentDeepColor: accentDeep,
+      fgColor: fg,
+      mutedColor: muted,
     );
   }
 
