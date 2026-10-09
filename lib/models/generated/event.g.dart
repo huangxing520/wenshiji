@@ -24,6 +24,10 @@ _Event _$EventFromJson(Map<String, dynamic> json) => _Event(
       const [],
   checkinStreakCount: (json['checkinStreakCount'] as num?)?.toInt() ?? 0,
   isArchived: json['isArchived'] as bool? ?? false,
+  archivedAt: json['archivedAt'] == null
+      ? null
+      : DateTime.parse(json['archivedAt'] as String),
+  isLunar: json['isLunar'] as bool? ?? false,
   repeatRule:
       $enumDecodeNullable(_$RepeatRuleEnumMap, json['repeatRule']) ??
       RepeatRule.none,
@@ -52,6 +56,8 @@ Map<String, dynamic> _$EventToJson(_Event instance) => <String, dynamic>{
       .toList(),
   'checkinStreakCount': instance.checkinStreakCount,
   'isArchived': instance.isArchived,
+  'archivedAt': instance.archivedAt?.toIso8601String(),
+  'isLunar': instance.isLunar,
   'repeatRule': _$RepeatRuleEnumMap[instance.repeatRule]!,
   'description': instance.description,
   'picturePaths': instance.picturePaths,

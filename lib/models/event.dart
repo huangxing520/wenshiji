@@ -26,34 +26,6 @@ enum EventPriority {
   @JsonValue(3)
   special
 }
-// enum EventReminder {
-//   @JsonValue(0)
-//   none,
-//   @JsonValue(1)
-//   daily,
-//   @JsonValue(2)
-//   weekly,
-//   @JsonValue(3)
-//   threeDays,
-//   @JsonValue(4)
-//   sevenDays,
-//   @JsonValue(5)
-//   fifteenDays,
-//   @JsonValue(6)
-//   thirtyDays,
-//   @JsonValue(7)
-//   oneHour,
-// }
-enum TaskType {
-  @JsonValue(0)
-  countdown,
-  @JsonValue(1)
-  task,
-  @JsonValue(2)
-  dailySignIn,
-  @JsonValue(3)
-  holiday
-}
 enum RepeatRule {
   @JsonValue(0)
   none,
@@ -64,7 +36,17 @@ enum RepeatRule {
   @JsonValue(3)
   monthly,
   @JsonValue(4)
-  yearly,
+  yearly;
+
+  /// 安全解析：未知名称回退 [RepeatRule.none]，不抛异常。
+  /// 不要用 `values.byName`（遇未知值会抛）。
+  static RepeatRule fromName(String? name) {
+    if (name == null) return RepeatRule.none;
+    for (final v in RepeatRule.values) {
+      if (v.name == name) return v;
+    }
+    return RepeatRule.none;
+  }
 }
 @freezed
 abstract class Event with _$Event {
@@ -89,6 +71,11 @@ abstract class Event with _$Event {
       @Default(0) int checkinStreakCount,
       /// 是否归档
       @Default(false) bool isArchived,
+      /// 归档时间；null 表示未归档
+      DateTime? archivedAt,
+      /// 日期是否为农历。true 时 [date] 仍是农历对应的公历日，
+      /// 但周年前滚按农历月/日计算（见 Utils.nextEffectiveOf）。
+      @Default(false) bool isLunar,
       /// 重复规则
       @Default(RepeatRule.none) RepeatRule repeatRule,
       @Default('') String description,

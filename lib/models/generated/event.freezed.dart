@@ -24,7 +24,10 @@ mixin _$Event {
  bool get isStarred;/// 打卡时间
  List<DateTime> get checkinTimes;/// 连续打卡天数
  int get checkinStreakCount;/// 是否归档
- bool get isArchived;/// 重复规则
+ bool get isArchived;/// 归档时间；null 表示未归档
+ DateTime? get archivedAt;/// 日期是否为农历。true 时 [date] 仍是农历对应的公历日，
+/// 但周年前滚按农历月/日计算（见 Utils.nextEffectiveOf）。
+ bool get isLunar;/// 重复规则
  RepeatRule get repeatRule; String get description; List<String> get picturePaths; List<String> get tags;
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
@@ -38,16 +41,16 @@ $EventCopyWith<Event> get copyWith => _$EventCopyWithImpl<Event>(this as Event, 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Event&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.date, date) || other.date == date)&&(identical(other.nextEffectiveTime, nextEffectiveTime) || other.nextEffectiveTime == nextEffectiveTime)&&(identical(other.type, type) || other.type == type)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other.checkinTimes, checkinTimes)&&(identical(other.checkinStreakCount, checkinStreakCount) || other.checkinStreakCount == checkinStreakCount)&&(identical(other.isArchived, isArchived) || other.isArchived == isArchived)&&(identical(other.repeatRule, repeatRule) || other.repeatRule == repeatRule)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.picturePaths, picturePaths)&&const DeepCollectionEquality().equals(other.tags, tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Event&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.date, date) || other.date == date)&&(identical(other.nextEffectiveTime, nextEffectiveTime) || other.nextEffectiveTime == nextEffectiveTime)&&(identical(other.type, type) || other.type == type)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other.checkinTimes, checkinTimes)&&(identical(other.checkinStreakCount, checkinStreakCount) || other.checkinStreakCount == checkinStreakCount)&&(identical(other.isArchived, isArchived) || other.isArchived == isArchived)&&(identical(other.archivedAt, archivedAt) || other.archivedAt == archivedAt)&&(identical(other.isLunar, isLunar) || other.isLunar == isLunar)&&(identical(other.repeatRule, repeatRule) || other.repeatRule == repeatRule)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other.picturePaths, picturePaths)&&const DeepCollectionEquality().equals(other.tags, tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,date,nextEffectiveTime,type,priority,isPinned,isStarred,const DeepCollectionEquality().hash(checkinTimes),checkinStreakCount,isArchived,repeatRule,description,const DeepCollectionEquality().hash(picturePaths),const DeepCollectionEquality().hash(tags));
+int get hashCode => Object.hash(runtimeType,id,name,date,nextEffectiveTime,type,priority,isPinned,isStarred,const DeepCollectionEquality().hash(checkinTimes),checkinStreakCount,isArchived,archivedAt,isLunar,repeatRule,description,const DeepCollectionEquality().hash(picturePaths),const DeepCollectionEquality().hash(tags));
 
 @override
 String toString() {
-  return 'Event(id: $id, name: $name, date: $date, nextEffectiveTime: $nextEffectiveTime, type: $type, priority: $priority, isPinned: $isPinned, isStarred: $isStarred, checkinTimes: $checkinTimes, checkinStreakCount: $checkinStreakCount, isArchived: $isArchived, repeatRule: $repeatRule, description: $description, picturePaths: $picturePaths, tags: $tags)';
+  return 'Event(id: $id, name: $name, date: $date, nextEffectiveTime: $nextEffectiveTime, type: $type, priority: $priority, isPinned: $isPinned, isStarred: $isStarred, checkinTimes: $checkinTimes, checkinStreakCount: $checkinStreakCount, isArchived: $isArchived, archivedAt: $archivedAt, isLunar: $isLunar, repeatRule: $repeatRule, description: $description, picturePaths: $picturePaths, tags: $tags)';
 }
 
 
@@ -58,7 +61,7 @@ abstract mixin class $EventCopyWith<$Res>  {
   factory $EventCopyWith(Event value, $Res Function(Event) _then) = _$EventCopyWithImpl;
 @useResult
 $Res call({
- String id, String name, DateTime date, DateTime nextEffectiveTime, EventType type, EventPriority priority, bool isPinned, bool isStarred, List<DateTime> checkinTimes, int checkinStreakCount, bool isArchived, RepeatRule repeatRule, String description, List<String> picturePaths, List<String> tags
+ String id, String name, DateTime date, DateTime nextEffectiveTime, EventType type, EventPriority priority, bool isPinned, bool isStarred, List<DateTime> checkinTimes, int checkinStreakCount, bool isArchived, DateTime? archivedAt, bool isLunar, RepeatRule repeatRule, String description, List<String> picturePaths, List<String> tags
 });
 
 
@@ -75,7 +78,7 @@ class _$EventCopyWithImpl<$Res>
 
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? date = null,Object? nextEffectiveTime = null,Object? type = null,Object? priority = null,Object? isPinned = null,Object? isStarred = null,Object? checkinTimes = null,Object? checkinStreakCount = null,Object? isArchived = null,Object? repeatRule = null,Object? description = null,Object? picturePaths = null,Object? tags = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? name = null,Object? date = null,Object? nextEffectiveTime = null,Object? type = null,Object? priority = null,Object? isPinned = null,Object? isStarred = null,Object? checkinTimes = null,Object? checkinStreakCount = null,Object? isArchived = null,Object? archivedAt = freezed,Object? isLunar = null,Object? repeatRule = null,Object? description = null,Object? picturePaths = null,Object? tags = null,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -88,6 +91,8 @@ as bool,isStarred: null == isStarred ? _self.isStarred : isStarred // ignore: ca
 as bool,checkinTimes: null == checkinTimes ? _self.checkinTimes : checkinTimes // ignore: cast_nullable_to_non_nullable
 as List<DateTime>,checkinStreakCount: null == checkinStreakCount ? _self.checkinStreakCount : checkinStreakCount // ignore: cast_nullable_to_non_nullable
 as int,isArchived: null == isArchived ? _self.isArchived : isArchived // ignore: cast_nullable_to_non_nullable
+as bool,archivedAt: freezed == archivedAt ? _self.archivedAt : archivedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,isLunar: null == isLunar ? _self.isLunar : isLunar // ignore: cast_nullable_to_non_nullable
 as bool,repeatRule: null == repeatRule ? _self.repeatRule : repeatRule // ignore: cast_nullable_to_non_nullable
 as RepeatRule,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,picturePaths: null == picturePaths ? _self.picturePaths : picturePaths // ignore: cast_nullable_to_non_nullable
@@ -177,10 +182,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  DateTime? archivedAt,  bool isLunar,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _Event() when $default != null:
-return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
+return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.archivedAt,_that.isLunar,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
   return orElse();
 
 }
@@ -198,10 +203,10 @@ return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.typ
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  DateTime? archivedAt,  bool isLunar,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)  $default,) {final _that = this;
 switch (_that) {
 case _Event():
-return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
+return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.archivedAt,_that.isLunar,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -218,10 +223,10 @@ return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.typ
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String id,  String name,  DateTime date,  DateTime nextEffectiveTime,  EventType type,  EventPriority priority,  bool isPinned,  bool isStarred,  List<DateTime> checkinTimes,  int checkinStreakCount,  bool isArchived,  DateTime? archivedAt,  bool isLunar,  RepeatRule repeatRule,  String description,  List<String> picturePaths,  List<String> tags)?  $default,) {final _that = this;
 switch (_that) {
 case _Event() when $default != null:
-return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
+return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.type,_that.priority,_that.isPinned,_that.isStarred,_that.checkinTimes,_that.checkinStreakCount,_that.isArchived,_that.archivedAt,_that.isLunar,_that.repeatRule,_that.description,_that.picturePaths,_that.tags);case _:
   return null;
 
 }
@@ -233,7 +238,7 @@ return $default(_that.id,_that.name,_that.date,_that.nextEffectiveTime,_that.typ
 @JsonSerializable()
 
 class _Event implements Event {
-   _Event({required this.id, required this.name, required this.date, required this.nextEffectiveTime, required this.type, this.priority = EventPriority.mid, this.isPinned = false, this.isStarred = false, final  List<DateTime> checkinTimes = const [], this.checkinStreakCount = 0, this.isArchived = false, this.repeatRule = RepeatRule.none, this.description = '', final  List<String> picturePaths = const [], final  List<String> tags = const []}): _checkinTimes = checkinTimes,_picturePaths = picturePaths,_tags = tags;
+   _Event({required this.id, required this.name, required this.date, required this.nextEffectiveTime, required this.type, this.priority = EventPriority.mid, this.isPinned = false, this.isStarred = false, final  List<DateTime> checkinTimes = const [], this.checkinStreakCount = 0, this.isArchived = false, this.archivedAt, this.isLunar = false, this.repeatRule = RepeatRule.none, this.description = '', final  List<String> picturePaths = const [], final  List<String> tags = const []}): _checkinTimes = checkinTimes,_picturePaths = picturePaths,_tags = tags;
   factory _Event.fromJson(Map<String, dynamic> json) => _$EventFromJson(json);
 
 @override final  String id;
@@ -263,6 +268,11 @@ class _Event implements Event {
 @override@JsonKey() final  int checkinStreakCount;
 /// 是否归档
 @override@JsonKey() final  bool isArchived;
+/// 归档时间；null 表示未归档
+@override final  DateTime? archivedAt;
+/// 日期是否为农历。true 时 [date] 仍是农历对应的公历日，
+/// 但周年前滚按农历月/日计算（见 Utils.nextEffectiveOf）。
+@override@JsonKey() final  bool isLunar;
 /// 重复规则
 @override@JsonKey() final  RepeatRule repeatRule;
 @override@JsonKey() final  String description;
@@ -294,16 +304,16 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Event&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.date, date) || other.date == date)&&(identical(other.nextEffectiveTime, nextEffectiveTime) || other.nextEffectiveTime == nextEffectiveTime)&&(identical(other.type, type) || other.type == type)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other._checkinTimes, _checkinTimes)&&(identical(other.checkinStreakCount, checkinStreakCount) || other.checkinStreakCount == checkinStreakCount)&&(identical(other.isArchived, isArchived) || other.isArchived == isArchived)&&(identical(other.repeatRule, repeatRule) || other.repeatRule == repeatRule)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._picturePaths, _picturePaths)&&const DeepCollectionEquality().equals(other._tags, _tags));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Event&&(identical(other.id, id) || other.id == id)&&(identical(other.name, name) || other.name == name)&&(identical(other.date, date) || other.date == date)&&(identical(other.nextEffectiveTime, nextEffectiveTime) || other.nextEffectiveTime == nextEffectiveTime)&&(identical(other.type, type) || other.type == type)&&(identical(other.priority, priority) || other.priority == priority)&&(identical(other.isPinned, isPinned) || other.isPinned == isPinned)&&(identical(other.isStarred, isStarred) || other.isStarred == isStarred)&&const DeepCollectionEquality().equals(other._checkinTimes, _checkinTimes)&&(identical(other.checkinStreakCount, checkinStreakCount) || other.checkinStreakCount == checkinStreakCount)&&(identical(other.isArchived, isArchived) || other.isArchived == isArchived)&&(identical(other.archivedAt, archivedAt) || other.archivedAt == archivedAt)&&(identical(other.isLunar, isLunar) || other.isLunar == isLunar)&&(identical(other.repeatRule, repeatRule) || other.repeatRule == repeatRule)&&(identical(other.description, description) || other.description == description)&&const DeepCollectionEquality().equals(other._picturePaths, _picturePaths)&&const DeepCollectionEquality().equals(other._tags, _tags));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,name,date,nextEffectiveTime,type,priority,isPinned,isStarred,const DeepCollectionEquality().hash(_checkinTimes),checkinStreakCount,isArchived,repeatRule,description,const DeepCollectionEquality().hash(_picturePaths),const DeepCollectionEquality().hash(_tags));
+int get hashCode => Object.hash(runtimeType,id,name,date,nextEffectiveTime,type,priority,isPinned,isStarred,const DeepCollectionEquality().hash(_checkinTimes),checkinStreakCount,isArchived,archivedAt,isLunar,repeatRule,description,const DeepCollectionEquality().hash(_picturePaths),const DeepCollectionEquality().hash(_tags));
 
 @override
 String toString() {
-  return 'Event(id: $id, name: $name, date: $date, nextEffectiveTime: $nextEffectiveTime, type: $type, priority: $priority, isPinned: $isPinned, isStarred: $isStarred, checkinTimes: $checkinTimes, checkinStreakCount: $checkinStreakCount, isArchived: $isArchived, repeatRule: $repeatRule, description: $description, picturePaths: $picturePaths, tags: $tags)';
+  return 'Event(id: $id, name: $name, date: $date, nextEffectiveTime: $nextEffectiveTime, type: $type, priority: $priority, isPinned: $isPinned, isStarred: $isStarred, checkinTimes: $checkinTimes, checkinStreakCount: $checkinStreakCount, isArchived: $isArchived, archivedAt: $archivedAt, isLunar: $isLunar, repeatRule: $repeatRule, description: $description, picturePaths: $picturePaths, tags: $tags)';
 }
 
 
@@ -314,7 +324,7 @@ abstract mixin class _$EventCopyWith<$Res> implements $EventCopyWith<$Res> {
   factory _$EventCopyWith(_Event value, $Res Function(_Event) _then) = __$EventCopyWithImpl;
 @override @useResult
 $Res call({
- String id, String name, DateTime date, DateTime nextEffectiveTime, EventType type, EventPriority priority, bool isPinned, bool isStarred, List<DateTime> checkinTimes, int checkinStreakCount, bool isArchived, RepeatRule repeatRule, String description, List<String> picturePaths, List<String> tags
+ String id, String name, DateTime date, DateTime nextEffectiveTime, EventType type, EventPriority priority, bool isPinned, bool isStarred, List<DateTime> checkinTimes, int checkinStreakCount, bool isArchived, DateTime? archivedAt, bool isLunar, RepeatRule repeatRule, String description, List<String> picturePaths, List<String> tags
 });
 
 
@@ -331,7 +341,7 @@ class __$EventCopyWithImpl<$Res>
 
 /// Create a copy of Event
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? date = null,Object? nextEffectiveTime = null,Object? type = null,Object? priority = null,Object? isPinned = null,Object? isStarred = null,Object? checkinTimes = null,Object? checkinStreakCount = null,Object? isArchived = null,Object? repeatRule = null,Object? description = null,Object? picturePaths = null,Object? tags = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? name = null,Object? date = null,Object? nextEffectiveTime = null,Object? type = null,Object? priority = null,Object? isPinned = null,Object? isStarred = null,Object? checkinTimes = null,Object? checkinStreakCount = null,Object? isArchived = null,Object? archivedAt = freezed,Object? isLunar = null,Object? repeatRule = null,Object? description = null,Object? picturePaths = null,Object? tags = null,}) {
   return _then(_Event(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
@@ -344,6 +354,8 @@ as bool,isStarred: null == isStarred ? _self.isStarred : isStarred // ignore: ca
 as bool,checkinTimes: null == checkinTimes ? _self._checkinTimes : checkinTimes // ignore: cast_nullable_to_non_nullable
 as List<DateTime>,checkinStreakCount: null == checkinStreakCount ? _self.checkinStreakCount : checkinStreakCount // ignore: cast_nullable_to_non_nullable
 as int,isArchived: null == isArchived ? _self.isArchived : isArchived // ignore: cast_nullable_to_non_nullable
+as bool,archivedAt: freezed == archivedAt ? _self.archivedAt : archivedAt // ignore: cast_nullable_to_non_nullable
+as DateTime?,isLunar: null == isLunar ? _self.isLunar : isLunar // ignore: cast_nullable_to_non_nullable
 as bool,repeatRule: null == repeatRule ? _self.repeatRule : repeatRule // ignore: cast_nullable_to_non_nullable
 as RepeatRule,description: null == description ? _self.description : description // ignore: cast_nullable_to_non_nullable
 as String,picturePaths: null == picturePaths ? _self._picturePaths : picturePaths // ignore: cast_nullable_to_non_nullable
