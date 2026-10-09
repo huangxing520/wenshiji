@@ -1,17 +1,19 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
-import 'package:webdav_client_plus/webdav_client_plus.dart';
+import 'package:wenshiji/common/app_logger.dart';
+import 'package:wenshiji/common/secure_storage.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/backup.dart';
 import 'package:wenshiji/providers/app_config.dart';
 import 'package:wenshiji/providers/backup.dart';
+import 'package:wenshiji/providers/event.dart';
+import 'package:wenshiji/services/backup_service.dart';
+import 'package:wenshiji/services/webdav_service.dart';
 
 const _kBg = Color(0xFFFFFDF7);
 const _kSurface = Color(0xFFFFFFFF);
@@ -51,9 +53,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
   bool _isBackingUp = false;
   bool _isRestoring = false;
 
+  /// 正在恢复的备份 id（防重入 + 按钮 loading 标记）。
+  String? _restoringId;
+
   String _testButtonLabel = '测试连接';
   bool _testSuccess = false;
-  late WebdavClient client;
+  late WebdavService _webdav;
   final TextEditingController _serverUrlController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -65,17 +70,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     _initTextFromFuture();
   }
 
-  // 异步初始化方法（核心！解决Future赋值问题）
+  // 异步初始化方法：从 SecureStorage 读取凭据，从 AppConfig 读取目录。
   Future<void> _initTextFromFuture() async {
-    // 读取Future Provider的值（read：只执行一次）
     final asyncValue = await ref.read(appConfigProvider.future);
+    final credentials = await SecureStorage().getWebdavCredentials();
 
-    // 安全判断：页面未销毁再赋值
     if (mounted) {
-      // 🔥 把异步结果赋值给本地控制器
-      _serverUrlController.text = asyncValue.backupServerUrl;
-      _usernameController.text = asyncValue.backupUsername;
-      _passwordController.text = asyncValue.backupPassword;
+      _serverUrlController.text = credentials?.serverUrl ?? '';
+      _usernameController.text = credentials?.username ?? '';
+      _passwordController.text = credentials?.password ?? '';
       _directoryController.text = asyncValue.backupDirectory;
     }
   }
@@ -90,17 +93,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
   }
 
   void _testConnection() async {
-     await ref
-        .read(appConfigProvider.notifier)
-        .setBackupServerUrl(_serverUrlController.text);
-
-    await ref
-        .read(appConfigProvider.notifier)
-        .setBackupUsername(_usernameController.text);
-
-    await ref
-        .read(appConfigProvider.notifier)
-        .setBackupPassword(_passwordController.text);
+    // 凭据写入 SecureStorage（加密存储），目录写入 AppConfig。
+    await SecureStorage().saveWebdavCredentials(
+      username: _usernameController.text.trim(),
+      password: _passwordController.text.trim(),
+      serverUrl: _serverUrlController.text.trim(),
+    );
 
     await ref
         .read(appConfigProvider.notifier)
@@ -119,14 +117,8 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
       _testSuccess = false;
     });
     try {
-      if (user.isEmpty) {
-        client = WebdavClient.noAuth(url: url);
-      }
-      client = WebdavClient(
-        url: url,
-        auth: BasicAuth(user: user, pwd: pwd),
-      );
-      await client.readDir('/');
+      _webdav = WebdavService.fromCredentials(url: url, user: user, pwd: pwd);
+      await _webdav.testConnection();
 
       if (mounted) {
         setState(() {
@@ -166,66 +158,46 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
         .read(appConfigProvider.future)
         .then((value) => value.backupDirectory);
     try {
-      await client.mkdirAll(dir);
+      await _webdav.mkdirAll(dir);
     } catch (e) {
       Utils().showErrorToast('创建备份目录失败，请检查配置', null);
-      print(e);
+      AppLogger().error('创建备份目录失败', error: e);
     }
-    final appDocDir = await getApplicationDocumentsDirectory();
     final nowTime = DateFormat('yyyy-MM-dd-HH-mm-ss').format(DateTime.now());
-    final fileName = '$nowTime-10';
-    // 2. 拼接文件完整路径：目录 + 文件名
-    final filePath = path.join(appDocDir.path, 'backup', fileName);
-    print(filePath);
-    // 3. 创建File对象
-    final file = File(filePath);
-
-    // 4. 异步创建文件（递归创建父目录，已存在则跳过）
-    await file.create(recursive: true);
-    final fileContent = await ref
-        .read(appConfigProvider.future)
-        .then((value) => jsonEncode(BackupData(appConfig: value)));
-    await file.writeAsString(fileContent);
-    print('✅ 文件创建成功！');
-    // await Utils().deleteFolder(path.join(appDocDir.path, 'backup'));
-    final remotePath = '$dir/$fileName'; // 注意：路径需要包含文件名
-
+    final fileName = nowTime;
     try {
-      await client.writeFile(filePath, remotePath);
-      print('✅ 文件上传成功！');
+      // 从数据库（而非 provider state）取事件，避免把「库为空时的样本事件」写进备份。
+      final appConfig = await ref.read(appConfigProvider.future);
+      final events = await ref.read(eventRepositoryProvider).getAllEvents();
+      final payload = BackupData(
+        version: 2,
+        exportedAt: DateTime.now(),
+        events: events,
+        appConfig: appConfig,
+      );
+      final fileContent = jsonEncode(payload.toJson());
 
-      final files = await client.readDir(dir);
-      await Utils().deleteFolder(path.join(appDocDir.path, 'backup'));
-      for (final e in files) {
-        final filePath = path.join(appDocDir.path, 'backup', e.name);
-        if (e.path.split(dir).length > 1) {
-          final t = e.path.split(dir).last;
-          print('$dir$t');
-          await client.readFile('$dir$t', filePath);
-        }
-      }
+      // 原子写入本地缓存文件，再上传。
+      final localFile = await BackupService().writeLocalBackupAtomically(
+        fileName: fileName,
+        content: fileContent,
+      );
+      AppLogger().info('备份文件创建成功: ${localFile.path}');
 
-      final records = await getBackupRecords();
+      await BackupService().uploadBackupAndRefreshLocal(
+        localFilePath: localFile.path,
+        remoteDir: dir,
+        webdav: _webdav,
+      );
+      AppLogger().info('备份文件上传成功');
+
+      final records = await BackupService().getBackupRecords();
 
       ref.read(backupProvider.notifier).setBackupRecords(records);
       Utils().showToast('备份成功 ✓', null);
     } catch (e) {
-      print('❌ 上传失败: $e');
-      Utils().showErrorToast('上传失败，请检查配置', null);
-      try {
-        final file = File(filePath);
-
-        // 1. 先判断文件是否存在
-        if (await file.exists()) {
-          // 2. 异步删除文件
-          await file.delete();
-          print("文件删除成功：$filePath");
-        } else {
-          print("文件不存在，跳过删除：$filePath");
-        }
-      } catch (e) {
-        print("删除文件失败：$e");
-      }
+      AppLogger().error('备份失败', error: e);
+      Utils().showErrorToast('备份失败，请检查配置', null);
     } finally {
       if (mounted) {
         setState(() {
@@ -236,26 +208,75 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
   }
 
   void _doRestore() async {
-    setState(() {
-      _isRestoring = true;
-    });
-
-    await Future.delayed(const Duration(milliseconds: 400));
-    if (mounted) {
-      setState(() {
-        _isRestoring = false;
-      });
-      _showToast('数据恢复成功 ✓');
+    // 恢复整体入口：从最新一条备份恢复。
+    final records = ref.read(backupProvider).value ?? const <BackupRecord>[];
+    if (records.isEmpty) {
+      Utils().showErrorToast('暂无可恢复的备份记录', null);
+      return;
     }
+    final latest = records.reduce(
+      (a, b) => a.fileName.compareTo(b.fileName) >= 0 ? a : b,
+    );
+    await _restoreFromRecord(latest.id);
   }
 
-  void _restoreFromRecord(String id) {
+  /// 真实恢复：下载指定备份 → 解析校验 → 事务内清空并批量写入事件 →
+  /// 同步 AppConfig → 刷新事件 / 备份列表。任一步失败给出明确提示且不改动数据。
+  Future<void> _restoreFromRecord(String id) async {
     if (!mounted) return;
+    if (_restoringId != null) return; // 防重入
 
-    _showToast('正在从该备份恢复…');
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      _showToast('恢复成功 ✓');
+    setState(() {
+      _isRestoring = true;
+      _restoringId = id;
     });
+
+    try {
+      final dir = await ref
+          .read(appConfigProvider.future)
+          .then((value) => value.backupDirectory);
+
+      final localPath = await BackupService().downloadRemoteBackupToTemp(
+        remoteDir: dir,
+        fileName: id,
+        webdav: _webdav,
+      );
+      final payload = await BackupService().readBackupFileAt(localPath);
+
+      if (payload.version >= 2 && payload.events.isEmpty) {
+        // 版本 2 但事件为空：可能是备份时库确实为空，仍允许恢复（清空为一致状态）。
+        AppLogger().info('备份 v${payload.version} 事件为空，恢复后将清空事件列表');
+      }
+
+      // 事务内清空 + 批量写入：失败自动回滚，不会留下半截数据。
+      await ref.read(eventRepositoryProvider).replaceAllEvents(payload.events);
+
+      // 整体恢复配置（保留本机的 WorkManager 注册标记）。
+      await ref
+          .read(appConfigProvider.notifier)
+          .restoreConfig(payload.appConfig);
+
+      AppLogger().info('恢复成功：${payload.events.length} 条事件');
+
+      if (!mounted) return;
+      // 事件已被整体替换，重建 provider 让首页 / 统计重新加载。
+      ref.invalidate(eventProvider);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('已恢复 ${payload.events.length} 条事件 ✓')));
+    } catch (e, s) {
+      AppLogger().error('恢复失败', error: e, stack: s);
+      if (mounted) {
+        Utils().showErrorToast('恢复失败：备份文件不可用', null);
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRestoring = false;
+          _restoringId = null;
+        });
+      }
+    }
   }
 
   void _deleteRecord(String id) {
@@ -913,10 +934,12 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
             children: [
               ...[
                 _buildRecordButton(
-                  text: '恢复',
+                  text: _restoringId == record.id ? '恢复中…' : '恢复',
                   color: _kAccentSoft,
                   textColor: _kAccentDeep,
-                  onTap: () => _restoreFromRecord(record.id),
+                  onTap: _restoringId == null
+                      ? () => _restoreFromRecord(record.id)
+                      : null,
                 ),
                 const SizedBox(width: 8),
               ],
@@ -988,7 +1011,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     required String text,
     required Color color,
     required Color textColor,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
@@ -1180,28 +1203,26 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
             .read(appConfigProvider.future)
             .then((value) => value.backupDirectory);
         final filePath = path.join(dir, _pendingRecordId!);
-        print(filePath);
-        await client.remove(filePath);
+        AppLogger().debug('删除远程备份: $filePath');
+        await BackupService().deleteRemoteBackupAndRefreshLocal(
+          remoteDir: dir,
+          fileName: _pendingRecordId!,
+          webdav: _webdav,
+        );
+        if (!mounted) return;
         Utils().showToast('删除成功 ✓', null);
-        final appDocDir = await getApplicationDocumentsDirectory();
-        final files = await client.readDir(dir);
-        await Utils().deleteFolder(path.join(appDocDir.path, 'backup'));
-        for (final e in files) {
-          final filePath = path.join(appDocDir.path, 'backup', e.name);
-          if (e.path.split(dir).length > 1) {
-            final t = e.path.split(dir).last;
-            print('$dir$t');
-            await client.readFile('$dir$t', filePath);
-          }
-        }
 
-        final records = await getBackupRecords();
+        final records = await BackupService().getBackupRecords();
 
+        if (!mounted) return;
         ref.read(backupProvider.notifier).setBackupRecords(records);
       } catch (e) {
+        if (!mounted) return;
         Utils().showToast('删除失败', null);
       } finally {
-        _closeSheet();
+        if (mounted) {
+          _closeSheet();
+        }
       }
 
       _pendingAction = null;
@@ -1209,73 +1230,4 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     }
     _closeSheet();
   }
-}
-
-void _showToast(String message) {
-  Utils().showToast(message, null);
-}
-
-// 获取本地备份记录
-Future<List<BackupRecord>> getBackupRecords() async {
-  final appDocDir = await getApplicationDocumentsDirectory();
-  final backupDir = Directory(path.join(appDocDir.path, 'backup'));
-
-  if (!await backupDir.exists()) {
-    return [];
-  }
-
-  // 🔥 修正正则：匹配 yyyy-MM-dd-HH-mm-ss-数字（任意数字结尾）
-  final fileNameReg = RegExp(r'^\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}-\d+$');
-
-  // 筛选：只保留文件 + 符合「时间格式-数字」命名的文件
-  final List<FileSystemEntity> files = await backupDir
-      .list(recursive: false)
-      .where((entity) => entity is File) // 只留文件，排除文件夹
-      .where((entity) {
-        final fileName = path.basename(entity.path);
-        return fileNameReg.hasMatch(fileName);
-      })
-      .toList();
-
-  print('筛选后的合法备份文件: $files');
-
-  // 后续解析逻辑不变
-  final recordFutures = files.map((e) async {
-    String fileName = path.basename(e.path);
-    final FileStat stat = await e.stat();
-    String fileSize = stat.size.toString();
-    DateTime modifyTime = stat.modified;
-
-    final localFilePath = path.join(appDocDir.path, 'backup', fileName);
-    final localFile = File(localFilePath);
-    final fileExists = await localFile.exists();
-    String fileContent = '';
-    if (fileExists) {
-      fileContent = await localFile.readAsString();
-    }
-    print('📄 文件: $fileName, 存在: $fileExists, 内容长度: ${fileContent.length}');
-
-    final Map<String, dynamic> fileContentMap = jsonDecode(fileContent);
-    print('文件内容: $fileContentMap');
-    final backupData = BackupData.fromJson(fileContentMap);
-
-    return BackupRecord(
-      serverUrl: backupData.appConfig.backupServerUrl,
-      username: backupData.appConfig.backupUsername,
-      password: backupData.appConfig.backupPassword,
-      backupDirectory: backupData.appConfig.backupDirectory,
-      id: fileName,
-      fileName: fileName,
-      size: fileSize,
-      timeStr: modifyTime.toString(),
-      eventCount: () {
-        final parts = fileName.split('-').last;
-        // 取最后一段数字（备份的序号）
-        return parts.length >= 7 ? int.tryParse(parts.trim()) ?? 0 : 0;
-      }(),
-    );
-  });
-
-  final records = await Future.wait(recordFutures);
-  return records;
 }
