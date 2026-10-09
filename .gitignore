@@ -85,3 +85,7 @@ ios/Flutter/flutter_export_environment.sh
 *.log
 .DS_Store
 key.txt
+
+# 本地分析产物（陈旧结果易与当前状态混淆，不入库）
+analyze_out.txt
+*.out.txt
