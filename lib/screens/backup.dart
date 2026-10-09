@@ -9,6 +9,8 @@ import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/common/secure_storage.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/backup.dart';
+import 'package:wenshiji/widget/backup/record_card.dart';
+import 'package:wenshiji/widget/backup/confirm_sheet.dart';
 import 'package:wenshiji/providers/app_config.dart';
 import 'package:wenshiji/providers/backup.dart';
 import 'package:wenshiji/providers/event.dart';
@@ -24,7 +26,6 @@ const _kBorder = Color(0xFFEDE0D0);
 const _kAccent = Color(0xFFF5B041);
 const _kAccentSoft = Color(0xFFFFF0D3);
 const _kAccentDeep = Color(0xFFC78A17);
-const _kDanger = Color(0xFFD65A31);
 const _kSuccess = Color(0xFF52B788);
 const _kRadius = 16.0;
 const _kRadiusSm = 10.0;
@@ -721,296 +722,26 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
   }
 
   Widget _buildRecordCard(BackupRecord record) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _kCard,
-        borderRadius: BorderRadius.circular(_kRadius),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                DateFormat(
-                  'yyyy-MM-dd hh:mm:ss',
-                ).format(DateTime.parse(record.timeStr)),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _kFg,
-                ),
-              ),
-              // _buildStatusBadge(record.status),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildMetaItem(
-                Icons.description_outlined,
-                Utils().bytesToKB(int.parse(record.size)),
-              ),
-              const SizedBox(width: 14),
-              _buildMetaItem(
-                Icons.schedule_outlined,
-                '${record.eventCount} 条事件',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              ...[
-                _buildRecordButton(
-                  text: _restoringId == record.id ? '恢复中…' : '恢复',
-                  color: _kAccentSoft,
-                  textColor: _kAccentDeep,
-                  onTap: _restoringId == null
-                      ? () => _restoreFromRecord(record.id)
-                      : null,
-                ),
-                const SizedBox(width: 8),
-              ],
-              _buildRecordButton(
-                text: '删除',
-                color: const Color(0xFFF5F0E8),
-                textColor: _kMuted,
-                onTap: () => _deleteRecord(record.id),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return BackupRecordCard(
+      record: record,
+      restoringId: _restoringId,
+      onRestore: () => _restoreFromRecord(record.id),
+      onDelete: () => _deleteRecord(record.id),
     );
   }
-
-  Widget _buildMetaItem(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: _kMuted),
-        const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12, color: _kMuted)),
-      ],
-    );
-  }
-
   Widget _buildEmptyState() {
-    final emptyTitle = '暂无云端备份';
-    final emptyDesc = '点击上方「云端备份」开始首次备份';
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 20),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _kAccentSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.cloud_upload_outlined, size: 36, color: _kAccent),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            emptyTitle,
-            style: TextStyle(
-              fontFamily: 'LXGW WenKai',
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: _kFg,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            emptyDesc,
-            style: TextStyle(fontSize: 13, color: _kMuted, height: 1.6),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
+    return const BackupEmptyState();
   }
-
-  Widget _buildRecordButton({
-    required String text,
-    required Color color,
-    required Color textColor,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildSheetOverlay() {
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: GestureDetector(
-            onTap: _closeSheet,
-            child: Container(color: _kFg.withValues(alpha: 0.45)),
-          ),
-        ),
-        Align(alignment: Alignment.bottomCenter, child: _buildSheetCard()),
-      ],
+    return ConfirmSheet(
+      title: _sheetTitle,
+      desc: _sheetDesc,
+      confirmText: _sheetConfirmText,
+      isDanger: _sheetIsDanger,
+      onConfirm: _confirmSheet,
+      onCancel: _closeSheet,
     );
   }
-
-  Widget _buildSheetCard() {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: _kBorder,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              _sheetTitle,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: _kFg,
-                letterSpacing: 0.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _sheetDesc,
-              style: TextStyle(fontSize: 14, color: _kMuted, height: 1.5),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSheetButton(
-                    text: '取消',
-                    onTap: _closeSheet,
-                    isPrimary: false,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildSheetButton(
-                    text: _sheetConfirmText,
-                    onTap: _confirmSheet,
-                    isPrimary: true,
-                    isDanger: _sheetIsDanger,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSheetButton({
-    required String text,
-    required VoidCallback onTap,
-    required bool isPrimary,
-    bool isDanger = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(_kRadiusSm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_kRadiusSm),
-          color: isPrimary ? (isDanger ? _kDanger : _kAccent) : _kCard,
-          border: isPrimary ? null : Border.all(color: _kBorder, width: 1.5),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: isPrimary ? FontWeight.w700 : FontWeight.w600,
-            color: isPrimary ? Colors.white : _kFg,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  // Widget _buildToast() {
-  //   return AnimatedPositioned(
-  //     duration: const Duration(milliseconds: 300),
-  //     curve: Curves.easeOut,
-  //     left: 0,
-  //     right: 0,
-  //     top: MediaQuery.of(context).size.height / 2 - 20,
-  //     child: Center(
-  //       child: AnimatedOpacity(
-  //         duration: const Duration(milliseconds: 300),
-  //         opacity: _toastVisible ? 1 : 0,
-  //         child: Transform.scale(
-  //           scale: _toastVisible ? 1 : 0.9,
-  //           alignment: Alignment.center,
-  //           child: Container(
-  //             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-  //             decoration: BoxDecoration(
-  //               color: _kFg.withValues(alpha: 0.92),
-  //               borderRadius: BorderRadius.circular(12),
-  //             ),
-  //             child: Text(
-  //               _toastMessage,
-  //               style: const TextStyle(
-  //                 color: Colors.white,
-  //                 fontSize: 14,
-  //                 fontWeight: FontWeight.w600,
-  //               ),
-  //             ),
-  //           ),
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   void _showSheet({
     required String title,
     required String desc,
