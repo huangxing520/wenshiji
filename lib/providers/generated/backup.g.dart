@@ -33,13 +33,13 @@ final class BackupNotifierProvider
   BackupNotifier create() => BackupNotifier();
 }
 
-String _$backupNotifierHash() => r'a6fd7e33ead9eee2e1aa6d8c44923a87690d227d';
+String _$backupNotifierHash() => r'a50770277dfb0fe16478b80477df6e6ec0495334';
 
 abstract class _$BackupNotifier extends $AsyncNotifier<List<BackupRecord>> {
   FutureOr<List<BackupRecord>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<BackupRecord>>, List<BackupRecord>>;
     final element =
@@ -50,6 +50,6 @@ abstract class _$BackupNotifier extends $AsyncNotifier<List<BackupRecord>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

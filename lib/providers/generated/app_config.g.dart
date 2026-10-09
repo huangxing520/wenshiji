@@ -33,13 +33,13 @@ final class AppConfigNotifierProvider
   AppConfigNotifier create() => AppConfigNotifier();
 }
 
-String _$appConfigNotifierHash() => r'2c70eec1f162b09c35cd7a9f46fcc6fab5c0b0cd';
+String _$appConfigNotifierHash() => r'10505c4e413f7ee6a1c81a2605f20d984a7d9d71';
 
 abstract class _$AppConfigNotifier extends $AsyncNotifier<AppConfig> {
   FutureOr<AppConfig> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<AppConfig>, AppConfig>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$AppConfigNotifier extends $AsyncNotifier<AppConfig> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

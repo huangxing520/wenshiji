@@ -1,298 +1,236 @@
 // event_provider.dart
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+// 核心事件管理：数据库基础设施 + EventNotifier。
+// 分类过滤 / 统计 / 图片 等派生 Provider 已拆分至：
+//   - event_filter_providers.dart
+//   - stats_provider.dart
+//   - image_providers.dart
+// 此处重新导出，保持 `import 'providers/event.dart'` 的下游消费方
+// （8 个 screen + main.dart）无需修改导入路径。
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:wenshiji/common/logger.dart';
-import 'package:wenshiji/common/picture_service.dart';
+import 'package:wenshiji/common/app_logger.dart';
+import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/utils.dart';
-import 'package:wenshiji/widget/card.dart';
-import 'dart:convert';
-import '../common/preferences.dart';
+import 'package:wenshiji/database/wenshiji_database.dart';
+import 'package:wenshiji/repositories/event_repository.dart';
+import 'package:wenshiji/services/image_service.dart';
+
+export 'package:wenshiji/providers/event_filter_providers.dart';
+export 'package:wenshiji/providers/stats_provider.dart';
+export 'package:wenshiji/providers/image_providers.dart';
+
 import '../models/event.dart';
 
 part 'generated/event.g.dart';
 
-enum EventCategory { all, birthday, task, dailySignIn, star, holiday }
+// ==================== 0. 数据库与仓库（基础设施 Provider） ====================
+
+/// AppDatabase 单例（keepAlive，应用生命周期内常驻）。
+/// main() 通过 ProviderScope overrides 注入已初始化并迁移完成的实例。
+@Riverpod(keepAlive: true)
+AppDatabase appDatabase(Ref ref) {
+  final db = AppDatabase();
+  ref.onDispose(db.close);
+  return db;
+}
+
+/// EventRepository：领域层访问持久化的入口。
+@Riverpod(keepAlive: true)
+EventRepository eventRepository(Ref ref) {
+  final db = ref.watch(appDatabaseProvider);
+  return EventRepository(db.eventDao);
+}
 
 // ==================== 1. 核心事件管理（AsyncNotifier） ====================
-/// 自动生成 provider 名称为 eventNotifierProvider
+/// 自动生成 provider 名称为 eventProvider
 @Riverpod(keepAlive: true)
 class EventNotifier extends _$EventNotifier {
-  /// 初始化加载（相当于原来的 _loadEvents）
+  late final EventRepository _repository;
+
+  /// 初始化加载
   @override
   Future<List<Event>> build() async {
+    _repository = ref.watch(eventRepositoryProvider);
     return _loadEvents();
   }
 
-  List<Event> get _currentEvents {
-    return state.value ?? [];
-  }
+  List<Event> get _currentEvents => state.value ?? [];
 
   Future<List<Event>> _loadEvents() async {
     try {
-      final events = await preferences.getEvents();
+      final events = await _repository.getAllEvents();
       if (events.isNotEmpty) {
-        return events;
-      } else {
-        //todo
-        return Utils().getSampleEvents();
+        return _backfill(events);
       }
-       //return Utils().getSampleEvents();
-    } catch (e) {
-      if (kDebugMode) print('加载事件数据失败: $e');
-      // 如果加载失败，可以抛出一个自定义异常，让 AsyncNotifier 进入 error 状态
+      // 首次启动或无数据：返回样本事件（仅展示，不持久化）
+      return Utils().getSampleEvents();
+    } catch (e, s) {
+      AppLogger().error('加载事件数据失败', error: e, stack: s);
       throw Exception('加载失败: $e');
     }
   }
 
-  // 保存到本地（异步，不阻塞状态更新）
-  Future<void> _saveEvents(List<Event> events) async {
-    try {
-      final List<Map<String, dynamic>> jsonList = events
-          .map((e) => e.toJson())
-          .toList();
-      await preferences.setEvents(json.encode(jsonList));
-    } catch (e) {
-      if (kDebugMode) print('保存事件数据失败: $e');
+  /// 历史数据一次性回填（幂等）：
+  /// 1. 为「生日 / 节日」等本应每年重复、但历史版本保存时从未落库 repeatRule
+  ///    （恒为 none）的事件补上年重复规则；
+  /// 2. 按规则把 nextEffectiveTime 前滚到「今天或之后」，让过完当天的生日重新回到首页。
+  /// 仅当确有变化时才写库，避免每次启动做无谓的写入。
+  Future<List<Event>> _backfill(List<Event> events) async {
+    final now = DateTime.now();
+    final changed = <Event>[];
+    final result = <Event>[];
+
+    for (final e in events) {
+      var updated = e;
+      // 补默认重复规则：生日 / 节日默认每年；每日打卡默认每日。
+      if (updated.repeatRule == RepeatRule.none) {
+        final inferred = switch (updated.type) {
+          EventType.birthday || EventType.holiday => RepeatRule.yearly,
+          EventType.dailySignIn => RepeatRule.daily,
+          EventType.task => RepeatRule.none,
+        };
+        if (inferred != RepeatRule.none) {
+          updated = updated.copyWith(repeatRule: inferred);
+        }
+      }
+      // 前滚生效时间（未归档的才需要；归档事件保持原样）。
+      if (!updated.isArchived) {
+        final next = Utils.nextEffectiveOf(updated, now);
+        if (next != updated.nextEffectiveTime) {
+          updated = updated.copyWith(nextEffectiveTime: next);
+        }
+      }
+      if (updated != e) changed.add(updated);
+      result.add(updated);
     }
+
+    if (changed.isNotEmpty) {
+      try {
+        await _repository.upsertEvents(changed);
+        AppLogger().info('历史事件回填：更新 ${changed.length} 条');
+      } catch (e, s) {
+        // 回填失败不阻断加载，内存中仍返回前滚后的结果。
+        AppLogger().error('历史事件回填写库失败', error: e, stack: s);
+      }
+    }
+    return result;
   }
 
-  // 增删改查方法（操作 state 自动触发 UI 重建）
+  // 新增事件：先落库，成功后再更新内存状态。
+  // 否则写库失败时首页会显示一个「重启后就消失」的幽灵事件。
   Future<void> addEvent(Event event) async {
-    final updatedEvents = [..._currentEvents, event];
-    print(updatedEvents);
-    state = AsyncValue.data(updatedEvents); // 正确赋值状态
-    await _saveEvents(updatedEvents);
+    await _repository.upsertEvent(event);
+    state = AsyncValue.data([..._currentEvents, event]);
   }
 
+  // 更新事件：同样先落库后改内存。
   Future<void> updateEvent(String id, Event updated) async {
+    await _repository.upsertEvent(updated);
     final updatedEvents = _currentEvents
         .map((e) => e.id == id ? updated : e)
         .toList();
     state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
   }
 
   // 删除事件
   Future<void> deleteEvent(String id) async {
+    await _repository.deleteEvent(id);
+    await NotificationService().cancelEventNotifications(id);
+    await _cleanupEventImages(id);
     final updatedEvents = _currentEvents.where((e) => e.id != id).toList();
     state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
   }
+
+  /// 删除事件关联的图片文件与记录，避免留下无主的孤儿文件。
+  /// 失败仅记日志：图片清理不是主流程，不应阻断事件删除。
+  Future<void> _cleanupEventImages(String id) async {
+    try {
+      await ImageService().deleteAllImagesForId(id);
+    } catch (e, s) {
+      AppLogger().error('清理事件图片失败: $id', error: e, stack: s);
+    }
+  }
+
   // 设置事件归档状态
   Future<void> setArchivedEvent(String id, bool isArchived) async {
-    final updatedEvents = _currentEvents.map((e) => e.id == id ? e.copyWith(isArchived: isArchived) : e).toList();
-    state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
+    final idx = _currentEvents.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+    final updated = _currentEvents[idx].copyWith(
+      isArchived: isArchived,
+      // 归档时记录时间，解除归档时清空。用于「本月归档」统计与恢复入口。
+      archivedAt: isArchived ? DateTime.now() : null,
+    );
+    await _persistToggle(updated);
   }
-  // 删除所有归档事件
+
+  // 删除所有归档事件（保留未归档的）
   Future<void> deleteAllArchivedEvent() async {
-    final today = DateTime.now().toLocal();
-    final lastDay = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 1));
-    final updatedEvents = _currentEvents.where((e) => e.isArchived == false||e.nextEffectiveTime.isAfter(lastDay)).toList();
-    state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
+    // 与归档页展示谓词保持一致：只看 isArchived，
+    // 否则「手动归档但到期日在未来」的事件在列表可见却永不被清空。
+    final removed = <String>[];
+    final kept = <Event>[];
+    for (final e in _currentEvents) {
+      if (e.isArchived) {
+        removed.add(e.id);
+      } else {
+        kept.add(e);
+      }
+    }
+    for (final id in removed) {
+      await _repository.deleteEvent(id);
+      await NotificationService().cancelEventNotifications(id);
+      await _cleanupEventImages(id);
+    }
+    state = AsyncValue.data(kept);
   }
+
   // 切换置顶
   Future<void> togglePin(String id) async {
-    final updatedEvents = _currentEvents.map((e) {
-      return e.id == id ? e.copyWith(isPinned: !e.isPinned) : e;
-    }).toList();
-    state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
+    final idx = _currentEvents.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+    final updated =
+        _currentEvents[idx].copyWith(isPinned: !_currentEvents[idx].isPinned);
+    await _persistToggle(updated);
   }
 
   // 切换收藏
   Future<void> toggleStar(String id) async {
-    final updatedEvents = _currentEvents.map((e) {
-      return e.id == id ? e.copyWith(isStarred: !e.isStarred) : e;
-    }).toList();
-    state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
+    final idx = _currentEvents.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+    final updated =
+        _currentEvents[idx].copyWith(isStarred: !_currentEvents[idx].isStarred);
+    await _persistToggle(updated);
   }
 
-  // 快速打卡（修复空安全，保留业务逻辑）
+  // 快速打卡
   Future<void> quickCheckin(String id) async {
+    final idx = _currentEvents.indexWhere((e) => e.id == id);
+    if (idx == -1) return;
+    final current = _currentEvents[idx];
+    if (Utils().hasToday(current.checkinTimes)) return; // 今日已打卡
     final today = DateTime.now().toLocal();
-    final updatedEvents = _currentEvents.map((e) {
-      if (e.id == id && !Utils().hasToday(e.checkinTimes)) {
-        return e.copyWith(
-          checkinTimes: [
-            ...e.checkinTimes,
-            DateTime(today.year, today.month, today.day),
-          ],
-          checkinStreakCount: e.checkinTimes.length + 1,
-        );
-      }
-      return e;
-    }).toList();
-    AppLogger().info('updatedEvents: $updatedEvents');
-    state = AsyncValue.data(updatedEvents);
-    await _saveEvents(updatedEvents);
+    final updated = current.copyWith(
+      checkinTimes: [
+        ...current.checkinTimes,
+        DateTime(today.year, today.month, today.day),
+      ],
+      checkinStreakCount: current.checkinTimes.length + 1,
+    );
+    AppLogger().info('quickCheckin: $id');
+    await _persistToggle(updated);
   }
-  
-}
 
-// ==================== 2. 分类选择（可修改状态 Notifier） ====================
-@riverpod
-class SelectedCategory extends _$SelectedCategory {
-  @override
-  EventCategory build() => EventCategory.all;
-
-  void setCategory(EventCategory category) => state = category;
-}
-
-enum FilterType { all, archived, active }
-
-@riverpod
-List<Event> filteredEvents(Ref ref, {required FilterType filterType}) {
-  // 1. 监听依赖（异步数据源 + 分类）
-  final eventsAsync = ref.watch(eventProvider);
-  final category = ref.watch(selectedCategoryProvider);
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-
-  // 2. 用 when 处理异步状态，加载/错误时返回空列表
-  return eventsAsync.when(
-    data: (events) {
-      List<Event> filtered;
-
-      // 按分类过滤
-      switch (category) {
-        case EventCategory.all:
-          filtered = events;
-          break;
-        case EventCategory.birthday:
-          filtered = events.where((e) => e.type == EventType.birthday).toList();
-          break;
-        case EventCategory.task:
-          filtered = events.where((e) => e.type == EventType.task).toList();
-          break;
-        case EventCategory.dailySignIn:
-          filtered = events
-              .where((e) => e.type == EventType.dailySignIn)
-              .toList();
-          break;
-        case EventCategory.star:
-          filtered = events.where((e) => e.isStarred).toList();
-          break;
-        case EventCategory.holiday:
-          filtered = events.where((e) => e.type == EventType.holiday).toList();
-          break;
-      }
-
-      // 按激活/归档过滤
-      filtered = filtered.where((e) {
-        switch (filterType) {
-          case FilterType.all:
-            return true;
-          case FilterType.archived:
-            return e.nextEffectiveTime.isBefore(today)||e.isArchived;
-          case FilterType.active:
-            return e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1)));
-        }
-      }).toList();
-
-      // 排序
-      filtered.sort((a, b) {
-        if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
-        final aDays = a.type == EventType.dailySignIn
-            ? today.difference(a.date).inDays
-            : a.date.difference(today).inDays;
-        final bDays = b.type == EventType.dailySignIn
-            ? today.difference(b.date).inDays
-            : b.date.difference(today).inDays;
-        return a.type == EventType.dailySignIn
-            ? bDays.compareTo(aDays)
-            : aDays.compareTo(bDays);
-      });
-
-      return filtered;
-    },
-    loading: () => [],
-    error: (_, __) => [],
-  );
-}
-@riverpod
-Event? getEvent(Ref ref, String id) {
-  final eventsAsync = ref.watch(eventProvider);
-  return eventsAsync.when(
-    data: (events) => events.firstWhere((e) => e.id == id),
-    loading: () => null,
-    error: (_, __) => null,
-  );
-}
-
-
-// ==================== 4. 派生 Provider：统计信息 ====================
-@riverpod
-Map<String, int> stats(Ref ref) {
-  final events = ref.watch(filteredEventsProvider(filterType: FilterType.all));
-
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final threeDaysLater = today.add(const Duration(days: 3));
-
-  final todayCount = events
-      .where(
-        (e) =>
-            e.type != EventType.dailySignIn &&
-            e.nextEffectiveTime.year == today.year &&
-            e.nextEffectiveTime.month == today.month &&
-            e.nextEffectiveTime.day == today.day,
-      )
-      .length;
-
-  final upcomingCount = events
-      .where(
-        (e) =>
-            
-            e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))) &&
-            e.nextEffectiveTime.isBefore(threeDaysLater.add(const Duration(days: 3)))&&
-            (e.priority==EventPriority.special||e.priority==EventPriority.high),
-          
-      )
-      .length;
-
-  final dailySignInCount = events
-      .where((e) => e.type == EventType.dailySignIn&&e.nextEffectiveTime.isAfter(today.subtract(const Duration(days: 1))))
-      .length;
-
-  return {
-    'today': todayCount,
-    'upcoming': upcomingCount,
-    'dailySignIn': dailySignInCount,
-  };
-}
-
-@riverpod
-ImageService imageService(Ref ref) {
-  return ImageService();
-}
-
-// 按 id 获取图片路径列表 → 会自动生成 .family 版本
-@riverpod
-Future<List<String>> savedImagePathsForId(Ref ref, String id) async {
-  final service = ref.watch(imageServiceProvider);
-  return await service.getSavedImagePathsForId(id);
-}
-
-// 按 id 获取图片文件列表 → 自动 .family
-@riverpod
-Future<List<File>> savedImageFilesForId(Ref ref, String id) async {
-  final service = ref.watch(imageServiceProvider);
-  return await service.loadImageFilesForId(id);
-}
-
-@riverpod
-Future<List<CardItem>> getCardItems(Ref ref, String id) async {
-  final paths = await ref.watch(savedImagePathsForIdProvider(id).future);
-  return paths
-      .map(
-        (e) =>
-            CardItem(id: e.hashCode, name: e, imagePath: e, isUploading: false),
-      )
-      .toList();
+  /// 持久化开关类改动：只更新已存在的行（不 insert）。
+  /// 界面上的样本事件（固定 id '1'..'12'，从未落库）因此不会污染真实库；
+  /// 对样本仅更新内存状态以保证交互即时反馈。
+  Future<void> _persistToggle(Event updated) async {
+    final persisted = await _repository.updateExistingEvent(updated);
+    if (!persisted) {
+      AppLogger().info('事件 ${updated.id} 未落库（样本数据），仅更新内存状态');
+    }
+    final idx = _currentEvents.indexWhere((e) => e.id == updated.id);
+    if (idx == -1) return;
+    final newList = [..._currentEvents];
+    newList[idx] = updated;
+    state = AsyncValue.data(newList);
+  }
 }

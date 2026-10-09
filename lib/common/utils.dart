@@ -3,17 +3,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:hyper_snackbar/hyper_snackbar.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:location/location.dart';
+import 'package:lunar/lunar.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:wenshiji/common/debouncer.dart';
-import 'package:wenshiji/common/http.dart';
-import 'package:wenshiji/common/logger.dart';
-import 'package:wenshiji/common/permission.dart';
-import 'package:wenshiji/common/preferences.dart';
+import 'package:wenshiji/common/app_logger.dart';
+import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/constants/config_constant.dart';
+import 'package:wenshiji/database/wenshiji_database.dart';
 import 'package:wenshiji/models/appconfig.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:workmanager/workmanager.dart';
@@ -94,12 +91,12 @@ class Utils {
       if (await directory.exists()) {
         // recursive: true → 递归删除文件夹内所有文件/子文件夹
         await directory.delete(recursive: true);
-        print("文件夹删除成功：$folderPath");
+        AppLogger().info("文件夹删除成功：$folderPath");
       } else {
-        print("文件夹不存在，跳过删除：$folderPath");
+        AppLogger().debug("文件夹不存在，跳过删除：$folderPath");
       }
     } catch (e) {
-      print("删除文件夹失败：$e");
+      AppLogger().error("删除文件夹失败：$e");
     }
   }
 
@@ -318,26 +315,30 @@ class Utils {
       ),
 
       // ========== holiday 节日类型 ==========
+      // 农历节日按「农历月/日」换算当年公历（如 2026 春节=2/17、中秋=9/25），
+      // 并标记 isLunar 使周年前滚继续按农历计算。
       Event(
         id: '10',
         name: '春节',
-        date: DateTime(now.year + 1, 1, 1),
-        nextEffectiveTime: DateTime(now.year + 1, 1, 1),
+        date: _lunarHoliday(now.year, 1, 1),
+        nextEffectiveTime: _lunarHoliday(now.year, 1, 1),
         type: EventType.holiday,
         priority: EventPriority.special,
         isPinned: true,
         isStarred: true,
+        isLunar: true,
         description: '农历新年',
         tags: ['春节'],
       ),
       Event(
         id: '11',
         name: '中秋节',
-        date: DateTime(now.year, 9, 15),
-        nextEffectiveTime: DateTime(now.year, 9, 15),
+        date: _lunarHoliday(now.year, 8, 15),
+        nextEffectiveTime: _lunarHoliday(now.year, 8, 15),
         type: EventType.holiday,
         priority: EventPriority.special,
         isStarred: true,
+        isLunar: true,
         description: '团圆节',
       ),
       Event(
@@ -352,43 +353,187 @@ class Utils {
     ];
   }
 
-  Future<void> _loadWeatherData() async {
-    LocationData? location = await permission.getCurrentLocation();
-    if (location != null) {
-      final lat = location.latitude;
-      final lng = location.longitude;
-      if (lat != null && lng != null) {
-        print('当前位置: $lat, $lng');
-        final weather = await HttpUtil().fetchWeather(lat, lng);
-      }
-    }
+/// 样本数据专用：把农历节日（如正月初一 / 八月十五）换算为公历日期。
+/// 若该节日在今年已过，则取明年的日期，保证样本始终是「未来」的节日。
+static DateTime _lunarHoliday(int year, int lunarMonth, int lunarDay) {
+  final today = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
+  var candidate = _lunarToSolarSafe(year, lunarMonth, lunarDay);
+  if (candidate.isBefore(today)) {
+    candidate = _lunarToSolarSafe(year + 1, lunarMonth, lunarDay);
   }
+  return candidate;
+}
 
-  bool isMonthDayBefore(DateTime a, DateTime b) {
+/// 忽略年份比较「月-日」：当 [b] 的月日不早于 [a] 时返回 true（含同日）。
+  /// 原名 isMonthDayBefore 语义与实现不符（实现为 <=），已更名。
+  bool isMonthDayNotAfter(DateTime a, DateTime b) {
     if (a.month != b.month) return a.month < b.month;
     return a.day <= b.day;
   }
 
-  Future<String> getDailyNotificationContent() async {
-    // 示例：根据日期返回不同内容
-    final now = DateTime.now();
-    final events = await preferences.getEvents();
-    final filteredEvents =
-        events.where((event) => event.nextEffectiveTime.isAfter(now)).toList()
-          ..sort((a, b) => a.nextEffectiveTime.compareTo(b.nextEffectiveTime));
+  /// 按重复规则计算事件在 [from] 当天或之后的「下次生效时间」。
+  ///
+  /// 这是唯一的推进入口：加载 / 保存 / 后台任务三处都必须经它，
+  /// 否则 `nextEffectiveTime` 会停留在创建日，事件过完当天即从首页消失。
+  /// 两端均归一到零点，避免时分秒导致的天数漂移。
+  /// 农历事件（[Event.isLunar]）的周年按农历月/日换算到当年公历。
+  static DateTime nextEffectiveOf(Event e, DateTime from) {
+    final fromDay = DateTime(from.year, from.month, from.day);
+    final base = e.date;
+    switch (e.repeatRule) {
+      case RepeatRule.none:
+        // 一次性事件：保持原值（可能是过去时间，交给「已过期」逻辑展示）。
+        return DateTime(base.year, base.month, base.day);
+      case RepeatRule.daily:
+        return fromDay;
+      case RepeatRule.weekly:
+        // 对齐到 base 的星期几；若已过则 +7 天。
+        final delta = (base.weekday - fromDay.weekday) % 7;
+        return fromDay.add(Duration(days: delta));
+      case RepeatRule.monthly:
+        return _rollForwardByMonth(base, fromDay);
+      case RepeatRule.yearly:
+        return _rollForwardByYear(base, fromDay, isLunar: e.isLunar);
+    }
+  }
 
-    final body = filteredEvents
-        .map((e) {
-          if (e.nextEffectiveTime.day == now.day + 1) {
-            return '${e.name}今日到期，请及时处理';
-          } else {
-            return '${e.name}还有${e.nextEffectiveTime.difference(now).inDays}天到日期';
-          }
-        })
-        .toList()
-        .join('。');
-    print(filteredEvents);
-    return body.isNotEmpty ? body : '今天没有待办事项哦～';
+  /// 计算 base 的年度纪念日在 from 当天或之后的日期。
+  /// 农历事件按「农历月/日」换算当年公历（闰月不存在时回落到同名非闰月）；
+  /// 公历事件按公历月/日，2/29 在非闰年回落到 2/28。
+  static DateTime _rollForwardByYear(
+    DateTime base,
+    DateTime fromDay, {
+    bool isLunar = false,
+  }) {
+    if (isLunar) {
+      final lunar = _lunarOf(base);
+      final lunarMonth = lunar.month; // 负数为闰月
+      final lunarDay = lunar.day;
+      var candidate = _lunarToSolarSafe(fromDay.year, lunarMonth, lunarDay);
+      if (candidate.isBefore(fromDay)) {
+        candidate = _lunarToSolarSafe(
+          fromDay.year + 1,
+          lunarMonth,
+          lunarDay,
+        );
+      }
+      return candidate;
+    }
+    var candidate = _safeDate(fromDay.year, base.month, base.day);
+    if (candidate.isBefore(fromDay)) {
+      candidate = _safeDate(fromDay.year + 1, base.month, base.day);
+    }
+    return candidate;
+  }
+
+  /// 公历日 → 农历 (月, 日)。月为负数表示闰月。
+  static ({int year, int month, int day}) _lunarOf(DateTime solar) {
+    final lunar = Lunar.fromDate(DateTime(solar.year, solar.month, solar.day));
+    return (year: lunar.getYear(), month: lunar.getMonth(), day: lunar.getDay());
+  }
+
+  /// 农历 (年, 月, 日) → 公历 [DateTime]。
+  /// [lunarMonth] 为负数表示闰月。目标年若无该闰月，回落到同名非闰月；
+  /// 若该农历月天数不足（如小月无三十），回落到当月最后一天。
+  static DateTime _lunarToSolarSafe(int lunarYear, int lunarMonth, int lunarDay) {
+    var month = lunarMonth;
+    if (month < 0) {
+      // 目标年不存在该闰月时，用同名非闰月代替（避免 lunar 抛错）。
+      final leapMonth = LunarYear.fromYear(lunarYear).getLeapMonth();
+      if (leapMonth != -month) {
+        month = -month;
+      }
+    }
+    // 该农历月的天数，用于把「三十」回落到「廿九」等。
+    final lunarYearObj = LunarYear.fromYear(lunarYear);
+    final monthObj = lunarYearObj
+        .getMonths()
+        .where((m) => m.getYear() == lunarYear && m.getMonth() == month);
+    final maxDay = monthObj.isNotEmpty
+        ? monthObj.first.getDayCount()
+        : 30;
+    final day = lunarDay > maxDay ? maxDay : lunarDay;
+    final solar = Lunar.fromYmd(lunarYear, month, day).getSolar();
+    return DateTime(solar.getYear(), solar.getMonth(), solar.getDay());
+  }
+
+  /// 农历 → 公历（界面选择用）。[month] 为负数表示闰月。
+  /// 目标年无该闰月或该月天数不足时自动回落（见 [_lunarToSolarSafe]）。
+  static DateTime lunarToSolar({
+    required int year,
+    required int month,
+    required int day,
+  }) {
+    return _lunarToSolarSafe(year, month, day);
+  }
+
+  /// 农历日的中文描述，如「正月初一」「闰六月十五」。用于界面展示。
+  static String lunarLabel(DateTime solar) {
+    final lunar = Lunar.fromDate(DateTime(solar.year, solar.month, solar.day));
+    final month = lunar.getMonth();
+    final leap = month < 0 ? '闰' : '';
+    final monthName = '${LunarUtil.MONTH[month.abs()]}月';
+    final dayName = LunarUtil.DAY[lunar.getDay()];
+    return '$leap$monthName$dayName';
+  }
+
+  /// 计算 base 的「每 N 月」在 from 当天或之后的对应日。
+  /// 处理 31 号在小月的情形：回落到该月最后一天。
+  static DateTime _rollForwardByMonth(DateTime base, DateTime fromDay) {
+    var candidate = _safeDate(fromDay.year, fromDay.month, base.day);
+    if (candidate.isBefore(fromDay)) {
+      final nextMonth = fromDay.month + 1;
+      final y = nextMonth > 12 ? fromDay.year + 1 : fromDay.year;
+      final m = nextMonth > 12 ? 1 : nextMonth;
+      candidate = _safeDate(y, m, base.day);
+    }
+    return candidate;
+  }
+
+  /// 构造日期，自动把非法日（如 2/30、4/31）回落到该月最后一天。
+  static DateTime _safeDate(int year, int month, int day) {
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return DateTime(year, month, day > lastDay ? lastDay : day);
+  }
+
+  Future<String> getDailyNotificationContent() async {
+    // 后台 isolate 无 ProviderScope，直接打开 AppDatabase 读取事件。
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final db = AppDatabase();
+    try {
+      final events = await db.eventDao.getAllEvents();
+      // 在内存中按规则前滚（不依赖库中已回填的值，防止升级后未打开过 App 就跑后台任务），
+      // 并归一到零点按「天差」比较，避免时分秒把当天到期事件排除在外。
+      final withNext = events
+          .where((e) => !e.isArchived)
+          .map(
+            (e) => (
+              event: e,
+              next: Utils.nextEffectiveOf(e, today),
+            ),
+          )
+          .where((pair) => !pair.next.isBefore(today))
+          .toList()
+        ..sort((a, b) => a.next.compareTo(b.next));
+
+      final body = withNext.take(5).map((pair) {
+        final days = pair.next.difference(today).inDays;
+        if (days == 0) {
+          return '${pair.event.name}今日到期';
+        }
+        return '${pair.event.name}还有$days天';
+      }).toList().join('。');
+
+      final suffix = withNext.length > 5 ? '。另有 ${withNext.length - 5} 项' : '';
+      return body.isNotEmpty ? '$body$suffix' : '今天没有待办事项哦～';
+    } finally {
+      await db.close();
+    }
   }
 
   Future<int?> getOutsideTime() async {
@@ -398,13 +543,16 @@ class Utils {
     final configString = preferences?.getString(ConfigConstant.configKey);
     if (configString == null) return null;
     final config = AppConfig.fromJson(jsonDecode(configString));
-    print('config: $config');
+    // 不打完整的 config：其中包含用户生日等个人数据。
+    AppLogger().debug('config loaded: digestOn=${config.notificationDigestOn}');
     if (!config.notificationDigestOn) {
       return null;
     }
     int outsideTime = config.notificationDigestTime == 'morning' ? 8 : 19;
     if (config.notificationDndOn) {
-      if (config.notificationDndDays[tomorrow.weekday]) {
+      // notificationDndDays 下标 0=周日..6=周六，而 DateTime.weekday 为 1=周一..7=周日，
+      // 故用 %7 归一（周日 7→0），避免周日越界 RangeError。
+      if (config.notificationDndDays[tomorrow.weekday % 7]) {
         outsideTime = getRealOutsideTime(
           config.notificationDigestTime == 'morning' ? 8 : 19,
           config.notificationStartHour,
@@ -431,27 +579,40 @@ class Utils {
     }
   }
 
-  void registerPeriodicTask(Debouncer debouncer) {
-    //test();
-    debouncer.run(() async {
-      await Workmanager().cancelAll(); // 关键：清空所有旧任务
+  /// 每日提醒任务的唯一名（register / cancel / 查询共用）。
+  static const dailyReminderUniqueName = 'daily-reminder';
+  static const _dailyReminderTaskName = 'daily-reminder-task';
 
-      // await Workmanager().registerOneOffTask(
-      //   "test-task-1",
-      //   "daily-reminder-task1",
-      //   initialDelay: Duration(seconds: 5),
-      // );
+  /// 注册每日提醒周期任务。幂等：使用 `keep` 策略，已存在时不做任何改动，
+  /// 因而不会重置 24h 计时、也不会影响 App 内其它 WorkManager 任务。
+  /// 返回是否注册成功，供调用方决定是否落 isSettingWorkManager 标记。
+  Future<bool> registerDailyReminderTask() async {
+    try {
+      await Workmanager().registerPeriodicTask(
+        dailyReminderUniqueName,
+        _dailyReminderTaskName,
+        frequency: const Duration(hours: 24),
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+      );
+      AppLogger().info('注册每日提醒任务成功');
+      return true;
+    } catch (e, s) {
+      AppLogger().error('注册每日提醒任务失败', error: e, stack: s);
+      return false;
+    }
+  }
 
-      try {
-        await Workmanager().registerPeriodicTask(
-          "daily-reminder", // 唯一任务名
-          "daily-reminder-task", // 任务标识（需与 executeTask 匹配）
-          frequency: Duration(hours: 24), // 每24小时执行一次
-        );
-        AppLogger().info('注册每日提醒任务成功');
-      } catch (e) {
-        AppLogger().error('注册每日提醒任务失败: $e');
-      }
-    });
+  /// 精确取消每日提醒任务（只取消本任务，不动其它任务），
+  /// 并清掉已排期但尚未弹出的聚合推送通知。
+  Future<void> cancelDailyReminderTask() async {
+    try {
+      await Workmanager().cancelByUniqueName(dailyReminderUniqueName);
+      await NotificationService().cancelNotification(
+        NotificationService.dailyDigestKey,
+      );
+      AppLogger().info('已取消每日提醒任务');
+    } catch (e, s) {
+      AppLogger().error('取消每日提醒任务失败', error: e, stack: s);
+    }
   }
 }

@@ -1,92 +1,32 @@
-import 'dart:convert';
-
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wenshiji/models/backup.dart';
-import 'package:wenshiji/screens/backup.dart';
+import 'package:wenshiji/services/backup_service.dart';
 part 'generated/backup.g.dart';
 
 @Riverpod(keepAlive: true)
 class BackupNotifier extends _$BackupNotifier {
-  // 本地存储的 Key
-  static const _storageKey = 'backup_data';
-
-  /// 1. 初始化：从本地加载数据（没有则用默认值）
+  /// 初始化：从本地备份文件目录读取记录（source of truth = 文件系统）。
   @override
   Future<List<BackupRecord>> build() async {
-    return await  getBackupRecords(); // 启动时读取本地数据
+    return await BackupService().getBackupRecords();
   }
 
-  // ====================== 【自动加载本地数据】 ======================
-  Future<List<BackupRecord>> _loadFromLocal() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_storageKey);
-    if (jsonString != null) {
-      final jsonList = jsonDecode(jsonString) as List<dynamic>;
-      final records = jsonList
-          .map((e) => BackupRecord.fromJson(e as Map<String, dynamic>))
-          .toList();
-
-      return records;
-    }
-    return [
-      BackupRecord(
-        id: '1',
-        timeStr: '2025-07-14 08:30',
-        size: '12.6 KB',
-        eventCount: 12,
-        fileName: 'backup_20250714_0830.json',
-        serverUrl: 'https://webdav.example.com',
-        username: 'user',
-        password: 'pass',
-        backupDirectory: '/backup',
-      ),
-      BackupRecord(
-        id: '2',
-        timeStr: '2025-07-10 22:15',
-        size: '11.8 KB',
-        eventCount: 11,
-        fileName: 'backup_20250710_2215.json',
-        serverUrl: 'https://webdav.example.com',
-        username: 'user',
-        password: 'pass',
-        backupDirectory: '/backup',
-      ),
-      BackupRecord(
-        id: '3',
-        timeStr: '2025-07-07 09:00',
-        size: '10.2 KB',
-        eventCount: 10,
-        fileName: 'backup_20250707_0900.json',
-        serverUrl: 'https://webdav.example.com',
-        username: 'user',
-        password: 'pass',
-        backupDirectory: '/backup',
-      ),
-    ];
-  }
-
-  // ====================== 【自动保存到本地】 ======================
-  Future<void> _saveToLocal(List<BackupRecord> records) async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = jsonEncode(records);
-    await prefs.setString(_storageKey, jsonString);
-  }
-
+  /// 删除一条备份记录：删除底层文件并刷新状态。
   Future<void> deleteBackupRecord(String id) async {
-    final records = state.requireValue;
-    final newRecords = List<BackupRecord>.from(records);
-    final index = newRecords.indexWhere((element) => element.id == id);
-    if (index != -1) {
-      newRecords.removeAt(index);
-    }
-    state = AsyncData(newRecords);
-    await _saveToLocal(newRecords);
+    await BackupService().deleteBackupFile(id);
+    final records = await BackupService().getBackupRecords();
+    state = AsyncData(records);
   }
 
+  /// 设置备份记录列表（备份/恢复完成后调用以刷新状态）。
   Future<void> setBackupRecords(List<BackupRecord> records) async {
     state = AsyncData(records);
-    _saveToLocal(records);
+  }
+
+  /// 重新从文件系统加载记录。
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    // 用 guard 兜住异常：目录被删 / 权限被拒时不应永久停在 AsyncLoading。
+    state = await AsyncValue.guard(() => BackupService().getBackupRecords());
   }
 }
-

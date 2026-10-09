@@ -8,6 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/models/event.dart';
 
 class NotificationService {
@@ -20,7 +21,12 @@ class NotificationService {
 
   NotificationService._internal();
 
-  Future<void> init() async {
+  /// 初始化通知服务。返回是否成功，失败不再被静默吞掉，交由调用方感知。
+  ///
+  /// 注意：**不再**在权限被拒时自动跳转系统设置页——那会导致用户拒绝一次后
+  /// 每次冷启动都被强行踢到设置页、回不到首页。改为仅记录 [hasNotificationPermission]，
+  /// 由通知设置页的「打开系统通知设置」按钮让用户主动开启。
+  Future<bool> init() async {
     try {
       tz.initializeTimeZones();
       final TimezoneInfo timezoneInfo =
@@ -50,17 +56,14 @@ class NotificationService {
       );
       hasNotificationPermission =
           await _checkAndRequestNotificationPermissions();
-      if (!hasNotificationPermission) {
-        await openNotificationSettings();
-      }
 
       if (kDebugMode) {
-        print('通知服务初始化成功, 时区: $timeZoneName');
+        AppLogger().debug('通知服务初始化成功, 时区: $timeZoneName');
       }
-    } catch (e) {
-      if (kDebugMode) {
-        print('通知服务初始化失败: $e');
-      }
+      return true;
+    } catch (e, s) {
+      AppLogger().error('通知服务初始化失败', error: e, stack: s);
+      return false;
     }
   }
 // 只在workmanager中初始化后台通知服务调用这个函数
@@ -86,16 +89,16 @@ Future<void> initForBackground() async {
 
     await _notificationsPlugin.initialize(settings: initializationSettings);
 
-
-
-    hasNotificationPermission = true; // 直接标记为 true
+    // 后台 isolate 不能弹权限框，这里按平台读取真实授权状态，
+    // 而不是无脑置 true（否则未授权时通知被系统静默丢弃，调用方却以为已就绪）。
+    hasNotificationPermission = await _hasNotificationPermission();
 
     if (kDebugMode) {
-      print('后台通知服务初始化成功, 时区: $timeZoneName');
+      AppLogger().debug('后台通知服务初始化成功, 时区: $timeZoneName');
     }
   } catch (e) {
     if (kDebugMode) {
-      print('后台通知服务初始化失败: $e');
+      AppLogger().error('后台通知服务初始化失败: $e');
     }
     rethrow;
   }
@@ -120,7 +123,35 @@ Future<void> initForBackground() async {
       }
       return true; // Android 12及以下默认授予
     }
+    if (Platform.isIOS) {
+      final IOSFlutterLocalNotificationsPlugin? iosImplementation =
+          _notificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                IOSFlutterLocalNotificationsPlugin
+              >();
+      final bool? granted = await iosImplementation?.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return granted ?? false;
+    }
     return false;
+  }
+
+  /// 仅查询当前授权状态，不弹窗（供后台 isolate 使用）。
+  Future<bool> _hasNotificationPermission() async {
+    if (Platform.isAndroid) {
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notificationsPlugin
+              .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin
+              >();
+      final bool? granted = await androidImplementation
+          ?.areNotificationsEnabled();
+      return granted ?? true;
+    }
+    return true;
   }
 
   // 打开应用通知设置页面
@@ -132,12 +163,29 @@ Future<void> initForBackground() async {
 
   void _onNotificationTap(NotificationResponse notificationResponse) {
     if (kDebugMode) {
-      print('点击了通知: ${notificationResponse.payload}');
+      AppLogger().debug('点击了通知: ${notificationResponse.payload}');
     }
   }
 
+  /// 即时通知的固定 id：同一 id 再次 show 会就地更新，避免旧实现用
+  /// 秒级时间戳导致「同一秒内两次调用互相覆盖」。
+  static const int instantNotificationId = 0x7f0a0001;
+
+  /// 将任意字符串 key 稳定映射为通知 id（FNV-1a，取 31 位非负，兼容 Android int）。
+  /// schedule / cancel / isScheduled 三处**必须**共用此函数，否则取消不到已排期的通知。
+  static int notificationIdFor(String key) {
+    const int fnvOffsetBasis = 0x811c9dc5;
+    const int fnvPrime = 0x01000193;
+    int hash = fnvOffsetBasis;
+    for (final codeUnit in key.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * fnvPrime) & 0x7fffffff;
+    }
+    return hash;
+  }
+
   Future<void> scheduleEventNotification({
-    required int id,
+    required String key,
     required String title,
     required String body,
     required DateTime scheduledDate,
@@ -163,7 +211,7 @@ Future<void> initForBackground() async {
       );
 
       await _notificationsPlugin.zonedSchedule(
-        id: id,
+        id: notificationIdFor(key),
         title: title,
         body: body,
         scheduledDate: tz.TZDateTime.from(scheduledDate, tz.local),
@@ -173,24 +221,25 @@ Future<void> initForBackground() async {
       );
 
       if (kDebugMode) {
-        print('已安排通知: $title 在 $scheduledDate');
+        AppLogger().debug('已安排通知: $title 在 $scheduledDate');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('安排通知失败: $e');
+        AppLogger().error('安排通知失败: $e');
       }
     }
   }
 
-  Future<void> cancelNotification(String id) async {
+  /// 按 key 取消通知（与 schedule 使用同一 id 派生）。
+  Future<void> cancelNotification(String key) async {
     try {
-      await _notificationsPlugin.cancel(id: id.hashCode);
+      await _notificationsPlugin.cancel(id: notificationIdFor(key));
       if (kDebugMode) {
-        print('已取消通知: $id');
+        AppLogger().debug('已取消通知: $key');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('取消通知失败: $e');
+        AppLogger().error('取消通知失败: $e');
       }
     }
   }
@@ -199,20 +248,21 @@ Future<void> initForBackground() async {
     try {
       await _notificationsPlugin.cancelAll();
       if (kDebugMode) {
-        print('已取消所有通知');
+        AppLogger().debug('已取消所有通知');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('取消所有通知失败: $e');
+        AppLogger().error('取消所有通知失败: $e');
       }
     }
   }
 
-/// 检查指定 id 的通知是否已经安排（尚未触发）
-Future<bool> isNotificationScheduled(int id) async {
+/// 检查指定 key 的通知是否已经安排（尚未触发）
+Future<bool> isNotificationScheduled(String key) async {
   final List<PendingNotificationRequest> pendingList =
       await _notificationsPlugin.pendingNotificationRequests();
-  return pendingList.any((request) => request.id == id);
+  final targetId = notificationIdFor(key);
+  return pendingList.any((request) => request.id == targetId);
 }
 
 
@@ -242,7 +292,7 @@ Future<bool> isNotificationScheduled(int id) async {
       );
 
       await _notificationsPlugin.show(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+        id: instantNotificationId,
         title: title,
         body: body,
         notificationDetails: platformChannelSpecifics,
@@ -250,24 +300,19 @@ Future<bool> isNotificationScheduled(int id) async {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('显示即时通知失败: $e');
+        AppLogger().error('显示即时通知失败: $e');
       }
     }
   }
 
-  // Future<void> scheduleEventReminders(Event event) async {
-  //   if (event.nextEffectiveTime.isAfter(DateTime.now())) {
-  //     await scheduleEventNotification(
-  //       id: event.id,
-  //       title: event.name,
-  //       body: event.description.isNotEmpty ? event.description : '',
-  //       scheduledDate: event.nextEffectiveTime,
-  //       payload: event.id,
-  //     );
-  //   }
-  // }
+  /// 事件 key → 通知 key。事件提醒若以 `event:<id>` 排期，删除 / 编辑时用同 key 取消。
+  static String eventNotificationKey(String eventId) => 'event:$eventId';
 
+  /// 后台每日聚合推送的通知 key（与排期处共用）。
+  static const String dailyDigestKey = 'daily-digest';
+
+  /// 取消某个事件已排期的提醒通知。
   Future<void> cancelEventNotifications(String eventId) async {
-    await cancelNotification(eventId);
+    await cancelNotification(eventNotificationKey(eventId));
   }
 }
