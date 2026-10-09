@@ -8,8 +8,52 @@ on:
   workflow_dispatch:
 
 jobs:
+  # 质量门禁：校验生成物与源一致 + 静态分析。
+  # 生成物（*.g.dart / *.freezed.dart）同仓提交，若改了模型却忘记跑
+  # build_runner，运行时才会暴露。这里提前在 CI 拦住。
+  verify-generated:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      # 与 build-release 保持同一 JDK，避免两边行为不一致
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.2
+          channel: stable
+
+      - name: 获取 Flutter 依赖
+        run: flutter pub get
+
+      - name: 重新生成代码生成物
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # 若上一步产生了改动，说明提交里的生成物已过期
+      - name: 校验生成物与源一致
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            echo "::error::代码生成物已过期，请本地运行 dart run build_runner build 后重新提交："
+            git status --porcelain --untracked-files=no
+            git diff
+            exit 1
+          fi
+
+      - name: 静态分析
+        run: flutter analyze lib
+
   build-release:
     runs-on: ubuntu-latest
+    # 生成物校验通过后才构建发布
+    needs: verify-generated
     steps:
       # 1. 拉取项目代码
       - name: 拉取代码
