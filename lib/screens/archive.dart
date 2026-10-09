@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:wenshiji/widget/archive/archive_item_card.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/providers/event.dart';
@@ -22,9 +22,7 @@ const _tagCountup = Color(0xFF8BC48A);
 const _tagStar = Color(0xFFF0C75E);
 const _tagHoliday = Color(0xFFC48AD0);
 const _checkinBg = Color(0xFFE8F5E3);
-const _checkinFg = Color(0xFF5A9E4F);
 const _danger = Color(0xFFE06060);
-const _dangerLight = Color(0xFFFFF0F0);
 
 class ArchiveScreen extends ConsumerStatefulWidget {
   const ArchiveScreen({super.key});
@@ -371,185 +369,14 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   }
 
   Widget _buildEvent(Event item, int index) {
-    final tagColor = _getCategoryColor(item);
-    final tagBgColor = _getCategoryBgColor(item);
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeInOutCubic,
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(61, 46, 30, 0.06),
-            offset: Offset(0, 2),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _openDetail(item.id),
-          //onLongPress: () => _startLongPress(item),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // if (_batchMode)
-                //   Padding(
-                //     padding: const EdgeInsets.only(top: 8, right: 10),
-                //     child: _buildCheckbox(
-                //       isSelected,
-                //       () => _toggleSelect(item.id),
-                //     ),
-                //   ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: _fg,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          Container(
-                            margin: const EdgeInsets.only(left: 8),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tagBgColor,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              categoryTabs
-                                  .firstWhere((tab) => tab.$1 == item.type)
-                                  .$2,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: tagColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      // Text(
-                      //   item.status == EventStatus.auto ? '已到期自动归档' : '手动归档',
-                      //   style: const TextStyle(
-                      //     fontSize: 11,
-                      //     color: _fgTertiary,
-                      //   ),
-                      // ),
-                      if (item.type == EventType.dailySignIn) ...[
-                        const SizedBox(height: 5),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _checkinBg,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                size: 12,
-                                color: _checkinFg,
-                              ),
-                              const SizedBox(width: 3),
-
-                              Text(
-                                '累计打卡${item.checkinStreakCount}天',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: _checkinFg,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 3),
-                      Text(
-                        DateFormat('yyyy-MM-dd').format(item.date).toString(),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: _fgTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    _buildSmallButton(
-                      '恢复',
-                      _accentLight,
-                      _accentDeep,
-                      () => _restoreItem(item.id),
-                    ),
-                    const SizedBox(height: 6),
-                    _buildSmallButton(
-                      '删除',
-                      _dangerLight,
-                      _danger,
-                      () => _deleteItem(item.id),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSmallButton(
-    String text,
-    Color bgColor,
-    Color textColor,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: textColor,
-          ),
-        ),
-      ),
+    return ArchiveItemCard(
+      item: item,
+      typeLabel: categoryTabs.firstWhere((tab) => tab.$1 == item.type).$2,
+      tagColor: _getCategoryColor(item),
+      tagBgColor: _getCategoryBgColor(item),
+      onOpenDetail: () => _openDetail(item.id),
+      onRestore: () => _restoreItem(item.id),
+      onDelete: () => _deleteItem(item.id),
     );
   }
 
