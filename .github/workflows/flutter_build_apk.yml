@@ -26,7 +26,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           # 👇 替换成你本地使用的 Flutter 版本（必填）
-          flutter-version: 3.41.9
+          flutter-version: 3.44.2
           channel: stable
 
       

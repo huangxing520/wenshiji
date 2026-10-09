@@ -1,7 +1,56 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  language:
+    # 注：strict-casts/strict-inference 对存量代码（大量 jsonDecode 返回 dynamic）过于激进，
+    # 会引入大量改动，暂关闭。后续可逐步开启并修复 dynamic 调用。
+    strict-casts: false
+    strict-inference: false
+    strict-raw-types: false
+  errors:
+    # 将关键规则提升，强制执行（avoid_print 暂为 warning，待 D1 清理 49 处 print 后可升为 error）
+    avoid_print: warning
+    avoid_dynamic_calls: warning
+    deprecated_member_use: warning
+    use_build_context_synchronously: warning
+    unawaited_futures: warning
+    cancel_subscriptions: warning
+    close_sinks: warning
+  exclude:
+    - 'lib/**/generated/**'
+    - 'lib/**/*.g.dart'
+    - 'lib/**/*.freezed.dart'
+    - 'lib/database/wenshiji_database.g.dart'
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
 linter:
   rules:
-    prefer_const_constructors: false
-plugins:
-  riverpod_lint: 3.1.3
+    avoid_print: true
+    avoid_dynamic_calls: true
+    avoid_unused_constructor_parameters: true
+    prefer_const_constructors: true
+    prefer_const_constructors_in_immutables: true
+    prefer_const_literals_to_create_immutables: true
+    prefer_const_declarations: true
+    require_trailing_commas: true
+    use_build_context_synchronously: true
+    unawaited_futures: true
+    cancel_subscriptions: true
+    close_sinks: true
+    prefer_final_locals: true
+    prefer_final_in_for_each: true
+    prefer_single_quotes: true
+    unnecessary_const: true
+    unnecessary_new: true
+    unnecessary_this: true
+    unnecessary_null_in_if_null_operators: true
+    use_rethrow_when_possible: true
+    use_super_parameters: true
+    always_declare_return_types: true
+    prefer_typing_uninitialized_variables: true
