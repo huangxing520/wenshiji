@@ -8,7 +8,14 @@ import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/event.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:uuid/uuid.dart';
-import 'package:wenshiji/widget/card.dart';
+import 'package:wenshiji/widget/add_event/mode_tabs.dart';
+import 'package:wenshiji/widget/add_event/calendar_picker.dart';
+import 'package:wenshiji/widget/add_event/priority_field.dart';
+import 'package:wenshiji/widget/add_event/tag_field.dart';
+import 'package:wenshiji/widget/add_event/notes_section.dart';
+import 'package:wenshiji/widget/add_event/save_bar.dart';
+import 'package:wenshiji/widget/add_event/timer_field.dart';
+import 'package:wenshiji/widget/add_event/add_event_header.dart';
 import 'package:wenshiji/theme/app_colors.dart';
 
 enum AddEventMode { birthday, task, holiday }
@@ -480,31 +487,7 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   }
 
   Widget _buildStatusBar(Color bgColor, Color fgColor) {
-    return Container(
-      height: 44,
-      color: bgColor,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          Row(
-            children: [
-              Icon(Icons.signal_cellular_alt, size: 16, color: fgColor),
-              const SizedBox(width: 5),
-              Icon(Icons.battery_full, size: 16, color: fgColor),
-            ],
-          ),
-        ],
-      ),
-    );
+    return EventStatusBar(bgColor: bgColor, fgColor: fgColor);
   }
 
   Widget _buildTopNav(
@@ -512,50 +495,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color accentDeepColor,
     Color fgColor,
   ) {
-    return Container(
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: const Color(0xFFE5E0D2))),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          GestureDetector(
-            // 用 pop 返回上一页（编辑场景来自详情页），避免 go('/homepage') 丢弃整个导航栈。
-            // 无栈可退（如深链直达）时回退到首页。
-            onTap: () {
-              if (context.canPop()) {
-                context.pop();
-              } else {
-                context.go('/homepage');
-              }
-            },
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: accentSoftColor,
-              ),
-              child: Icon(Icons.arrow_back, color: accentDeepColor, size: 22),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            _isEditing ? '编辑事件' : '新增事件',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: fgColor,
-              letterSpacing: -0.3,
-            ),
-          ),
-        ],
-      ),
+    return AddEventHeader(
+      isEditing: _isEditing,
+      accentSoftColor: accentSoftColor,
+      accentDeepColor: accentDeepColor,
+      fgColor: fgColor,
     );
   }
-
   Widget _buildModeTabs(
     Color accentSoftColor,
     Color accentColor,
@@ -563,123 +509,13 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: accentSoftColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Stack(
-        children: [
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeOutCubic,
-            alignment: switch (_currentMode) {
-              AddEventMode.birthday => Alignment.centerLeft,
-              AddEventMode.task => Alignment.center,
-              AddEventMode.holiday => Alignment.centerRight,
-            },
-            child: FractionallySizedBox(
-              widthFactor: 1.0 / 3,
-              child: Container(
-                height: 40,
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(11),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _switchMode(AddEventMode.birthday),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '🎂 生日模式',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: _currentMode == AddEventMode.birthday
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: _currentMode == AddEventMode.birthday
-                              ? const Color(0xFF2A2822)
-                              : mutedColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _switchMode(AddEventMode.task),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '📌 普通事项',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: _currentMode == AddEventMode.task
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: _currentMode == AddEventMode.task
-                              ? const Color(0xFF2A2822)
-                              : mutedColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _switchMode(AddEventMode.holiday),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(11),
-                    ),
-                    child: Center(
-                      child: Text(
-                        '🎉 节日模式',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: _currentMode == AddEventMode.holiday
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: _currentMode == AddEventMode.holiday
-                              ? const Color(0xFF2A2822)
-                              : mutedColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return ModeTabs(
+      currentMode: _currentMode,
+      onModeChanged: _switchMode,
+      accentSoftColor: accentSoftColor,
+      accentColor: accentColor,
+      fgColor: const Color(0xFF2A2822),
+      mutedColor: mutedColor,
     );
   }
 
@@ -968,74 +804,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return Row(
-      children: [
-        _buildCalendarTypeChip(
-          label: '公历',
-          selected: !_isLunar,
-          onTap: () => _toggleCalendarType(false),
-          accentColor: accentColor,
-          borderColor: borderColor,
-          fgColor: fgColor,
-          mutedColor: mutedColor,
-        ),
-        const SizedBox(width: 8),
-        _buildCalendarTypeChip(
-          label: '农历',
-          selected: _isLunar,
-          onTap: () => _toggleCalendarType(true),
-          accentColor: accentColor,
-          borderColor: borderColor,
-          fgColor: fgColor,
-          mutedColor: mutedColor,
-        ),
-        const SizedBox(width: 10),
-        if (_isLunar)
-          Expanded(
-            child: Text(
-              '农历 ${Utils.lunarLabel(_selectedDate)}',
-              style: TextStyle(fontSize: 12, color: mutedColor),
-            ),
-          ),
-      ],
+    return CalendarTypeToggle(
+      isLunar: _isLunar,
+      onChanged: _toggleCalendarType,
+      selectedDate: _selectedDate,
+      accentColor: accentColor,
+      borderColor: borderColor,
+      fgColor: const Color(0xFF2A2822),
+      mutedColor: mutedColor,
     );
   }
-
-  Widget _buildCalendarTypeChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-    required Color accentColor,
-    required Color borderColor,
-    required Color fgColor,
-    required Color mutedColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? accentColor : borderColor,
-            width: 1.5,
-          ),
-          color: selected
-              ? accentColor.withValues(alpha: 0.12)
-              : Colors.transparent,
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selected ? accentColor : mutedColor,
-          ),
-        ),
-      ),
-    );
-  }
-
   /// 农历 年 / 月 / 日 三个下拉选择器。
   Widget _buildLunarPickerRow(
     Color surfaceColor,
@@ -1043,101 +821,20 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    final monthOptions = _lunarMonthOptions();
-    final dayCount = _lunarDayCount();
-    // 年份范围：1901..2100（lunar 包支持的区间内取常见范围）。
-    final yearNow = DateTime.now().year;
-    final years = [
-      for (int y = yearNow - 100; y <= yearNow + 20; y++) y,
-    ];
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: _buildLunarDropdown<int>(
-            value: _lunarYear,
-            items: years.map((y) => (value: y, label: '$y年')).toList(),
-            onChanged: _selectLunarYear,
-            surfaceColor: surfaceColor,
-            borderColor: borderColor,
-            fgColor: fgColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 3,
-          child: _buildLunarDropdown<int>(
-            value: _lunarMonth,
-            items: monthOptions
-                .map((o) => (value: o.value, label: o.label))
-                .toList(),
-            onChanged: _selectLunarMonth,
-            surfaceColor: surfaceColor,
-            borderColor: borderColor,
-            fgColor: fgColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 3,
-          child: _buildLunarDropdown<int>(
-            value: _lunarDay,
-            items: [
-              for (int d = 1; d <= dayCount; d++)
-                (value: d, label: LunarUtil.DAY[d]),
-            ],
-            onChanged: _selectLunarDay,
-            surfaceColor: surfaceColor,
-            borderColor: borderColor,
-            fgColor: fgColor,
-          ),
-        ),
-      ],
+    return LunarPickerRow(
+      year: _lunarYear,
+      month: _lunarMonth,
+      day: _lunarDay,
+      monthOptions: _lunarMonthOptions(),
+      dayCount: _lunarDayCount(),
+      onYearChanged: _selectLunarYear,
+      onMonthChanged: _selectLunarMonth,
+      onDayChanged: _selectLunarDay,
+      surfaceColor: surfaceColor,
+      borderColor: borderColor,
+      fgColor: fgColor,
     );
   }
-
-  Widget _buildLunarDropdown<T>({
-    required T value,
-    required List<({T value, String label})> items,
-    required ValueChanged<T> onChanged,
-    required Color surfaceColor,
-    required Color borderColor,
-    required Color fgColor,
-  }) {
-    // 防御：value 不在候选中时（如换月后日期越界）回落到第一项，避免 Dropdown 断言失败。
-    final hasValue = items.any((it) => it.value == value);
-    final safeValue = hasValue ? value : items.first.value;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor, width: 1.5),
-        color: surfaceColor,
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: safeValue,
-          isExpanded: true,
-          items: items
-              .map(
-                (it) => DropdownMenuItem<T>(
-                  value: it.value,
-                  child: Text(
-                    it.label,
-                    style: TextStyle(fontSize: 14, color: fgColor),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: (v) {
-            if (v != null) onChanged(v);
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _buildAdvancedSection(
     Color surfaceColor,
     Color accentSoftColor,
@@ -1255,85 +952,15 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    final priorities = [
-      (EventPriority.special, '特级重要', const Color(0xFFE64C3C)),
-      (EventPriority.high, '重要', const Color(0xFFE67E22)),
-      (EventPriority.mid, '普通', AppColors.primary),
-      (EventPriority.low, '次要', const Color(0xFF27AE60)),
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '优先级',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: priorities.map((pri) {
-              final isSelected = _currentPriority == pri.$1;
-              return GestureDetector(
-                onTap: () => _selectPriority(pri.$1),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 0),
-                  curve: Curves.easeOutCubic,
-                  transform: isSelected
-                      ? Matrix4.identity().scaledByDouble(1.04, 1.04, 1.0, 1.0)
-                      : Matrix4.identity(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isSelected ? pri.$3 : borderColor,
-                      width: 2,
-                    ),
-                    color: isSelected
-                        ? pri.$3.withValues(alpha: 0.1)
-                        : surfaceColor,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: pri.$3,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        pri.$2,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? pri.$3 : mutedColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
+    return PriorityField(
+      current: _currentPriority,
+      onChanged: _selectPriority,
+      surfaceColor: surfaceColor,
+      borderColor: borderColor,
+      fgColor: fgColor,
+      mutedColor: mutedColor,
     );
   }
-
   Widget _buildTimerField(
     Color surfaceColor,
     Color accentSoftColor,
@@ -1342,132 +969,16 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '计时模式（连签计时模式可以记录连续签到的天数）',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _isCountdown = true),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    transform: _isCountdown
-                        ? Matrix4.identity().scaledByDouble(
-                            1.03,
-                            1.03,
-                            1.0,
-                            1.0,
-                          )
-                        : Matrix4.identity(),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: _isCountdown ? accentColor : borderColor,
-                        width: 1.5,
-                      ),
-                      color: _isCountdown ? accentColor : surfaceColor,
-                      boxShadow: _isCountdown
-                          ? [
-                              BoxShadow(
-                                color: accentColor.withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('⏳', style: TextStyle(fontSize: 18)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '倒计时',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: _isCountdown
-                                ? const Color(0xFF2A2822)
-                                : mutedColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _isCountdown = false),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOutCubic,
-                    transform: !_isCountdown
-                        ? Matrix4.identity().scaledByDouble(
-                            1.03,
-                            1.03,
-                            1.0,
-                            1.0,
-                          )
-                        : Matrix4.identity(),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: !_isCountdown ? accentColor : borderColor,
-                        width: 1.5,
-                      ),
-                      color: !_isCountdown ? accentColor : surfaceColor,
-                      boxShadow: !_isCountdown
-                          ? [
-                              BoxShadow(
-                                color: accentColor.withValues(alpha: 0.3),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Column(
-                      children: [
-                        const Text('📈', style: TextStyle(fontSize: 18)),
-                        const SizedBox(height: 2),
-                        Text(
-                          '连签计时',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: !_isCountdown
-                                ? const Color(0xFF2A2822)
-                                : mutedColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+    return TimerField(
+      isCountdown: _isCountdown,
+      onChanged: (v) => setState(() => _isCountdown = v),
+      surfaceColor: surfaceColor,
+      accentColor: accentColor,
+      borderColor: borderColor,
+      fgColor: const Color(0xFF2A2822),
+      mutedColor: mutedColor,
     );
   }
-
   Widget _buildTagField(
     Color surfaceColor,
     Color accentSoftColor,
@@ -1476,85 +987,18 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '分类标签',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            alignment: WrapAlignment.start,
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              ...tags.map((tag) {
-                final isSelected = _selectedTags.contains(tag);
-                return GestureDetector(
-                  onTap: () => _toggleTag(tag),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary
-                            : borderColor,
-                        width: 1.5,
-                      ),
-                      color: isSelected ? accentSoftColor : surfaceColor,
-                    ),
-                    child: Text(
-                      tag,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? accentDeepColor : mutedColor,
-                      ),
-                    ),
-                  ),
-                );
-              }),
-              // GestureDetector(
-              //   onTap: _addCustomTag,
-              //   child: Container(
-              //     width: 36,
-              //     height: 36,
-              //     decoration: BoxDecoration(
-              //       shape: BoxShape.circle,
-              //       border: Border.all(color: borderColor, width: 2),
-              //     ),
-              //     child: Center(
-              //       child: Text(
-              //         '+',
-              //         style: TextStyle(
-              //           fontSize: 18,
-              //           color: mutedColor,
-              //           fontWeight: FontWeight.w400,
-              //         ),
-              //       ),
-              //     ),
-              //   ),
-              // ),
-            ],
-          ),
-        ],
-      ),
+    return TagField(
+      tags: tags,
+      selectedTags: _selectedTags,
+      onToggle: _toggleTag,
+      surfaceColor: surfaceColor,
+      accentSoftColor: accentSoftColor,
+      accentDeepColor: accentDeepColor,
+      borderColor: borderColor,
+      fgColor: fgColor,
+      mutedColor: mutedColor,
     );
   }
-
   Widget _buildNotesSection(
     Color surfaceColor,
     Color accentSoftColor,
@@ -1563,95 +1007,17 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    final cardItemsAsync = ref.watch(getCardItemsProvider(_uuid));
-    return Container(
-      margin: const EdgeInsets.only(top: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              '备注',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: mutedColor,
-                letterSpacing: 0.5,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: borderColor, width: 1.5),
-              color: surfaceColor,
-            ),
-            child: TextField(
-              controller: _notesController,
-              maxLines: null,
-              minLines: 4,
-              style: TextStyle(fontSize: 15, color: fgColor, height: 1.6),
-              decoration: InputDecoration(
-                hintText: '记录一些想说的话…',
-                hintStyle: TextStyle(color: mutedColor),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          cardItemsAsync.when(
-            loading: () => CircularProgressIndicator(),
-            error: (err, stack) => Text('Error: $err'),
-            data: (imagePaths) => Wrap(
-              runSpacing: 12, // 行与行之间的垂直间距
-              spacing: 12, // 图片之间的水平间距（代替手动SizedBox）
-              crossAxisAlignment: WrapCrossAlignment.end,
-              runAlignment: WrapAlignment.end,
-              children: [
-                ...imagePaths.expand((e) {
-                  return [
-                    ImageCardWidget(
-                      key: Key(e.imagePath),
-                      card: e,
-                      onDelete: () async {
-                        await ref
-                            .read(imageServiceProvider)
-                            .deleteImageAtIndexForId(
-                              _uuid,
-                              imagePaths.indexOf(e),
-                            );
-                        if (!mounted) return;
-                        ref.invalidate(savedImagePathsForIdProvider(_uuid));
-                      },
-                    ),
-                  ];
-                }).toList(),
-                _buildAddImageThumb(
-                  borderColor,
-                  accentSoftColor,
-                  accentDeepColor,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddImageThumb(
-    Color borderColor,
-    Color accentSoftColor,
-    Color accentDeepColor,
-  ) {
-    return GestureDetector(
-      onTap: () async {
+    return NotesSection(
+      eventId: _uuid,
+      notesController: _notesController,
+      onDeleteImage: (index) async {
+        await ref
+            .read(imageServiceProvider)
+            .deleteImageAtIndexForId(_uuid, index);
+        if (!mounted) return;
+        ref.invalidate(savedImagePathsForIdProvider(_uuid));
+      },
+      onPickImages: () async {
         final paths = await ref
             .read(imageServiceProvider)
             .pickAndSaveMultipleImagesForId(_uuid);
@@ -1660,72 +1026,28 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
           ref.invalidate(savedImageFilesForIdProvider(_uuid));
         }
       },
-
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: borderColor,
-            width: 1.5,
-            style: BorderStyle.solid,
-          ),
-        ),
-        child: Icon(Icons.add, color: accentDeepColor, size: 24),
-      ),
+      surfaceColor: surfaceColor,
+      accentSoftColor: accentSoftColor,
+      accentDeepColor: accentDeepColor,
+      borderColor: borderColor,
+      fgColor: fgColor,
+      mutedColor: mutedColor,
     );
   }
-
   Widget _buildBottomBar(
     Color accentColor,
     Color fgColor,
     Color accentSoftColor,
     Color mutedColor,
   ) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: const Color(0xFFE5E0D2))),
-      ),
-      child: GestureDetector(
-        // 保存中禁用点击，避免重入产生重复事件。
-        onTap: (_isFormValid && !_saving) ? _saveEvent : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeOutCubic,
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: _isFormValid ? accentColor : const Color(0xFFE8E3D3),
-            boxShadow: _isFormValid
-                ? [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.35),
-                      blurRadius: 24,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Center(
-            child: Text(
-              _saving ? '保存中…' : (_isEditing ? '保存修改' : '保存事件'),
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: _isFormValid ? const Color(0xFF2A2822) : mutedColor,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ),
-      ),
+    return SaveBar(
+      enabled: _isFormValid,
+      saving: _saving,
+      isEditing: _isEditing,
+      onSave: _saveEvent,
+      accentColor: accentColor,
     );
   }
-
   Widget _buildSuccessOverlay(
     Color surfaceColor,
     Color accentSoftColor,
@@ -1733,80 +1055,15 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     Color fgColor,
     Color mutedColor,
   ) {
-    return Container(
-      color: const Color(0xFF000000).withValues(alpha: 0.5),
-      child: Center(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutCubic,
-          width: 280,
-          padding: const EdgeInsets.fromLTRB(28, 36, 28, 28),
-          decoration: BoxDecoration(
-            color: surfaceColor,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 60,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeOutCubic,
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accentSoftColor,
-                ),
-                child: Icon(Icons.check, color: accentDeepColor, size: 36),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                _isEditing ? '修改已保存' : '保存成功',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: fgColor,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _isEditing ? '事件修改已生效' : '事件已添加到你的提醒列表',
-                style: TextStyle(fontSize: 14, color: mutedColor, height: 1.5),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              GestureDetector(
-                onTap: _closeSuccess,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: AppColors.primary,
-                  ),
-                  child: Text(
-                    '好的',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2A2822),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return SuccessOverlay(
+      isEditing: _isEditing,
+      onClose: _closeSuccess,
+      surfaceColor: surfaceColor,
+      accentSoftColor: accentSoftColor,
+      accentDeepColor: accentDeepColor,
+      fgColor: fgColor,
+      mutedColor: mutedColor,
     );
   }
+
 }
