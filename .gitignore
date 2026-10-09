@@ -89,3 +89,10 @@ key.txt
 # 本地分析产物（陈旧结果易与当前状态混淆，不入库）
 analyze_out.txt
 *.out.txt
+analyze_output.txt
+
+# 工具缓存与构建产物
+.v2c/
+.zcodeignore
+android/build/
+/build/
