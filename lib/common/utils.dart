@@ -70,7 +70,6 @@ class Utils {
   Future<String?> getVersion() async {
     final PackageInfo packageInfo = await PackageInfo.fromPlatform();
     final String version = packageInfo.version;
-    final String buildNumber = packageInfo.buildNumber;
     return version;
   }
 
@@ -540,7 +539,7 @@ static DateTime _lunarHoliday(int year, int lunarMonth, int lunarDay) {
     final today = DateTime.now();
     final tomorrow = DateTime(today.year, today.month, today.day + 1);
     final preferences = await SharedPreferences.getInstance();
-    final configString = preferences?.getString(ConfigConstant.configKey);
+    final configString = preferences.getString(ConfigConstant.configKey);
     if (configString == null) return null;
     final config = AppConfig.fromJson(jsonDecode(configString));
     // 不打完整的 config：其中包含用户生日等个人数据。

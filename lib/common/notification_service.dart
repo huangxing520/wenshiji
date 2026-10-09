@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,7 +7,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:wenshiji/common/app_logger.dart';
-import 'package:wenshiji/models/event.dart';
+
 
 class NotificationService {
   bool hasNotificationPermission = false;
@@ -31,7 +29,7 @@ class NotificationService {
       tz.initializeTimeZones();
       final TimezoneInfo timezoneInfo =
           await FlutterTimezone.getLocalTimezone();
-      final String timeZoneName = timezoneInfo.identifier ?? 'Asia/Shanghai';
+      final String timeZoneName = timezoneInfo.identifier;
       tz.setLocalLocation(tz.getLocation(timeZoneName));
 
       const AndroidInitializationSettings initializationSettingsAndroid =
@@ -74,7 +72,7 @@ Future<void> initForBackground() async {
     // 时区初始化（必须在 isolate 中重新执行）
     tz.initializeTimeZones();
     final TimezoneInfo timezoneInfo = await FlutterTimezone.getLocalTimezone();
-    final String timeZoneName = timezoneInfo.identifier ?? 'Asia/Shanghai';
+    final String timeZoneName = timezoneInfo.identifier;
     tz.setLocalLocation(tz.getLocation(timeZoneName));
 
     // 通知插件初始化（不需要请求权限）

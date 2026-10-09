@@ -37,13 +37,13 @@ void callbackDispatcher() {
         await notificationService.initForBackground();
       } catch (e) {
         AppLogger().error('初始化后台通知服务失败: $e');
-        return Future.value(true);
+        return true;
       }
 
       final outsideTime = await Utils().getOutsideTime();
       if (outsideTime == null) {
         AppLogger().error('outsideTime is null');
-        return Future.value(true);
+        return true;
       }
       AppLogger().info('outsideTime: $outsideTime');
       final tomorrowContent = await Utils().getDailyNotificationContent();
@@ -57,7 +57,7 @@ void callbackDispatcher() {
       );
       if (isScheduled) {
         AppLogger().info('通知已存在');
-        return Future.value(true);
+        return true;
       }
 
       // 3. 发送通知
@@ -72,10 +72,10 @@ void callbackDispatcher() {
           outsideTime,
         ),
       );
-      return Future.value(true);
+      return true;
     } catch (e) {
       AppLogger().error('后台任务执行失败: $e');
-      return Future.value(true);
+      return true;
     }
   });
 }

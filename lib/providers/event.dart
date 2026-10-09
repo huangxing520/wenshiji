@@ -59,7 +59,8 @@ class EventNotifier extends _$EventNotifier {
     try {
       final events = await _repository.getAllEvents();
       if (events.isNotEmpty) {
-        return _backfill(events);
+        // 必须 await：直接返回 Future 会导致其异常逃逸出 try/catch。
+        return await _backfill(events);
       }
       // 首次启动或无数据：返回样本事件（仅展示，不持久化）
       return Utils().getSampleEvents();

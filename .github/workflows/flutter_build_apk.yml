@@ -50,19 +50,17 @@ jobs:
       - name: 静态分析
         # 门禁级别说明：
         # - flutter analyze 默认把 info 级 lint 也计为失败退出码，
-        #   故不直接依赖其退出码；
-        # - 仓库当前有 66 条存量 warning（未使用代码、未 await 的 Future 等），
-        #   属于历史遗留，若设为门禁会立即红灯，故暂只以 error 为门禁；
-        # - warning / info 仍会打印在日志中，便于逐步收敛。
+        #   故不直接依赖其退出码，而是解析输出；
+        # - 存量 warning 已清理至 0，故 error 与 warning 均为门禁；
+        # - info 级（prefer_const 等风格建议）仅提示，不阻断。
         run: |
           flutter analyze lib 2>&1 | tee analyze_output.txt
-          if grep -qE '^ *error' analyze_output.txt; then
-            echo "::error::静态分析存在 error，请修复后再提交"
+          if grep -qE '^ *(error|warning)' analyze_output.txt; then
+            echo "::error::静态分析存在 error 或 warning，请修复后再提交"
+            grep -E '^ *(error|warning)' analyze_output.txt || true
             exit 1
           fi
-          echo "静态分析通过（无 error）。warning/info 仅提示：" 
-          echo "warning: $(grep -cE '^ *warning' analyze_output.txt || true)"
-          echo "info:    $(grep -cE '^ *info' analyze_output.txt || true)"
+          echo "静态分析通过（无 error / warning）。info 仅提示：$(grep -cE '^ *info' analyze_output.txt || true) 条"
 
   build-release:
     runs-on: ubuntu-latest

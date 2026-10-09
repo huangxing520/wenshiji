@@ -19,7 +19,9 @@ class SecureStorage {
   static const _keyServerUrl = 'webdav_server_url';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // encryptedSharedPreferences 已废弃（Jetpack Security 弃用），
+    // 平台会自动迁移到自定义 cipher，该参数被忽略，故移除。
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 
