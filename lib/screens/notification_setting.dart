@@ -7,7 +7,6 @@ import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/providers/app_config.dart';
-import 'package:wenshiji/theme/app_colors.dart';
 
 const _kBg = Color(0xFFFFFDF7);
 const _kSurface = Color(0xFFFFFFFF);
@@ -758,100 +757,6 @@ class _NotificationSettingScreenState
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSystemCard() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
-      ),
-      child: Column(
-        children: [
-          _buildSystemRow(
-            '⚙️',
-            const Color(0xFFE3F2FD),
-            '打开系统通知设置',
-            '管理通知权限、声音和提醒方式',
-            _openSystemSettings,
-          ),
-          _buildDivider(),
-          _buildSystemRow(
-            '🔔',
-            AppColors.splashBgMid,
-            '通知预览',
-            '在应用内预览推送样式',
-            () {
-              _showToast('已打开应用内通知预览');
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSystemRow(
-    String emoji,
-    Color bgColor,
-    String title,
-    String subtitle,
-    FutureOr<void> Function() onTap,
-  ) {
-    return InkWell(
-      onTap: () => onTap(),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Center(
-                child: Text(emoji, style: const TextStyle(fontSize: 18)),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: _kFg,
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 12, color: _kMuted, height: 1.4),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Icon(Icons.chevron_right, size: 18, color: _kMutedLight),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return Container(
-      height: 0.5,
-      margin: const EdgeInsets.only(left: 58, right: 18),
-      color: _kBorder,
     );
   }
 

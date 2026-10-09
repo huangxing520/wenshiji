@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/legacy.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -44,10 +44,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   final Color accentSoftColor = const Color(0xFFECE6D9);
   final Color accentDeepColor = const Color(0xFFA17E38);
   List<Particle> _particles = [];
-  int _daysRemaining = 0;
-  int _hoursRemaining = 0;
-  int _minutesRemaining = 0;
-  int _secondsRemaining = 0;
   Timer? _dayTick;
 
   @override
@@ -137,92 +133,11 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
     super.dispose();
   }
 
-  void _showToast(BuildContext context, String message) {
-    final overlay = Overlay.of(context);
-    late OverlayEntry overlayEntry;
-    overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        bottom: 100,
-        left: 20,
-        right: 20,
-        child: Material(
-          color: Colors.transparent,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 300),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: fgColor,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              child: Text(
-                message,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    overlay.insert(overlayEntry);
-    Future.delayed(const Duration(seconds: 2), () {
-      overlayEntry.remove();
-    });
-  }
-
-  void _showConfirmDialog(
-    BuildContext context,
-    String title,
-    String message,
-    VoidCallback onConfirm,
-  ) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: surfaceColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          title,
-          style: TextStyle(color: fgColor, fontWeight: FontWeight.w600),
-        ),
-        content: Text(message, style: TextStyle(color: mutedColor)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('取消', style: TextStyle(color: mutedColor)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              onConfirm();
-            },
-            child: Text(
-              '确认',
-              style: TextStyle(color: accentColor, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final event = ref.watch(getEventProvider(widget.eventId));
     final isPinned = event?.isPinned ?? false;
     final screenWidth = MediaQuery.of(context).size.width;
-    final statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -250,37 +165,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
           ),
         ],
         // bottomSheet: _buildBottomActionBar(),
-      ),
-    );
-  }
-
-  Widget _buildStatusBar(double height) {
-    return Container(
-      height: height > 30 ? height : 24,
-      padding: EdgeInsets.only(top: height > 30 ? 10 : 0),
-      color: surfaceColor,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          const SizedBox(width: 20),
-          Text(
-            '9:41',
-            style: TextStyle(
-              color: fgColor,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          Row(
-            children: [
-              Icon(Icons.signal_cellular_alt, color: fgColor, size: 18),
-              const SizedBox(width: 4),
-              Icon(Icons.wifi, color: fgColor, size: 18),
-              const SizedBox(width: 4),
-              Icon(Icons.battery_full, color: fgColor, size: 20),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -570,12 +454,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   }
 
   List<Widget> _buildCategoryBadge() {
-    final categories = {
-      'birthday': '🎂 生日',
-      'work': '💼 工作',
-      'meeting': '📅 会议',
-      'travel': '✈️ 旅行',
-    };
     final event = ref.watch(getEventProvider(widget.eventId));
     final tags = event?.tags ?? [];
     if (tags.isEmpty) {
@@ -698,48 +576,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   //     ),
   //   );
   // }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: accentSoftColor,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: accentColor, size: 16),
-        ),
-        const SizedBox(width: 12),
-        Text(label, style: TextStyle(color: mutedColor, fontSize: 13)),
-        const Spacer(),
-        Text(
-          value,
-          style: TextStyle(
-            color: fgColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getRepeatLabel(String repeat) {
-    final labels = {
-      'yearly': '每年',
-      'monthly': '每月',
-      'weekly': '每周',
-      'daily': '每天',
-      'none': '不重复',
-    };
-    return labels[repeat] ?? repeat;
-  }
-
-  String _getTimerModeLabel(String mode) {
-    final labels = {'countdown': '倒计时', 'countup': '正计时'};
-    return labels[mode] ?? mode;
-  }
 
   Widget _buildNotesCard() {
     final event = ref.watch(getEventProvider(widget.eventId));
@@ -898,39 +734,6 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen>
   //   );
   // }
 
-  Widget _buildActionButton(
-    IconData icon,
-    String label,
-    VoidCallback onTap, {
-    bool isActive = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: isActive ? accentColor.withValues(alpha:0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: isActive ? accentColor : mutedColor, size: 22),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: isActive ? accentColor : mutedColor,
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class Particle {

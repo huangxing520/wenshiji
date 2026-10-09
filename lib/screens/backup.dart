@@ -51,7 +51,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
 
   bool _isTestingConnection = false;
   bool _isBackingUp = false;
-  bool _isRestoring = false;
 
   /// 正在恢复的备份 id（防重入 + 按钮 loading 标记）。
   String? _restoringId;
@@ -193,7 +192,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
 
       final records = await BackupService().getBackupRecords();
 
-      ref.read(backupProvider.notifier).setBackupRecords(records);
+      await ref.read(backupProvider.notifier).setBackupRecords(records);
       Utils().showToast('备份成功 ✓', null);
     } catch (e) {
       AppLogger().error('备份失败', error: e);
@@ -207,19 +206,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     }
   }
 
-  void _doRestore() async {
-    // 恢复整体入口：从最新一条备份恢复。
-    final records = ref.read(backupProvider).value ?? const <BackupRecord>[];
-    if (records.isEmpty) {
-      Utils().showErrorToast('暂无可恢复的备份记录', null);
-      return;
-    }
-    final latest = records.reduce(
-      (a, b) => a.fileName.compareTo(b.fileName) >= 0 ? a : b,
-    );
-    await _restoreFromRecord(latest.id);
-  }
-
   /// 真实恢复：下载指定备份 → 解析校验 → 事务内清空并批量写入事件 →
   /// 同步 AppConfig → 刷新事件 / 备份列表。任一步失败给出明确提示且不改动数据。
   Future<void> _restoreFromRecord(String id) async {
@@ -227,7 +213,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     if (_restoringId != null) return; // 防重入
 
     setState(() {
-      _isRestoring = true;
       _restoringId = id;
     });
 
@@ -272,7 +257,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     } finally {
       if (mounted) {
         setState(() {
-          _isRestoring = false;
           _restoringId = null;
         });
       }
@@ -469,51 +453,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
     );
   }
 
-  Widget _buildServerUrlField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.language_outlined, size: 14, color: _kMuted),
-            const SizedBox(width: 4),
-            Text(
-              '服务器地址',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _kFg,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _serverUrlController,
-          decoration: InputDecoration(
-            hintText: '请填写云端域名/地址',
-            hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
-            filled: true,
-            fillColor: _kBg,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(_kRadiusSm),
-              borderSide: BorderSide(color: _kBorder, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(_kRadiusSm),
-              borderSide: BorderSide(color: _kAccent, width: 1.5),
-            ),
-          ),
-          style: const TextStyle(fontSize: 14, color: _kFg),
-        ),
-      ],
-    );
-  }
-
   Widget buildField(
     String label,
     IconData icon,
@@ -542,51 +481,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
           controller: controller,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
-            filled: true,
-            fillColor: _kBg,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(_kRadiusSm),
-              borderSide: BorderSide(color: _kBorder, width: 1.5),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(_kRadiusSm),
-              borderSide: BorderSide(color: _kAccent, width: 1.5),
-            ),
-          ),
-          style: const TextStyle(fontSize: 14, color: _kFg),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildUsernameField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.person_outline, size: 14, color: _kMuted),
-            const SizedBox(width: 4),
-            Text(
-              '账户用户名',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: _kFg,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _usernameController,
-          decoration: InputDecoration(
-            hintText: '请输入用户名',
             hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
             filled: true,
             fillColor: _kBg,
@@ -765,66 +659,6 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: _isConnected ? _kFg : _kMuted,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRestoreButton() {
-    return InkWell(
-      onTap: _isConnected && !_isRestoring ? _doRestore : null,
-      borderRadius: BorderRadius.circular(_kRadius),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(_kRadius),
-          color: _kCard,
-          border: Border.all(
-            color: _isConnected ? _kAccent : _kBorder,
-            width: 1.5,
-          ),
-        ),
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          children: [
-            // AnimatedContainer(
-            //   duration: const Duration(milliseconds: 300),
-            //   width: double.infinity,
-            //   height: 4,
-            //   decoration: BoxDecoration(
-            //     color: _kAccentDeep,
-            //     borderRadius: const BorderRadius.only(
-            //       bottomLeft: Radius.circular(_kRadius),
-            //       bottomRight: Radius.circular(_kRadius),
-            //     ),
-            //   ),
-            //   margin: EdgeInsets.only(
-            //     right:
-            //         MediaQuery.of(context).size.width * (1 - _restoreProgress) -
-            //         32,
-            //   ),
-            // ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.cloud_download_outlined,
-                  size: 22,
-                  color: _isConnected ? _kAccentDeep : _kMuted,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  _isRestoring ? '恢复中…' : '云端恢复',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _isConnected ? _kAccentDeep : _kMuted,
                   ),
                 ),
               ],
@@ -1215,7 +1049,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen>
         final records = await BackupService().getBackupRecords();
 
         if (!mounted) return;
-        ref.read(backupProvider.notifier).setBackupRecords(records);
+        await ref.read(backupProvider.notifier).setBackupRecords(records);
       } catch (e) {
         if (!mounted) return;
         Utils().showToast('删除失败', null);

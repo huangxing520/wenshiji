@@ -245,7 +245,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
   /// 返回 (值, 显示名, 该月天数)。
   List<({int value, String label, int dayCount})> _lunarMonthOptions() {
     final lunarYear = LunarYear.fromYear(_lunarYear);
-    final leapMonth = lunarYear.getLeapMonth();
     final months = lunarYear
         .getMonths()
         .where((m) => m.getYear() == _lunarYear)
@@ -424,7 +423,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final bgColor = const Color(0xFFFAF7F0);
     final surfaceColor = Colors.white;
     final accentColor = AppColors.primary;
@@ -1250,63 +1248,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
     );
   }
 
-  Widget _buildRepeatField(
-    Color surfaceColor,
-    Color borderColor,
-    Color fgColor,
-    Color mutedColor,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '重复规则（以选择的日期所处的周、月为基准）',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          const SizedBox(height: 6),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: borderColor, width: 1.5),
-                  color: surfaceColor,
-                ),
-                child: DropdownMenu<String>(
-                  expandedInsets: EdgeInsets.zero, // 👈 让宽度完全贴合父组件
-
-                  dropdownMenuEntries: const [
-                    DropdownMenuEntry(value: 'none', label: '不重复'),
-                    DropdownMenuEntry(value: 'daily', label: '每日'),
-                    DropdownMenuEntry(value: 'weekly', label: '每周'),
-                    DropdownMenuEntry(value: 'monthly', label: '每月'),
-                    DropdownMenuEntry(value: 'yearly', label: '每年'),
-                  ],
-
-                  initialSelection: _repeatRule,
-                  inputDecorationTheme: InputDecorationTheme(
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                  textStyle: TextStyle(fontSize: 15, color: fgColor),
-                  onSelected: (String? value) {
-                    _repeatRule = value!;
-                  },
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildPriorityField(
     Color surfaceColor,
     Color accentColor,
@@ -1700,32 +1641,6 @@ class _AddEventScreenState extends ConsumerState<AddEventScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildImageThumb(
-    Color accentSoftColor,
-    Color accentDeepColor,
-    String imagePath,
-  ) {
-    return GestureDetector(
-      onTap: () => ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('图片选择开发中'))),
-      child: Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: const Color(0xFFE5E0D2),
-            width: 1.5,
-            style: BorderStyle.solid,
-          ),
-          color: accentSoftColor,
-        ),
-        child: Icon(Icons.image_outlined, color: accentDeepColor, size: 24),
       ),
     );
   }

@@ -26,7 +26,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   late AnimationController _particleController;
   final List<_ParticleData> _particles = [];
   final math.Random _random = math.Random();
-  String _deviceId = '';
   Uint8List? _avatarBytes;
 
   @override
@@ -44,10 +43,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
   Future<void> _loadDeviceId() async {
     final id = await preferences.getDeviceId();
     if (mounted) {
-      setState(() {
-        _deviceId = id;
-      });
-      _fetchAvatar(id);
+      await _fetchAvatar(id);
     }
   }
 
@@ -104,16 +100,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
     super.dispose();
   }
 
-  void _showToast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(milliseconds: 1600),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final bgColor = const Color(0xFFFAF7F0);
@@ -153,34 +139,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBar(Color bgColor, Color fgColor, Color surfaceColor) {
-    return Container(
-      height: 44,
-      color: surfaceColor,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '${DateTime.now().hour.toString().padLeft(2, '0')}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: fgColor,
-            ),
-          ),
-          Row(
-            children: [
-              Icon(Icons.signal_cellular_alt, size: 16, color: fgColor),
-              const SizedBox(width: 5),
-              Icon(Icons.battery_full, size: 16, color: fgColor),
-            ],
           ),
         ],
       ),
@@ -463,7 +421,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
 
   Widget _buildProfileStats(Color accentColor) {
     final events = ref.watch(eventProvider);
-    final now = DateTime.now();
     return events.when(
       error: (error, stackTrace) => Center(child: Text('Error')),
       loading: () => const Center(child: CircularProgressIndicator()),

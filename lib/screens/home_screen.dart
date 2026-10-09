@@ -1,14 +1,8 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hyper_snackbar/hyper_snackbar.dart';
-import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
-import 'package:wenshiji/common/http.dart';
 import 'package:wenshiji/common/app_logger.dart';
-import 'package:wenshiji/common/notification_service.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/constants/config_constant.dart';
 import 'package:wenshiji/providers/event.dart';
@@ -162,8 +156,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             label: label,
             icon: icon,
             isSelected: isActive,
-            onTap: () =>
-                ref.read(selectedCategoryProvider.notifier).state = category,
+            onTap: () => ref
+                .read(selectedCategoryProvider.notifier)
+                .setCategory(category),
             selectedColor: Colors.orange,
             unselectedColor: const Color(0xFF8B8066),
           );
@@ -265,7 +260,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       Season.summer => AppColors.summerColor,
       Season.autumn => AppColors.autumnColor,
       Season.winter => AppColors.winterColor,
-      _ => AppColors.defaultColor,
     };
     return CardSpring(
       trigger: currentCategory,
@@ -430,7 +424,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               .value
               ?.where((e) => e.id == eventId);
           if (matches != null && matches.isNotEmpty) {
-            context.push('/add-event', extra: matches.first);
+            unawaited(context.push('/add-event', extra: matches.first));
           }
         },
       ),

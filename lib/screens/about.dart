@@ -950,17 +950,6 @@ github.com/lxgw/LxgwWenKai
     );
   }
 
-  void _showToast(String message) {
-    setState(() {
-      _toastMessage = message;
-      _toastVisible = true;
-    });
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) setState(() => _toastVisible = false);
-    });
-    Utils().showToast(message, null);
-  }
-
   void _checkUpdate() async {
     _scrollAnimationController.repeat();
     try {

@@ -14,7 +14,6 @@ const _fgSecondary = Color(0xFF8B7355);
 const _fgTertiary = Color(0xFFB8A48A);
 const _border = Color(0xFFF0E4CF);
 const _borderLight = Color(0xFFF7EDDA);
-const _accent = Color(0xFFE8A840);
 const _accentLight = Color(0xFFFFF1D6);
 const _accentDeep = Color(0xFFD4922E);
 const _tagBirthday = Color(0xFFFF9A76);
@@ -38,7 +37,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   EventCategory _currentCategory = EventCategory.all;
   String _searchQuery = '';
   //bool _batchMode = false;
-  final Set<String> _selectedIds = {};
 
   bool _showToast = false;
   String _toastMessage = '';
@@ -373,7 +371,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   }
 
   Widget _buildEvent(Event item, int index) {
-    final isSelected = _selectedIds.contains(item.id);
     final tagColor = _getCategoryColor(item);
     final tagBgColor = _getCategoryBgColor(item);
 
@@ -526,34 +523,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildCheckbox(bool isChecked, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: 22,
-        height: 22,
-        decoration: BoxDecoration(
-          color: isChecked ? _accent : _surface,
-          border: Border.all(color: isChecked ? _accent : _border, width: 2),
-          borderRadius: BorderRadius.circular(11),
-        ),
-        child: isChecked
-            ? const Center(
-                child: Text(
-                  '✓',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              )
-            : null,
       ),
     );
   }
@@ -907,30 +876,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   //   );
   // }
 
-  Widget _buildContextMenuItem(
-    String label,
-    IconData icon,
-    bool isDanger,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: isDanger ? _danger : _fg),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(fontSize: 14, color: isDanger ? _danger : _fg),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildToast() {
     return AnimatedPositioned(
       duration: const Duration(milliseconds: 300),
@@ -990,11 +935,9 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
   Color _getCategoryBgColor(Event event) {
     if (event.isStarred) {
       return const Color(0xFFFFF8E0);
-      ;
     }
     if (event.type == EventType.birthday) {
       return const Color(0xFFFFF0E8);
-      ;
     }
     if (event.type == EventType.task) {
       return const Color(0xFFE8F2FB);
@@ -1047,16 +990,6 @@ class _ArchiveScreenState extends ConsumerState<ArchiveScreen> {
     setState(() {
       _searchController.clear();
       _searchQuery = '';
-    });
-  }
-
-  void _toggleSelect(String id) {
-    setState(() {
-      if (_selectedIds.contains(id)) {
-        _selectedIds.remove(id);
-      } else {
-        _selectedIds.add(id);
-      }
     });
   }
 

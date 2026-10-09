@@ -2,7 +2,6 @@ import 'dart:math';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:wenshiji/common/utils.dart';
 import 'package:wenshiji/models/event.dart';
 import 'package:wenshiji/providers/event.dart';
@@ -60,10 +59,6 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
   bool _toastVisible = false;
   String _toastMessage = '';
   bool _showCelebration = false;
-  String _selectedCat = 'quit';
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _dateController = TextEditingController();
-  int _nextId = 100;
   Event? _selectedEvent;
   // final Map<String, CategoryMeta> catMeta = {
   //   'quit': CategoryMeta(
@@ -259,46 +254,6 @@ class _AchievementScreenState extends ConsumerState<AchievementScreen>
       loading: () {
         return const Center(child: CircularProgressIndicator());
       },
-    );
-  }
-
-  Widget _buildTopNav() {
-    return Container(
-      height: 56,
-      color: _kSurface,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: () => context.pop(),
-            child: Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: _kAccentSoft,
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.arrow_back_ios_new,
-                  size: 22,
-                  color: _kAccentDeep,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            '正计时成就打卡',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: _kFg,
-            ),
-          ),
-          const Spacer(),
-        ],
-      ),
     );
   }
 

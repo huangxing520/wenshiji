@@ -88,24 +88,6 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
     super.dispose();
   }
 
-  void _showToastMessage(String message) {
-    setState(() {
-      _toastMessage = message;
-      _showToastFlag = true;
-    });
-    _toastController.forward();
-    Future.delayed(const Duration(milliseconds: 1600), () {
-      _toastController.reverse();
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          setState(() {
-            _showToastFlag = false;
-          });
-        }
-      });
-    });
-  }
-
   /// 事件在统计口径下的「生效日」：
   /// - 未归档：按重复规则前滚到当前之后（周期性事件的 date 可能是多年前）；
   /// - 已归档：沿用库中记录的生效日（归档项不再作为「待发生」参与前滚）。
@@ -1063,7 +1045,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
           FittedBox(
             fit: BoxFit.scaleDown,
             child: Text(
-              value is int ? value.toString() : value.toStringAsFixed(0),
+              value is int ? value.toString() : (value as num).toStringAsFixed(0),
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
@@ -1390,24 +1372,6 @@ class _StatsScreenState extends ConsumerState<StatsScreen>
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _LegendBlock extends StatelessWidget {
-  final Color color;
-  const _LegendBlock({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 12,
-      height: 12,
-      margin: const EdgeInsets.symmetric(horizontal: 1),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
