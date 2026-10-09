@@ -1,12 +1,10 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:hyper_snackbar/hyper_snackbar.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import 'package:wenshiji/common/log.dart';
+import 'package:wenshiji/common/app_logger.dart';
 import 'package:wenshiji/constants/api_constants.dart';
-import 'package:wenshiji/models/github_release.dart';
-
-import '../models/weather.dart';
 
 class HttpUtil {
   static final HttpUtil _instance = HttpUtil._internal();
@@ -18,7 +16,7 @@ class HttpUtil {
 
   Future<void> ensureInitialized() async {
     if (!_isInitialized) {
-      await LogWriter().init();
+      await AppLogger().init();
       _init();
       _isInitialized = true;
     }
@@ -37,24 +35,27 @@ class HttpUtil {
       ),
     );
 
-    _dio.interceptors.add(
-      PrettyDioLogger(
-        requestHeader: true,
-        requestBody: true,
-        responseBody: false,
-        responseHeader: false,
-        error: true,
-        compact: false,
-        logPrint: (object) {
-          // 🔥 关键：自定义日志输出
-          if (object is String) {
-            LogWriter().write(object); // 写入文件
-          } else {
-            LogWriter().write(object.toString()); // 处理非字符串类型
-          }
-        },
-      ),
-    );
+    // PrettyDioLogger 仅在 debug 模式启用，避免 release 构建泄露请求/响应体。
+    if (kDebugMode) {
+      _dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: false,
+          responseHeader: false,
+          error: true,
+          compact: false,
+          logPrint: (object) {
+            // 自定义日志输出：写入文件 sink
+            if (object is String) {
+              AppLogger().write(object);
+            } else {
+              AppLogger().write(object.toString());
+            }
+          },
+        ),
+      );
+    }
 
     _dio.interceptors.add(
       InterceptorsWrapper(
@@ -86,18 +87,23 @@ class HttpUtil {
 
   void _handleError(DioException e, ErrorInterceptorHandler handler) {
     String errorMsg;
+    bool isNetworkError = false;
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
         errorMsg = '连接超时，请检查网络';
+        isNetworkError = true;
         break;
       case DioExceptionType.sendTimeout:
         errorMsg = '发送超时，请稍后重试';
+        isNetworkError = true;
         break;
       case DioExceptionType.receiveTimeout:
         errorMsg = '接收超时，请稍后重试';
+        isNetworkError = true;
         break;
       case DioExceptionType.connectionError:
         errorMsg = '网络连接失败，请检查网络';
+        isNetworkError = true;
         break;
       case DioExceptionType.badResponse:
         errorMsg = _getErrorMessage(e.response);
@@ -107,6 +113,26 @@ class HttpUtil {
         break;
       default:
         errorMsg = e.message ?? '请求失败，请稍后重试';
+    }
+
+    // 只记录 path（不含 query 参数）：部分请求 URL 的 query 含设备标识（如头像 seed）。
+    AppLogger().error(
+      'HTTP ${e.requestOptions.method} ${e.requestOptions.uri.path} failed: $errorMsg',
+      error: e.error ?? e,
+      stack: e.stackTrace,
+    );
+
+    if (isNetworkError) {
+      HyperSnackbar.show(
+        title: '网络错误',
+        message: errorMsg,
+        backgroundColor: const Color(0xFFE04040),
+        enterAnimationType: HyperSnackAnimationType.scale,
+        enterCurve: Curves.easeOut,
+        enterAnimationDuration: const Duration(milliseconds: 400),
+        displayDuration: const Duration(milliseconds: 2000),
+        maxWidth: 320,
+      );
     }
 
     final error = DioException(
@@ -172,7 +198,9 @@ class HttpUtil {
     CancelToken? cancelToken,
     T Function(dynamic data)? decoder,
   }) async {
-    final response = await _dio.get<Map<String, dynamic>>(
+    // 类型参数用 dynamic：调用方可能以 ResponseType.bytes 取二进制（T = List<int>），
+    // 若写死 Map<String, dynamic> 会在 Dio 的 assureResponse<T> 中强转失败。
+    final response = await _dio.get<dynamic>(
       url,
       queryParameters: queryParameters,
       options: options,
@@ -203,24 +231,6 @@ class HttpUtil {
     );
   }
 
-  Future<WeatherResponse> fetchWeather(
-    double latitude,
-    double longitude,
-  ) async {
-    final url =
-        'https://api.open-meteo.com/v1/forecast?latitude=$latitude&longitude=$longitude&current_weather=true&hourly=temperature_2m&timezone=Asia/Shanghai';
-
-    final data = await get<Map<String, dynamic>>(url);
-    return WeatherResponse.fromJson(data);
-  }
-
-  Future<String?> getLatestReleaseVersion(String owner, String repo) async {
-    final data = await get<GithubRelease>(
-      'https://api.github.com/repos/$owner/$repo/releases/latest',
-      decoder: (json) => GithubRelease.fromJson(json),
-    );
-    return data.tagName;
-  }
 }
 
 final httpUtil = HttpUtil();
